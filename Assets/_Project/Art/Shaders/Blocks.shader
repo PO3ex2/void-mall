@@ -68,7 +68,23 @@ Shader "VoidMall/Blocks"
                 float3 normalWS : TEXCOORD1;
                 float4 uv : TEXCOORD2;
                 float fogFactor : TEXCOORD3;
+                nointerpolation float layer : TEXCOORD4; // < 0 — гладкая поверхность (трипланар), слой = −layer − 1
             };
+
+            half4 SampleBlockTexture(float2 uv, float layer, float3 positionWS, float3 normalWS)
+            {
+                if (layer >= 0)
+                    return SAMPLE_TEXTURE2D_ARRAY(_BlockTextures, sampler_BlockTextures, uv, layer);
+
+                // Трипланар для гладких вокселей: три проекции, веса — по нормали.
+                float slice = -layer - 1;
+                float3 w = pow(abs(normalWS), 4);
+                w /= max(w.x + w.y + w.z, 1e-4);
+                half4 x = SAMPLE_TEXTURE2D_ARRAY(_BlockTextures, sampler_BlockTextures, positionWS.zy, slice);
+                half4 y = SAMPLE_TEXTURE2D_ARRAY(_BlockTextures, sampler_BlockTextures, positionWS.xz, slice);
+                half4 z = SAMPLE_TEXTURE2D_ARRAY(_BlockTextures, sampler_BlockTextures, positionWS.xy, slice);
+                return x * w.x + y * w.y + z * w.z;
+            }
 
             Varyings Vert(Attributes input)
             {
@@ -78,13 +94,14 @@ Shader "VoidMall/Blocks"
                 output.positionWS = positions.positionWS;
                 output.normalWS = TransformObjectToWorldNormal(input.normalOS);
                 output.uv = input.uv;
+                output.layer = input.uv.z;
                 output.fogFactor = ComputeFogFactor(positions.positionCS.z);
                 return output;
             }
 
             half4 Frag(Varyings input) : SV_Target
             {
-                half4 texel = SAMPLE_TEXTURE2D_ARRAY(_BlockTextures, sampler_BlockTextures, input.uv.xy, input.uv.z);
+                half4 texel = SampleBlockTexture(input.uv.xy, input.layer, input.positionWS, input.normalWS);
 
                 InputData inputData = (InputData)0;
                 inputData.positionWS = input.positionWS;

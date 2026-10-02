@@ -175,7 +175,7 @@ namespace VoidMall.Tests
         private static readonly TestWorldMaterials Materials = new()
         {
             Bedrock = 1, Concrete = 2, Carpet = 3, FloorTile = 4, Wallpaper = 5,
-            Drywall = 6, CeilingTile = 7, Glass = 8, Wood = 9, Metal = 10,
+            Drywall = 6, CeilingTile = 7, Glass = 8, Wood = 9, Metal = 10, ConcreteMass = 11, Soil = 12, SmoothCarpet = 13,
         };
 
         [Test]
@@ -208,6 +208,24 @@ namespace VoidMall.Tests
                 a.Dispose();
                 b.Dispose();
             }
+        }
+
+        [Test]
+        public void ShaftProfile_FloorLipAndVerticalWall()
+        {
+            const float floor = TestWorldGenerationJob.FloorBlockY + 1;
+            const float lip = TestWorldGenerationJob.LipRadius;
+            const float shaft = 8f;
+            // Далеко от шахты — обычный пол.
+            Assert.That(TestWorldGenerationJob.ShaftSolidDistance(30f, floor - 2f, shaft), Is.EqualTo(2f).Within(1e-4f));
+            // Ниже кромки — вертикальная стена: снаружи твёрдое, внутри пусто на любой глубине (в том числе под миром).
+            Assert.That(TestWorldGenerationJob.ShaftSolidDistance(shaft + 0.5f, 3f, shaft), Is.EqualTo(0.5f).Within(1e-4f));
+            Assert.That(TestWorldGenerationJob.ShaftSolidDistance(shaft - 0.5f, -50f, shaft), Is.LessThan(0f));
+            // Кромка непрерывна с полом и со стеной.
+            Assert.That(TestWorldGenerationJob.ShaftSolidDistance(shaft + lip - 1e-3f, floor - 0.3f, shaft), Is.EqualTo(0.3f).Within(0.01f));
+            Assert.That(TestWorldGenerationJob.ShaftSolidDistance(shaft + 0.4f, floor - lip + 1e-3f, shaft), Is.EqualTo(0.4f).Within(0.01f));
+            // Над серединой кромки — воздух (скругление).
+            Assert.That(TestWorldGenerationJob.ShaftSolidDistance(shaft + 0.3f, floor - 0.3f, shaft), Is.LessThan(0f));
         }
 
         [Test]

@@ -12,33 +12,52 @@ using VoidMall.World;
 namespace VoidMall.Game
 {
     /// <summary>
-    /// Временный «молоток» этапа 2 (до инвентаря и инструментов): ЛКМ удержанием бьёт блок, ПКМ ставит,
-    /// колесо выбирает материал, СКМ берёт материал блока под прицелом. Все правки — командами через сессию.
+    /// Временные инструменты этапов 2–3 (до инвентаря и настоящих предметов), переключение клавишами 1/2.
+    /// Молоток: ЛКМ удержанием бьёт блок, ПКМ ставит, колесо выбирает блок, СКМ берёт блок под прицелом.
+    /// Бур: ЛКМ удержанием срезает гладкий массив, ПКМ наращивает, колесо выбирает материал.
+    /// Все правки — командами через сессию (готово к коопу).
     /// </summary>
     public sealed class DebugBlockTool : MonoBehaviour
     {
         public static readonly CVar<int> ToolDamage = new("tool_damage", 100, "Урон временного молотка за удар.");
+        public static readonly CVar<float> DrillRadius = new("drill_radius", 1.4f, "Радиус кисти бура, м.");
+        public static readonly CVar<float> DrillStrength = new("drill_strength", 0.25f, "Сила бура за одно применение (0…1).");
+
+        private enum ToolMode { Hammer, Drill }
 
         [SerializeField] private float _reach = 5f;
         [SerializeField] private float _swingInterval = 0.3f;
+        [SerializeField] private float _drillInterval = 0.08f;
         [SerializeField] private Material _outlineMaterial;
         [SerializeField] private Material _crackMaterial;
+        [SerializeField] private Material _brushMaterial;
 
         private static readonly int DamageId = Shader.PropertyToID("_Damage");
+        private const int WorldMask = 1 << GameLayers.World;
 
-        private readonly List<ushort> _placeable = new();
+        private readonly List<ushort> _blocks = new();
+        private readonly List<ushort> _smoothMaterials = new();
         private Camera _camera;
         private InputAction _primary;
         private InputAction _secondary;
         private InputAction _pick;
         private InputAction _scroll;
-        private int _selected;
-        private float _swingTimer;
+        private InputAction _slot1;
+        private InputAction _slot2;
+
+        private ToolMode _mode;
+        private int _selectedBlock;
+        private int _selectedSmooth;
+        private float _actionTimer;
+
         private bool _hasTarget;
         private VoxelHit _target;
+        private bool _hasDrillTarget;
+        private RaycastHit _drillHit;
 
         private Transform _outline;
         private Transform _cracks;
+        private Transform _brush;
         private Material _crackInstance;
         private Label _info;
         private string _lastInfo;
@@ -55,8 +74,12 @@ namespace VoidMall.Game
             }
 
             foreach (var def in World.Materials.All)
+            {
                 if (def.Kind == MaterialKind.Block && def.Placeable)
-                    _placeable.Add((ushort)def.RuntimeIndex);
+                    _blocks.Add((ushort)def.RuntimeIndex);
+                else if (def.Kind == MaterialKind.Smooth && def.Placeable)
+                    _smoothMaterials.Add((ushort)def.RuntimeIndex);
+            }
 
             if (Services.TryGet(out InputService input))
             {
@@ -65,6 +88,8 @@ namespace VoidMall.Game
                 _secondary = input.Action(map, "Secondary");
                 _pick = input.Action(map, "Pick");
                 _scroll = input.Action(map, "Scroll");
+                _slot1 = input.Action(map, "Slot1");
+                _slot2 = input.Action(map, "Slot2");
             }
 
             CreateVisuals();
@@ -75,6 +100,7 @@ namespace VoidMall.Game
         {
             if (_outline != null) Destroy(_outline.gameObject);
             if (_cracks != null) Destroy(_cracks.gameObject);
+            if (_brush != null) Destroy(_brush.gameObject);
             if (_crackInstance != null) Destroy(_crackInstance);
         }
 
@@ -83,30 +109,61 @@ namespace VoidMall.Game
             if (World == null || _primary == null)
                 return;
 
-            var ray = _camera.transform;
-            _hasTarget = World.Raycast(ray.position, ray.forward, _reach, out _target);
+            if (_slot1.WasPressedThisFrame())
+                SetMode(ToolMode.Hammer);
+            if (_slot2.WasPressedThisFrame())
+                SetMode(ToolMode.Drill);
+
+            var view = _camera.transform;
+            _hasTarget = World.Raycast(view.position, view.forward, _reach, out _target);
+            _hasDrillTarget = Physics.Raycast(view.position, view.forward, out _drillHit, _reach, WorldMask, QueryTriggerInteraction.Ignore);
 
             HandleSelection();
-            HandleBreaking();
-            HandlePlacing();
+            if (_mode == ToolMode.Hammer)
+            {
+                HandleBreaking();
+                HandlePlacing();
+            }
+            else
+            {
+                HandleDrilling();
+            }
             UpdateVisuals();
             UpdateHud();
         }
 
+        private void SetMode(ToolMode mode)
+        {
+            _mode = mode;
+            _actionTimer = 0f;
+        }
+
         private void HandleSelection()
         {
-            // WasPressed — фронт: одна ступень на щелчок колеса или нажатие крестовины (а не каждый кадр удержания).
-            if (_placeable.Count > 0 && _scroll.WasPressedThisFrame())
+            // WasPressed — фронт: одна ступень на щелчок колеса или нажатие крестовины.
+            if (_scroll.WasPressedThisFrame())
             {
-                float scroll = _scroll.ReadValue<float>();
-                _selected = (_selected + (scroll > 0 ? -1 : 1) + _placeable.Count) % _placeable.Count;
+                int step = _scroll.ReadValue<float>() > 0 ? -1 : 1;
+                if (_mode == ToolMode.Hammer && _blocks.Count > 0)
+                    _selectedBlock = (_selectedBlock + step + _blocks.Count) % _blocks.Count;
+                else if (_mode == ToolMode.Drill && _smoothMaterials.Count > 0)
+                    _selectedSmooth = (_selectedSmooth + step + _smoothMaterials.Count) % _smoothMaterials.Count;
             }
 
             if (_pick.WasPressedThisFrame() && _hasTarget)
             {
-                int index = _placeable.IndexOf(_target.Value.Material);
-                if (index >= 0)
-                    _selected = index;
+                int block = _blocks.IndexOf(_target.Value.Material);
+                int smooth = _smoothMaterials.IndexOf(_target.Value.Material);
+                if (block >= 0)
+                {
+                    _selectedBlock = block;
+                    SetMode(ToolMode.Hammer);
+                }
+                else if (smooth >= 0)
+                {
+                    _selectedSmooth = smooth;
+                    SetMode(ToolMode.Drill);
+                }
             }
         }
 
@@ -114,21 +171,51 @@ namespace VoidMall.Game
         {
             if (!_primary.IsPressed())
             {
-                _swingTimer = 0f;
+                _actionTimer = 0f;
                 return;
             }
-            _swingTimer -= Time.deltaTime;
-            if (_swingTimer > 0f || !_hasTarget)
+            _actionTimer -= Time.deltaTime;
+            if (_actionTimer > 0f || !_hasTarget)
                 return;
-            _swingTimer = _swingInterval;
+            _actionTimer = _swingInterval;
             Send(new DamageBlockCommand { Position = _target.Cell, Amount = ToolDamage.Value });
         }
 
         private void HandlePlacing()
         {
-            if (!_secondary.WasPressedThisFrame() || !_hasTarget || _placeable.Count == 0 || math.all(_target.Normal == 0))
+            if (!_secondary.WasPressedThisFrame() || !_hasTarget || _blocks.Count == 0 || math.all(_target.Normal == 0))
                 return;
-            Send(new PlaceBlockCommand { Position = _target.Cell + _target.Normal, Material = _placeable[_selected] });
+            Send(new PlaceBlockCommand { Position = _target.Cell + _target.Normal, Material = _blocks[_selectedBlock] });
+        }
+
+        private void HandleDrilling()
+        {
+            bool dig = _primary.IsPressed();
+            bool add = _secondary.IsPressed();
+            if (!dig && !add)
+            {
+                _actionTimer = 0f;
+                return;
+            }
+            _actionTimer -= Time.deltaTime;
+            if (_actionTimer > 0f || !_hasDrillTarget)
+                return;
+            _actionTimer = _drillInterval;
+            Send(new SmoothBrushCommand
+            {
+                Center = BrushCenter(add),
+                Radius = DrillRadius.Value,
+                Strength = DrillStrength.Value,
+                Add = add && !dig,
+                Material = _smoothMaterials.Count > 0 ? _smoothMaterials[_selectedSmooth] : (ushort)0,
+            });
+        }
+
+        /// <summary>Срезаем чуть «внутрь» поверхности, наращиваем — чуть «наружу».</summary>
+        private float3 BrushCenter(bool add)
+        {
+            Vector3 offset = add ? _drillHit.normal * (DrillRadius.Value * 0.4f) : -_drillHit.normal * (DrillRadius.Value * 0.3f);
+            return _drillHit.point + offset;
         }
 
         private static void Send<T>(in T command) where T : struct, INetCommand
@@ -146,20 +233,35 @@ namespace VoidMall.Game
             outline.AddComponent<MeshRenderer>().sharedMaterial = _outlineMaterial;
             _outline = outline.transform;
 
-            var cracks = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            cracks.name = "BlockCracks";
-            Destroy(cracks.GetComponent<Collider>());
-            _crackInstance = new Material(_crackMaterial);
-            var renderer = cracks.GetComponent<MeshRenderer>();
-            renderer.sharedMaterial = _crackInstance;
+            _cracks = CreatePrimitive(PrimitiveType.Cube, "BlockCracks", _crackInstance = new Material(_crackMaterial));
+            _brush = CreatePrimitive(PrimitiveType.Sphere, "DrillBrush", _brushMaterial);
+        }
+
+        private static Transform CreatePrimitive(PrimitiveType type, string name, Material material)
+        {
+            var go = GameObject.CreatePrimitive(type);
+            go.name = name;
+            Destroy(go.GetComponent<Collider>());
+            var renderer = go.GetComponent<MeshRenderer>();
+            renderer.sharedMaterial = material;
             renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-            _cracks = cracks.transform;
+            go.SetActive(false);
+            return go.transform;
         }
 
         private void UpdateVisuals()
         {
-            _outline.gameObject.SetActive(_hasTarget);
-            if (!_hasTarget)
+            bool hammer = _mode == ToolMode.Hammer;
+            _outline.gameObject.SetActive(hammer && _hasTarget);
+            _brush.gameObject.SetActive(!hammer && _hasDrillTarget);
+            if (!hammer && _hasDrillTarget)
+            {
+                bool adding = _secondary.IsPressed() && !_primary.IsPressed();
+                _brush.position = (Vector3)BrushCenter(adding);
+                _brush.localScale = Vector3.one * (DrillRadius.Value * 2f);
+            }
+
+            if (!hammer || !_hasTarget)
             {
                 _cracks.gameObject.SetActive(false);
                 return;
@@ -179,7 +281,7 @@ namespace VoidMall.Game
 
         private float DamageFraction()
         {
-            int hardness = World.Materials.Infos[_target.Value.Material].Hardness;
+            int hardness = World.GetInfo(_target.Value.Material).Hardness;
             return hardness > 0 ? Mathf.Clamp01(World.GetDamage(_target.Cell) / (float)hardness) : 0f;
         }
 
@@ -241,18 +343,21 @@ namespace VoidMall.Game
         {
             if (_info == null)
                 return;
-            string selected = _placeable.Count > 0 ? World.Materials.Get(_placeable[_selected]).DisplayName : "—";
+            string tool = _mode == ToolMode.Hammer
+                ? $"[1] МОЛОТОК · [2] бур   Блок: {Name(_blocks, _selectedBlock)}   (ЛКМ — ломать, ПКМ — ставить, колесо — блок, СКМ — взять)"
+                : $"[1] молоток · [2] БУР   Материал: {Name(_smoothMaterials, _selectedSmooth)}   (ЛКМ — срезать, ПКМ — нарастить, колесо — материал)";
             string target = _hasTarget
-                ? $"{World.Materials.Get(_target.Value.Material).DisplayName}  {DamageFraction() * 100f:0}%"
+                ? $"{World.Materials.Get(_target.Value.Material).DisplayName}" + (_mode == ToolMode.Hammer ? $"  {DamageFraction() * 100f:0}%" : "")
                 : "—";
             int3 chunk = WorldConstants.CellToChunk((int3)math.floor((float3)transform.position));
-            string text = $"Блок: {selected}   (колесо — сменить, СКМ — взять, ЛКМ — ломать, ПКМ — ставить)\n" +
-                          $"Цель: {target}   ·   чанк {chunk.x},{chunk.y},{chunk.z}   ·   колонн {World.LoadedColumns}";
+            string text = $"{tool}\nЦель: {target}   ·   чанк {chunk.x},{chunk.y},{chunk.z}   ·   колонн {World.LoadedColumns}";
             if (text != _lastInfo)
             {
                 _info.text = text;
                 _lastInfo = text;
             }
         }
+
+        private string Name(List<ushort> list, int index) => list.Count > 0 ? World.Materials.Get(list[index]).DisplayName : "—";
     }
 }

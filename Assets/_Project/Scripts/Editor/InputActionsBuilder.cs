@@ -57,6 +57,8 @@ namespace VoidMall.Editor
             Button(map, "Interact", ("<Keyboard>/f", Kbm), ("<Gamepad>/buttonWest", Pad));
             Button(map, "Primary", ("<Mouse>/leftButton", Kbm), ("<Gamepad>/rightTrigger", Pad));
             Button(map, "Secondary", ("<Mouse>/rightButton", Kbm), ("<Gamepad>/leftTrigger", Pad));
+            for (int slot = 1; slot <= 9; slot++)
+                Button(map, $"Slot{slot}", ($"<Keyboard>/{slot}", Kbm));
             Button(map, "Pick", ("<Mouse>/middleButton", Kbm), ("<Gamepad>/rightShoulder", Pad));
             Button(map, "Reload", ("<Keyboard>/r", Kbm), ("<Gamepad>/buttonNorth", Pad));
 

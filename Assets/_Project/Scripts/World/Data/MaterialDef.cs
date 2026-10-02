@@ -28,6 +28,7 @@ namespace VoidMall.World
         Metal,
         Glass,
         Wood,
+        Soil,
     }
 
     /// <summary>Описание материала мира (блок или гладкий воксель). Порядок в каталоге = runtime-индекс в Cell.Material.</summary>

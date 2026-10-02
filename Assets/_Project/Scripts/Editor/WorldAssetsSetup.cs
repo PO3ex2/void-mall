@@ -16,6 +16,9 @@ namespace VoidMall.Editor
         public const string BlockTransparentMaterialPath = Root + "/Art/Materials/Blocks_Transparent.mat";
         public const string OutlineMaterialPath = Root + "/Art/Materials/Tool_BlockOutline.mat";
         public const string CracksMaterialPath = Root + "/Art/Materials/Tool_BlockCracks.mat";
+        public const string BrushMaterialPath = Root + "/Art/Materials/Tool_DrillBrush.mat";
+        public const string DustMaterialPath = Root + "/Art/Materials/Fx_Dust.mat";
+        public const string VoidSkyboxPath = Root + "/Art/Materials/Sky_VoidBelow.mat";
 
         private readonly struct Spec
         {
@@ -24,9 +27,10 @@ namespace VoidMall.Editor
             public readonly BlockPattern Pattern;
             public readonly int Hardness;
             public readonly bool Transparent, Unbreakable, Placeable;
+            public readonly Color Tint;
 
             public Spec(string id, string name, MaterialKind kind, BlockPattern pattern, int hardness,
-                bool transparent = false, bool unbreakable = false, bool placeable = true)
+                bool transparent = false, bool unbreakable = false, bool placeable = true, Color? tint = null)
             {
                 Id = id;
                 Name = name;
@@ -36,6 +40,7 @@ namespace VoidMall.Editor
                 Transparent = transparent;
                 Unbreakable = unbreakable;
                 Placeable = placeable;
+                Tint = tint ?? Color.white;
             }
         }
 
@@ -53,6 +58,9 @@ namespace VoidMall.Editor
             new("block.metal", "Металл", MaterialKind.Block, BlockPattern.Metal, 1500),
             new("block.glass", "Стекло", MaterialKind.Block, BlockPattern.Glass, 100, transparent: true),
             new("block.wood", "Дерево", MaterialKind.Block, BlockPattern.Wood, 400),
+            new("smooth.concrete", "Бетонный массив", MaterialKind.Smooth, BlockPattern.Concrete, 1200, tint: new Color(0.8f, 0.8f, 0.84f)),
+            new("smooth.soil", "Грунт", MaterialKind.Smooth, BlockPattern.Soil, 300),
+            new("smooth.carpet", "Ковёр (гладкий)", MaterialKind.Smooth, BlockPattern.Carpet, 300),
         };
 
         public static void CreateWorldAssets()
@@ -85,6 +93,7 @@ namespace VoidMall.Editor
                 def.Transparent = spec.Transparent;
                 def.Unbreakable = spec.Unbreakable;
                 def.Placeable = spec.Placeable;
+                def.Tint = spec.Tint;
                 EditorUtility.SetDirty(def);
                 catalog.Materials.Add(def);
             }
@@ -113,6 +122,34 @@ namespace VoidMall.Editor
             outline.SetColor("_BaseColor", new Color(0.02f, 0.02f, 0.02f, 1f));
 
             GetOrCreateMaterial(CracksMaterialPath, Shader.Find("VoidMall/BlockCracks"));
+
+            var brush = GetOrCreateMaterial(BrushMaterialPath, Shader.Find("Universal Render Pipeline/Unlit"));
+            MakeTransparent(brush);
+            brush.SetColor("_BaseColor", new Color(0.45f, 0.8f, 1f, 0.18f));
+
+            var dust = GetOrCreateMaterial(DustMaterialPath, Shader.Find("Universal Render Pipeline/Particles/Unlit"));
+            MakeTransparent(dust);
+            dust.SetColor("_BaseColor", Color.white);
+            var particleTexture = AssetDatabase.GetBuiltinExtraResource<Texture2D>("Default-Particle.psd");
+            if (particleTexture != null)
+                dust.SetTexture("_BaseMap", particleTexture);
+
+            // Небо тестовых полигонов: нижняя полусфера чёрная — в шахтах-безднах видна пустота, а не «земля» skybox.
+            var sky = GetOrCreateMaterial(VoidSkyboxPath, Shader.Find("Skybox/Procedural"));
+            sky.SetColor("_GroundColor", Color.black);
+        }
+
+        /// <summary>Прозрачный режим для стандартных URP-шейдеров (Unlit, Particles).</summary>
+        private static void MakeTransparent(Material material)
+        {
+            material.SetFloat("_Surface", 1f);
+            material.SetFloat("_Blend", 0f);
+            material.SetFloat("_SrcBlend", (float)BlendMode.SrcAlpha);
+            material.SetFloat("_DstBlend", (float)BlendMode.OneMinusSrcAlpha);
+            material.SetFloat("_ZWrite", 0f);
+            material.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            material.SetOverrideTag("RenderType", "Transparent");
+            material.renderQueue = (int)RenderQueue.Transparent;
         }
 
         private static Material GetOrCreateMaterial(string path, Shader shader)

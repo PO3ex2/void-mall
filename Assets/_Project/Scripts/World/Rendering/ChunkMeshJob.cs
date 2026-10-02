@@ -66,9 +66,9 @@ namespace VoidMall.World
             OpaqueIndices.Clear();
             TransparentIndices.Clear();
 
-            ChunkView center = Views[CenterView];
-            if (center.Uniform != 0 && center.Get(0).Material == 0)
+            if (IsTriviallyEmpty())
                 return;
+            ChunkView center = Views[CenterView];
 
             for (int y = 0; y < Size; y++)
             for (int z = 0; z < Size; z++)
@@ -85,12 +85,230 @@ namespace VoidMall.World
                 {
                     int3 normal = new(FaceNormals[face * 3], FaceNormals[face * 3 + 1], FaceNormals[face * 3 + 2]);
                     int3 front = new int3(x, y, z) + normal;
+                    if (ChunkOrigin.y + front.y < 0)
+                        continue; // низ мира никто не видит — не рисуем
                     Cell neighbor = Sample(front);
                     if (!IsFaceVisible(cell, info, neighbor))
                         continue;
                     EmitFace(new int3(x, y, z), front, face, normal, info);
                 }
             }
+
+            BuildSmoothSurface();
+        }
+
+        // ───────────────────────── Гладкие воксели: Naive Surface Nets ─────────────────────────
+        //
+        // Решётка — центры клеток. Для каждого «куба» из 8 соседних центров со сменой знака ставим вершину
+        // в среднее точек пересечения рёбер; для каждого ребра решётки со сменой знака — четырёхугольник из
+        // вершин 4 кубов вокруг ребра. Чанк владеет рёбрами, начинающимися в его клетках, поэтому швов нет.
+        // Четырёхугольник строится, только если твёрдая сторона ребра — гладкий материал: грани блоков рисует
+        // блочный проход, а блоки для поля — плотность 255, так что гладкая поверхность упирается в них.
+
+        private const int Pad = Size + 2;   // клетки −1…32
+        private const int Cubes = Size + 1; // кубы с минимальным углом −1…31
+
+        private static readonly int[] CubeEdges =
+        {
+            0, 1, 2, 3, 4, 5, 6, 7, // вдоль X
+            0, 2, 1, 3, 4, 6, 5, 7, // вдоль Y
+            0, 4, 1, 5, 2, 6, 3, 7, // вдоль Z
+        };
+
+        private void BuildSmoothSurface()
+        {
+            var density = new NativeArray<byte>(Pad * Pad * Pad, Allocator.Temp, NativeArrayOptions.UninitializedMemory);
+            var smooth = new NativeArray<ushort>(Pad * Pad * Pad, Allocator.Temp, NativeArrayOptions.UninitializedMemory);
+            var block = new NativeArray<bool>(Pad * Pad * Pad, Allocator.Temp, NativeArrayOptions.UninitializedMemory);
+            bool anySmooth = false;
+
+            for (int y = -1; y <= Size; y++)
+            for (int z = -1; z <= Size; z++)
+            for (int x = -1; x <= Size; x++)
+            {
+                Cell cell = Sample(new int3(x, y, z));
+                int index = PadIndex(x, y, z);
+                byte d;
+                ushort smoothMaterial = 0;
+                bool isBlock = false;
+                if (cell.Material == 0)
+                {
+                    d = cell.Value >= Density.Iso ? (byte)(Density.Iso - 1) : cell.Value;
+                }
+                else if (Materials[cell.Material].Kind == MaterialKind.Smooth)
+                {
+                    d = cell.Value;
+                    if (d >= Density.Iso)
+                    {
+                        smoothMaterial = cell.Material;
+                        anySmooth = true;
+                    }
+                }
+                else
+                {
+                    d = 255;
+                    isBlock = true;
+                }
+                density[index] = d;
+                smooth[index] = smoothMaterial;
+                block[index] = isBlock;
+            }
+
+            if (!anySmooth)
+                return;
+
+            var vertexMap = new NativeArray<int>(Cubes * Cubes * Cubes, Allocator.Temp, NativeArrayOptions.UninitializedMemory);
+            for (int i = 0; i < vertexMap.Length; i++)
+                vertexMap[i] = -1;
+
+            // Вершины.
+            for (int y = -1; y < Size; y++)
+            for (int z = -1; z < Size; z++)
+            for (int x = -1; x < Size; x++)
+            {
+                int mask = 0;
+                bool touchesBlock = false;
+                float d0 = 0, d1 = 0, d2 = 0, d3 = 0, d4 = 0, d5 = 0, d6 = 0, d7 = 0;
+                for (int k = 0; k < 8; k++)
+                {
+                    int corner = PadIndex(x + (k & 1), y + ((k >> 1) & 1), z + ((k >> 2) & 1));
+                    float d = density[corner];
+                    touchesBlock |= block[corner];
+                    if (d >= Density.Iso)
+                        mask |= 1 << k;
+                    switch (k)
+                    {
+                        case 0: d0 = d; break;
+                        case 1: d1 = d; break;
+                        case 2: d2 = d; break;
+                        case 3: d3 = d; break;
+                        case 4: d4 = d; break;
+                        case 5: d5 = d; break;
+                        case 6: d6 = d; break;
+                        default: d7 = d; break;
+                    }
+                }
+                if (mask == 0 || mask == 255)
+                    continue;
+
+                float3 sum = float3.zero;
+                int crossings = 0;
+                for (int e = 0; e < 12; e++)
+                {
+                    int a = CubeEdges[e * 2], b = CubeEdges[e * 2 + 1];
+                    if (((mask >> a) & 1) == ((mask >> b) & 1))
+                        continue;
+                    float da = Corner(a, d0, d1, d2, d3, d4, d5, d6, d7);
+                    float db = Corner(b, d0, d1, d2, d3, d4, d5, d6, d7);
+                    float t = (Density.IsoValue - da) / (db - da);
+                    sum += math.lerp(CornerOffset(a), CornerOffset(b), t);
+                    crossings++;
+                }
+
+                float3 gradient = new(
+                    (d1 + d3 + d5 + d7) - (d0 + d2 + d4 + d6),
+                    (d2 + d3 + d6 + d7) - (d0 + d1 + d4 + d5),
+                    (d4 + d5 + d6 + d7) - (d0 + d1 + d2 + d3));
+
+                // Материал вершины — у самой «наружной» твёрдой клетки (плотность ближе всего к поверхности),
+                // а не у первой попавшейся: иначе на крутых склонах сквозь верхний слой проступает нижний.
+                ushort material = 0;
+                byte outermost = 255;
+                for (int k = 0; k < 8; k++)
+                {
+                    int corner = PadIndex(x + (k & 1), y + ((k >> 1) & 1), z + ((k >> 2) & 1));
+                    ushort candidate = smooth[corner];
+                    if (candidate != 0 && (material == 0 || density[corner] < outermost))
+                    {
+                        material = candidate;
+                        outermost = density[corner];
+                    }
+                }
+                int layer = material != 0 ? Materials[material].TextureLayer : 0;
+
+                vertexMap[CubeIndex(x, y, z)] = Vertices.Length;
+                Vertices.Add(new ChunkVertex
+                {
+                    // Рядом с блоком вершину ставим в общий угол клеток — ровно в угол граней блока.
+                    // Так гладкая поверхность стыкуется с гранями блоков без щелей (ценой лёгкой «ступенчатости» у блоков).
+                    Position = touchesBlock ? new float3(x + 1, y + 1, z + 1) : new float3(x, y, z) + 0.5f + sum / crossings,
+                    Normal = -math.normalizesafe(gradient, new float3(0, 1, 0)),
+                    // Отрицательный слой — признак гладкой поверхности: шейдер текстурирует её трипланарно.
+                    Uv = new float4(0f, 0f, -(layer + 1), 1f),
+                });
+            }
+
+            // Четырёхугольники по рёбрам решётки, начинающимся в клетках этого чанка.
+            for (int y = 0; y < Size; y++)
+            for (int z = 0; z < Size; z++)
+            for (int x = 0; x < Size; x++)
+            {
+                int3 p = new(x, y, z);
+                bool solidP = density[PadIndex(x, y, z)] >= Density.Iso;
+                for (int axis = 0; axis < 3; axis++)
+                {
+                    int3 q = p + Axis(axis);
+                    bool solidQ = density[PadIndex(q.x, q.y, q.z)] >= Density.Iso;
+                    if (solidP == solidQ)
+                        continue;
+                    int3 solidCell = solidP ? p : q;
+                    if (smooth[PadIndex(solidCell.x, solidCell.y, solidCell.z)] == 0)
+                        continue;
+
+                    int3 e1 = Axis((axis + 1) % 3);
+                    int3 e2 = Axis((axis + 2) % 3);
+                    int v0 = vertexMap[CubeIndex(p - e1 - e2)];
+                    int v1 = vertexMap[CubeIndex(p - e2)];
+                    int v2 = vertexMap[CubeIndex(p)];
+                    int v3 = vertexMap[CubeIndex(p - e1)];
+                    if (v0 < 0 || v1 < 0 || v2 < 0 || v3 < 0)
+                        continue;
+
+                    // Наружу — от твёрдого к пустому: при твёрдом p нормаль смотрит в +axis.
+                    if (solidP)
+                    {
+                        OpaqueIndices.Add(v0); OpaqueIndices.Add(v1); OpaqueIndices.Add(v2);
+                        OpaqueIndices.Add(v0); OpaqueIndices.Add(v2); OpaqueIndices.Add(v3);
+                    }
+                    else
+                    {
+                        OpaqueIndices.Add(v0); OpaqueIndices.Add(v2); OpaqueIndices.Add(v1);
+                        OpaqueIndices.Add(v0); OpaqueIndices.Add(v3); OpaqueIndices.Add(v2);
+                    }
+                }
+            }
+        }
+
+        private static int PadIndex(int x, int y, int z) => (x + 1) + (z + 1) * Pad + (y + 1) * Pad * Pad;
+
+        private static int CubeIndex(int x, int y, int z) => (x + 1) + (z + 1) * Cubes + (y + 1) * Cubes * Cubes;
+
+        private static int CubeIndex(int3 m) => CubeIndex(m.x, m.y, m.z);
+
+        private static float3 CornerOffset(int k) => new(k & 1, (k >> 1) & 1, (k >> 2) & 1);
+
+        private static float Corner(int k, float d0, float d1, float d2, float d3, float d4, float d5, float d6, float d7) =>
+            k == 0 ? d0 : k == 1 ? d1 : k == 2 ? d2 : k == 3 ? d3 : k == 4 ? d4 : k == 5 ? d5 : k == 6 ? d6 : d7;
+
+        /// <summary>
+        /// Чанк из воздуха, вокруг которого только однородные негладкие чанки, геометрии не даёт.
+        /// (Воздушный чанк рядом с гладким пропускать нельзя: он владеет рёбрами на общей границе.)
+        /// </summary>
+        private bool IsTriviallyEmpty()
+        {
+            ChunkView center = Views[CenterView];
+            if (center.Uniform == 0 || center.Get(0).Material != 0)
+                return false;
+            for (int i = 0; i < 27; i++)
+            {
+                ChunkView view = Views[i];
+                if (view.Uniform == 0)
+                    return false;
+                Cell cell = view.Get(0);
+                if (cell.Material != 0 && Materials[cell.Material].Kind == MaterialKind.Smooth)
+                    return false;
+            }
+            return true;
         }
 
         private bool IsFaceVisible(Cell cell, MaterialInfo info, Cell neighbor)
@@ -98,6 +316,8 @@ namespace VoidMall.World
             if (neighbor.Material == 0)
                 return true;
             MaterialInfo neighborInfo = Materials[neighbor.Material];
+            // Твёрдая гладкая клетка закрывает грань блока: стык с гладкой поверхностью
+            // обеспечивает прижатие вершин Surface Nets к углам блоков (см. BuildSmoothSurface).
             if (neighborInfo.IsOpaque)
                 return false;
             // Стекло к стеклу того же материала — внутренние грани не рисуем.

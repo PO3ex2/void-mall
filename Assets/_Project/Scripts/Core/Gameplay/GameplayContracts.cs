@@ -31,6 +31,35 @@ namespace VoidMall.Core
     public interface IWorldCollisionQuery
     {
         bool IsCollisionReady(Vector3 position);
+
+        /// <summary>
+        /// Капсула замурована в твёрдом мире (центр внутри массива — физика её уже не вытолкнет)?
+        /// Тогда возвращает ближайшую свободную позицию ступней: сначала вверх, потом по сторонам.
+        /// </summary>
+        bool TryGetEmbeddedEscape(Vector3 feet, float height, float radius, out Vector3 freeFeet);
+    }
+
+    /// <summary>Упавший обломок разбился. Survival (этап 7) по этому событию нанесёт урон тем, кто под ним.</summary>
+    public struct DebrisImpactEvent
+    {
+        public Bounds Bounds;
+        public float Mass;
+        public float Speed;
+    }
+
+    public enum DeathCause
+    {
+        Void,
+        Fall,
+        Damage,
+    }
+
+    /// <summary>Игрок погиб. На этапе 7 по нему выпадет рюкзак и начнётся возрождение (как в 7DTD).</summary>
+    public struct PlayerDiedEvent
+    {
+        public GameObject Player;
+        public DeathCause Cause;
+        public Vector3 Position;
     }
 
     /// <summary>Игрок приземлился. Survival по этому событию считает урон ногам.</summary>

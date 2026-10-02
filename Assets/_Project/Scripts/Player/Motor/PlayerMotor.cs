@@ -112,17 +112,35 @@ namespace VoidMall.Player
         {
             var input = _input != null ? _input.ConsumeFrame() : default;
 
-            // Мир под ногами ещё не прогружен — ждём на месте (кроме noclip).
-            if (_state.Mode != MoveMode.Noclip
-                && Services.TryGet(out IWorldCollisionQuery world)
-                && !world.IsCollisionReady(_state.Position))
+            if (_state.Mode != MoveMode.Noclip && Services.TryGet(out IWorldCollisionQuery world))
             {
-                _previousPosition = _state.Position;
-                _state.Velocity = Vector3.zero;
-                return;
+                // Мир под ногами ещё не прогружен — ждём на месте.
+                if (!world.IsCollisionReady(_state.Position))
+                {
+                    _previousPosition = _state.Position;
+                    _state.Velocity = Vector3.zero;
+                    return;
+                }
+                EscapeIfEmbedded(world);
             }
 
             Simulate(in input, Time.fixedDeltaTime);
+        }
+
+        /// <summary>
+        /// Замурованы в массиве (нарастили вокруг себя, вышли из noclip внутри стены): физика оболочки мира
+        /// изнутри не выталкивает, поэтому переносим игрока в ближайшее свободное место по данным вокселей.
+        /// </summary>
+        private void EscapeIfEmbedded(IWorldCollisionQuery world)
+        {
+            if (!world.TryGetEmbeddedEscape(_state.Position, CurrentHeight, _settings.Radius, out var free))
+                return;
+            float rise = free.y - _state.Position.y;
+            _state.Position = free;
+            _state.Velocity = Vector3.zero;
+            _state.IsGrounded = false;
+            transform.position = free;
+            ShiftFeetVisual(rise);
         }
 
         // ───────────────────────────── Публичное API ─────────────────────────────

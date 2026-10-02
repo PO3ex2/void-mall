@@ -16,7 +16,7 @@ namespace VoidMall.World
     /// Поэтому во время чужих Update джобы не работают и данные чанков можно безопасно менять.
     /// </summary>
     [DefaultExecutionOrder(-200)]
-    public sealed class ChunkManager : MonoBehaviour, IWorldCollisionQuery
+    public sealed class ChunkManager : MonoBehaviour, IWorldCollisionQuery, IVoxelAccess
     {
         public static readonly CVar<int> ViewDistance = new("r_viewdistance", 6, "Радиус прогрузки мира в колоннах (1 колонна = 32 м).");
         public static readonly CVar<int> GenerationBudget = new("world_gen_budget", 16, "Сколько чанков генерировать за кадр.");
@@ -171,6 +171,11 @@ namespace VoidMall.World
         }
 
         public bool IsLoaded(int3 cell) => TryGetChunk(cell, out _, out _, out _);
+
+        public MaterialInfo GetInfo(ushort material) => _registry.Infos[material];
+
+        /// <summary>Материал блоков (runtime-экземпляр с массивом текстур) — для обломков и превью.</summary>
+        public Material BlockMaterial => _opaque;
 
         public int GetDamage(int3 cell) =>
             TryGetChunk(cell, out var chunk, out _, out _) ? chunk.GetDamage(WorldConstants.CellIndex(WorldConstants.CellToLocal(cell))) : 0;
@@ -519,10 +524,14 @@ namespace VoidMall.World
             return views;
         }
 
+        /// <summary>
+        /// Соседи для мешинга. Под миром — пустота: стенки шахт-бездн доходят до дна мира гладко
+        /// (нижние грани блоков на дне мира мешер не рисует сам). Для логики (GetCell) под миром по-прежнему основание.
+        /// </summary>
         private ChunkData GetChunkForView(int3 chunk)
         {
             if (chunk.y < 0)
-                return _bedrockChunk;
+                return _airChunk;
             if (chunk.y >= WorldConstants.ChunksPerColumn)
                 return _airChunk;
             return _columns[new int2(chunk.x, chunk.z)].Chunks[chunk.y];
@@ -607,6 +616,13 @@ namespace VoidMall.World
                 return false;
             int index = cell.y >> WorldConstants.ChunkShift;
             return IsChunkCollisionReady(column, index) && (index == 0 || IsChunkCollisionReady(column, index - 1));
+        }
+
+        public bool TryGetEmbeddedEscape(Vector3 feet, float height, float radius, out Vector3 freeFeet)
+        {
+            bool found = EmbeddedEscape.TryFindEscape(this, feet, height, radius, out float3 free);
+            freeFeet = free;
+            return found;
         }
 
         private static bool IsChunkCollisionReady(ChunkColumn column, int index) =>

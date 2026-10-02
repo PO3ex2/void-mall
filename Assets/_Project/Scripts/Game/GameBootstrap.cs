@@ -44,6 +44,9 @@ namespace VoidMall.Game
 
             DevConsole.Initialize();
 
+            Root.AddComponent<DebugMiningLog>();
+            Root.AddComponent<PlayerFallGuard>();
+
             if (Config.PanelSettings != null)
                 DevToolsUI.Create(Root.transform, Config.PanelSettings, input);
             else

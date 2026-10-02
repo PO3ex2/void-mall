@@ -32,6 +32,20 @@ namespace VoidMall.World
         public Cell Cell;
     }
 
+    /// <summary>
+    /// Бур: сферическая кисть по гладким вокселям. Add = false — срезать, true — наращивать материалом Material.
+    /// Strength — доля полного перехода «твёрдое ↔ пусто» за одно применение (до учёта прочности).
+    /// Блоки буром не меняются.
+    /// </summary>
+    public struct SmoothBrushCommand : INetCommand
+    {
+        public float3 Center;
+        public float Radius;
+        public float Strength;
+        public bool Add;
+        public ushort Material;
+    }
+
     /// <summary>Авторитет сообщает: клетка изменилась (или изменился её урон).</summary>
     public struct BlockChangedEvent : INetEvent
     {

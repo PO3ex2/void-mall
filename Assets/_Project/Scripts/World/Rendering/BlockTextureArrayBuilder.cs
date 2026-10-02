@@ -155,6 +155,14 @@ namespace VoidMall.World
                     float g = (0.75f + grain * 0.1f) * tone * gap;
                     return new Color(0.62f * g, 0.45f * g, 0.3f * g, 0.25f);
                 }
+                case BlockPattern.Soil:
+                {
+                    // Грунт: крупные комья, мелкие камешки.
+                    float clumps = Fbm(u, v, 4, 4, seed, 4);
+                    float pebble = Noise(x / 2, y / 2, seed + 9) > 0.9f ? 0.12f : 0f;
+                    float g = 0.75f + clumps * 0.35f + pebble;
+                    return new Color(0.42f * g, 0.32f * g, 0.22f * g, 0.08f);
+                }
                 default:
                     return new Color(0.8f, 0.8f, 0.8f, 0.2f);
             }

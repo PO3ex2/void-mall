@@ -54,6 +54,29 @@ namespace VoidMall.World
                    $"Джобов: генерация {world.GenerationTasksInFlight}, мешинг {world.MeshTasksInFlight}";
         }
 
+        [ConsoleCommand("anomalies", "Ближайшие аномалии-бездны (до 5) и расстояние до них.")]
+        private static string Anomalies()
+        {
+            if (!TryGetWorld(out var world, out var error))
+                return error;
+            var player = Camera.main != null ? Camera.main.transform.position : Vector3.zero;
+            int cellX = (int)math.floor(player.x / TestWorldGenerationJob.AnomalyCellSize);
+            int cellZ = (int)math.floor(player.z / TestWorldGenerationJob.AnomalyCellSize);
+            var found = new System.Collections.Generic.List<(float distance, string text)>();
+            for (int dz = -3; dz <= 3; dz++)
+            for (int dx = -3; dx <= 3; dx++)
+            {
+                if (!TestWorldGenerationJob.TryGetShaft(world.Seed, cellX + dx, cellZ + dz, out float2 center, out float radius))
+                    continue;
+                float distance = math.distance(new float2(player.x, player.z), center);
+                found.Add((distance, $"  бездна ({center.x:0}, {TestWorldGenerationJob.FloorBlockY + 1}, {center.y:0}): радиус шахты {radius:0} м, край пола в {TestWorldGenerationJob.ZoneRadius(radius):0} м от центра, до неё {distance:0} м"));
+            }
+            if (found.Count == 0)
+                return "Рядом аномалий нет.";
+            found.Sort((a, b) => a.distance.CompareTo(b.distance));
+            return "Аномалии (tp к краю: tp x 18 z):\n" + string.Join("\n", found.Take(5).Select(f => f.text));
+        }
+
         private static void Send<T>(in T command) where T : struct, INetCommand
         {
             if (Services.TryGet(out INetSession session))

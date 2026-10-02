@@ -79,6 +79,7 @@ namespace VoidMall.Editor
 
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             SetupLighting();
+            RenderSettings.skybox = AssetDatabase.LoadAssetAtPath<Material>(WorldAssetsSetup.VoidSkyboxPath);
             RenderSettings.fog = true;
             RenderSettings.fogMode = FogMode.Linear;
             RenderSettings.fogColor = new Color(0.66f, 0.7f, 0.76f);
@@ -88,6 +89,8 @@ namespace VoidMall.Editor
             var world = new GameObject("World");
             var chunkManager = world.AddComponent<ChunkManager>();
             world.AddComponent<WorldAuthority>();
+            var debris = world.AddComponent<DebrisSpawner>();
+            ProjectSetup.SetReference(debris, "_dustMaterial", AssetDatabase.LoadAssetAtPath<Material>(WorldAssetsSetup.DustMaterialPath));
             ProjectSetup.SetReference(chunkManager, "_catalog", AssetDatabase.LoadAssetAtPath<MaterialCatalog>(WorldAssetsSetup.CatalogPath));
             ProjectSetup.SetReference(chunkManager, "_opaqueMaterial", AssetDatabase.LoadAssetAtPath<Material>(WorldAssetsSetup.BlockOpaqueMaterialPath));
             ProjectSetup.SetReference(chunkManager, "_transparentMaterial", AssetDatabase.LoadAssetAtPath<Material>(WorldAssetsSetup.BlockTransparentMaterialPath));
@@ -101,6 +104,7 @@ namespace VoidMall.Editor
                 var tool = player.AddComponent<VoidMall.Game.DebugBlockTool>();
                 ProjectSetup.SetReference(tool, "_outlineMaterial", AssetDatabase.LoadAssetAtPath<Material>(WorldAssetsSetup.OutlineMaterialPath));
                 ProjectSetup.SetReference(tool, "_crackMaterial", AssetDatabase.LoadAssetAtPath<Material>(WorldAssetsSetup.CracksMaterialPath));
+                ProjectSetup.SetReference(tool, "_brushMaterial", AssetDatabase.LoadAssetAtPath<Material>(WorldAssetsSetup.BrushMaterialPath));
             }
             else
             {
