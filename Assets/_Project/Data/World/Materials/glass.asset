@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b96bbe8366362dd41850f9604087a11d, type: 3}
+  m_Name: glass
+  m_EditorClassIdentifier: VoidMall.World::VoidMall.World.MaterialDef
+  _id: block.glass
+  DisplayName: "\u0421\u0442\u0435\u043A\u043B\u043E"
+  Kind: 1
+  Transparent: 1
+  Unbreakable: 0
+  Hardness: 100
+  Placeable: 1
+  Pattern: 9
+  Tint: {r: 1, g: 1, b: 1, a: 1}

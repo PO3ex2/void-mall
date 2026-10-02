@@ -6,7 +6,11 @@
         "UnityEditor.TestRunner",
         "VoidMall.Core",
         "VoidMall.Console",
-        "VoidMall.Player"
+        "VoidMall.Player",
+        "VoidMall.World",
+        "Unity.Collections",
+        "Unity.Mathematics",
+        "Unity.Burst"
     ],
     "includePlatforms": [
         "Editor"

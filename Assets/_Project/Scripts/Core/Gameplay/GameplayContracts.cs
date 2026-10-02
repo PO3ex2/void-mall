@@ -24,6 +24,15 @@ namespace VoidMall.Core
         Vector3 GetVelocityAt(Vector3 worldPoint);
     }
 
+    /// <summary>
+    /// Готова ли коллизия мира в точке. Пока чанк под игроком не прогружен, мотор стоит на месте,
+    /// а не проваливается сквозь мир (как в Minecraft). Регистрирует мир, если он есть в сцене.
+    /// </summary>
+    public interface IWorldCollisionQuery
+    {
+        bool IsCollisionReady(Vector3 position);
+    }
+
     /// <summary>Игрок приземлился. Survival по этому событию считает урон ногам.</summary>
     public struct PlayerLandedEvent
     {

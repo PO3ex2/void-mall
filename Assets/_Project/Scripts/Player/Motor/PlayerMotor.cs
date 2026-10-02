@@ -111,6 +111,17 @@ namespace VoidMall.Player
         private void FixedUpdate()
         {
             var input = _input != null ? _input.ConsumeFrame() : default;
+
+            // Мир под ногами ещё не прогружен — ждём на месте (кроме noclip).
+            if (_state.Mode != MoveMode.Noclip
+                && Services.TryGet(out IWorldCollisionQuery world)
+                && !world.IsCollisionReady(_state.Position))
+            {
+                _previousPosition = _state.Position;
+                _state.Velocity = Vector3.zero;
+                return;
+            }
+
             Simulate(in input, Time.fixedDeltaTime);
         }
 

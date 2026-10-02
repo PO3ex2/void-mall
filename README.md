@@ -27,3 +27,14 @@ git clone https://github.com/PO3ex2/void-mall.git
 | HUD движения / панель веса и травм | F3 / F4 | — |
 
 Полезные команды консоли: `help`, `noclip`, `fly`, `tp x y z`, `getpos`, `time_scale 0.2`, `fov 90`, `sensitivity 0.1`.
+
+## Полигон мира из блоков
+Сцена `Assets/_Project/Scenes/Sandbox_World.unity`: бесконечный лабиринт комнат, мир подгружается вокруг игрока.
+
+| Действие | Клавиши |
+|---|---|
+| Ломать блок (удержание) | ЛКМ |
+| Поставить блок | ПКМ |
+| Выбрать материал / взять материал блока под прицелом | Колесо / СКМ |
+
+Команды: `blocks`, `setblock x y z материал`, `fill x1 y1 z1 x2 y2 z2 материал`, `world_info`, `r_viewdistance 8`, `tool_damage 1000`.

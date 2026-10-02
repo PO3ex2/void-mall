@@ -57,7 +57,15 @@ namespace VoidMall.Editor
             Button(map, "Interact", ("<Keyboard>/f", Kbm), ("<Gamepad>/buttonWest", Pad));
             Button(map, "Primary", ("<Mouse>/leftButton", Kbm), ("<Gamepad>/rightTrigger", Pad));
             Button(map, "Secondary", ("<Mouse>/rightButton", Kbm), ("<Gamepad>/leftTrigger", Pad));
+            Button(map, "Pick", ("<Mouse>/middleButton", Kbm), ("<Gamepad>/rightShoulder", Pad));
             Button(map, "Reload", ("<Keyboard>/r", Kbm), ("<Gamepad>/buttonNorth", Pad));
+
+            // Прокрутка хотбара / выбора: колесо мыши, на геймпаде — крестовина влево/вправо.
+            var scroll = map.AddAction("Scroll", InputActionType.Value, expectedControlLayout: "Axis");
+            scroll.AddBinding("<Mouse>/scroll/y", groups: Kbm);
+            scroll.AddCompositeBinding("1DAxis")
+                .With("Negative", "<Gamepad>/dpad/right", Pad)
+                .With("Positive", "<Gamepad>/dpad/left", Pad);
             Button(map, "Inventory", ("<Keyboard>/tab", Kbm), ("<Gamepad>/select", Pad));
             Button(map, "Pause", ("<Keyboard>/escape", Kbm), ("<Gamepad>/start", Pad));
         }

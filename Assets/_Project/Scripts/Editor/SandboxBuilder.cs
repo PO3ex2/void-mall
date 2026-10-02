@@ -65,6 +65,53 @@ namespace VoidMall.Editor
             Debug.Log($"[Sandbox] Saved {ScenePath}.");
         }
 
+        public const string WorldScenePath = "Assets/_Project/Scenes/Sandbox_World.unity";
+
+        /// <summary>
+        /// Полигон мира из блоков (этап 2): ChunkManager с тестовым генератором, игрок с наблюдателем
+        /// и временным молотком. Игрок появляется в комнате лабиринта на высоте пола (18).
+        /// </summary>
+        [MenuItem("Void Mall/Setup/Build World Sandbox", priority = 23)]
+        public static void BuildWorldSandbox()
+        {
+            if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
+                return;
+
+            var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            SetupLighting();
+            RenderSettings.fog = true;
+            RenderSettings.fogMode = FogMode.Linear;
+            RenderSettings.fogColor = new Color(0.66f, 0.7f, 0.76f);
+            RenderSettings.fogStartDistance = 100f;
+            RenderSettings.fogEndDistance = 185f;
+
+            var world = new GameObject("World");
+            var chunkManager = world.AddComponent<ChunkManager>();
+            world.AddComponent<WorldAuthority>();
+            ProjectSetup.SetReference(chunkManager, "_catalog", AssetDatabase.LoadAssetAtPath<MaterialCatalog>(WorldAssetsSetup.CatalogPath));
+            ProjectSetup.SetReference(chunkManager, "_opaqueMaterial", AssetDatabase.LoadAssetAtPath<Material>(WorldAssetsSetup.BlockOpaqueMaterialPath));
+            ProjectSetup.SetReference(chunkManager, "_transparentMaterial", AssetDatabase.LoadAssetAtPath<Material>(WorldAssetsSetup.BlockTransparentMaterialPath));
+
+            var playerPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(ProjectSetup.PlayerPrefabPath);
+            if (playerPrefab != null)
+            {
+                var player = (GameObject)PrefabUtility.InstantiatePrefab(playerPrefab, scene);
+                player.transform.position = new Vector3(4f, TestWorldGenerationJob.FloorBlockY + 1, 4f);
+                player.AddComponent<WorldViewer>();
+                var tool = player.AddComponent<VoidMall.Game.DebugBlockTool>();
+                ProjectSetup.SetReference(tool, "_outlineMaterial", AssetDatabase.LoadAssetAtPath<Material>(WorldAssetsSetup.OutlineMaterialPath));
+                ProjectSetup.SetReference(tool, "_crackMaterial", AssetDatabase.LoadAssetAtPath<Material>(WorldAssetsSetup.CracksMaterialPath));
+            }
+            else
+            {
+                Debug.LogError("[Sandbox] Player prefab not found. Run 'Void Mall/Setup/Player Prefab' first.");
+            }
+
+            EditorSceneManager.SaveScene(scene, WorldScenePath);
+            AddSceneToBuild(WorldScenePath);
+            Debug.Log($"[Sandbox] Saved {WorldScenePath}.");
+        }
+
         private static void SetupLighting()
         {
             var sun = new GameObject("Sun").AddComponent<Light>();

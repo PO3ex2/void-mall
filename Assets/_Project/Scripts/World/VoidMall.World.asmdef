@@ -3,11 +3,15 @@
     "rootNamespace": "VoidMall.World",
     "references": [
         "VoidMall.Core",
-        "VoidMall.Net"
+        "VoidMall.Net",
+        "VoidMall.Console",
+        "Unity.Burst",
+        "Unity.Collections",
+        "Unity.Mathematics"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
-    "allowUnsafeCode": false,
+    "allowUnsafeCode": true,
     "overrideReferences": false,
     "precompiledReferences": [],
     "autoReferenced": true,

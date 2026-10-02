@@ -6,6 +6,9 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
+    path: Assets/_Project/Scenes/Sandbox_World.unity
+    guid: bcccce942bce55848914568380dacd7c
+  - enabled: 1
     path: Assets/_Project/Scenes/Sandbox_Controller.unity
     guid: 34a9f9a8c95b3344d859bf6ac83a2390
   - enabled: 1

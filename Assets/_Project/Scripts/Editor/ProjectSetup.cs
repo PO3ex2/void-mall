@@ -32,6 +32,7 @@ namespace VoidMall.Editor
             SetupProjectAssets();
             CreatePlayerPrefab();
             SandboxBuilder.BuildControllerSandbox();
+            SandboxBuilder.BuildWorldSandbox();
         }
 
         [MenuItem("Void Mall/Setup/Project Assets", priority = 20)]
@@ -40,12 +41,15 @@ namespace VoidMall.Editor
             SetupLayers();
             SetupTime();
             PlayerSettings.productName = "Void Mall";
+            // Хост коопа должен симулировать мир, даже когда окно свёрнуто.
+            PlayerSettings.runInBackground = true;
 
             SetupInput();
             var panelSettings = CreatePanelSettings();
             CreateGameConfig(panelSettings);
             GetOrCreateMovementSettings();
             CreateGreyboxMaterials();
+            WorldAssetsSetup.CreateWorldAssets();
 
             AssetDatabase.SaveAssets();
             Debug.Log("[Setup] Project assets are ready.");
