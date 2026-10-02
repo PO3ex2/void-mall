@@ -1,0 +1,17 @@
+{
+    "name": "VoidMall.World",
+    "rootNamespace": "VoidMall.World",
+    "references": [
+        "VoidMall.Core",
+        "VoidMall.Net"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

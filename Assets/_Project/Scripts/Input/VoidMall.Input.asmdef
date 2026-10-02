@@ -1,0 +1,17 @@
+{
+    "name": "VoidMall.Input",
+    "rootNamespace": "VoidMall.Input",
+    "references": [
+        "VoidMall.Core",
+        "Unity.InputSystem"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

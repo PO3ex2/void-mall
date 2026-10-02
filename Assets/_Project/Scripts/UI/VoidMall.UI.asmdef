@@ -1,0 +1,20 @@
+{
+    "name": "VoidMall.UI",
+    "rootNamespace": "VoidMall.UI",
+    "references": [
+        "VoidMall.Core",
+        "VoidMall.Input",
+        "VoidMall.Console",
+        "VoidMall.Player",
+        "Unity.InputSystem"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

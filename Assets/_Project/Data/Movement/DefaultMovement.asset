@@ -1,0 +1,47 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: efff4267a08c4d74b9adc40d1878c936, type: 3}
+  m_Name: DefaultMovement
+  m_EditorClassIdentifier: VoidMall.Player::VoidMall.Player.MovementSettings
+  Radius: 0.35
+  StandHeight: 1.8
+  CrouchHeight: 0.95
+  StandEyeHeight: 1.65
+  CrouchEyeHeight: 0.82
+  SkinWidth: 0.015
+  StepHeight: 0.55
+  MaxSlopeAngle: 45
+  GroundProbeDistance: 0.06
+  Mass: 80
+  WalkSpeed: 2
+  RunSpeed: 3.8
+  SprintSpeed: 6
+  CrouchSpeed: 1.8
+  GroundAccelerate: 10
+  AirAccelerate: 10
+  AirWishSpeedCap: 0.6
+  Friction: 5
+  StopSpeed: 1.9
+  Gravity: 15.2
+  MaxFallSpeed: 50
+  MaxGroundedUpSpeed: 2.5
+  JumpHeight: 1.15
+  JumpBufferTime: 0.1
+  CoyoteTime: 0.08
+  MaxJumpSpeedFactor: 1.25
+  SprintStaminaPerSecond: 10
+  JumpStaminaCost: 6
+  PushForce: 900
+  FlySpeed: 8
+  FlySprintMultiplier: 3
+  FlyAccelerate: 8
+  FlyFriction: 4

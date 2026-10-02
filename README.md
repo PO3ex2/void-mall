@@ -12,3 +12,18 @@
 git lfs install
 git clone https://github.com/PO3ex2/void-mall.git
 ```
+
+## Запуск полигона контроллера
+1. Открыть сцену `Assets/_Project/Scenes/Sandbox_Controller.unity` и нажать Play.
+2. Если ассеты потерялись или нужно пересобрать полигон — меню **Void Mall → Setup → All**.
+
+| Действие | Клавиатура и мышь | Геймпад |
+|---|---|---|
+| Движение / взгляд | WASD / мышь | левый / правый стик |
+| Прыжок | Space | A |
+| Присесть | Ctrl или C | B |
+| Спринт / медленный шаг | Shift / Alt | L3 / — |
+| Консоль | `` ` `` (Ё) | — |
+| HUD движения / панель веса и травм | F3 / F4 | — |
+
+Полезные команды консоли: `help`, `noclip`, `fly`, `tp x y z`, `getpos`, `time_scale 0.2`, `fov 90`, `sensitivity 0.1`.

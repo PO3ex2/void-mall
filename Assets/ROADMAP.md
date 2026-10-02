@@ -6,33 +6,35 @@
 
 ---
 
-## Этап 0 — Фундамент *(короткий)*
-- [ ] `git init`, Unity `.gitignore`, Git LFS для бинарных ассетов
-- [ ] Структура папок `Assets/_Project/...` и asmdef-сборки из ARCHITECTURE §2
-- [ ] Сцены `Boot` и `Sandbox_Controller` (greybox)
-- [ ] `GameBootstrap`, `Services`, `EventBus`, фиксированный тик 60 Гц
-- [ ] Input Actions: карты `Player / UI / PC / Console`, схемы KB&M и Gamepad, `InputContextStack`
-- [ ] Каркас `Registry<TDef>` и `ContentDef`, `Rng` и `Hash`
-- [ ] Минимальный бэкенд консоли и простой оверлей (`~`) — нужен для отладки контроллера (полная версия — на этапе 4)
+## Этап 0 — Фундамент *(короткий)* ✅
+- [x] `git init`, Unity `.gitignore`, Git LFS для бинарных ассетов
+- [x] Структура папок `Assets/_Project/...` и asmdef-сборки из ARCHITECTURE §2
+- [x] Сцена `Sandbox_Controller` (greybox). Отдельная сцена `Boot` не нужна: `GameBootstrap` поднимает сервисы до загрузки любой сцены (`RuntimeInitializeOnLoadMethod`)
+- [x] `GameBootstrap`, `Services`, `EventBus`, фиксированный тик 60 Гц
+- [x] Input Actions (project-wide): карты `Player / Global / Terminal / UI`, схемы KB&M и Gamepad, стек контекстов в `InputService`
+- [x] Каркас `Registry<TDef>` и `ContentDef`, `Rng` и `Hash`
+- [x] Бэкенд консоли (команды-атрибуты, CVar, история, автодополнение, `sv_cheats`, логи Unity) и оверлей по `` ` `` (Ё)
+- [x] Меню редактора **Void Mall/Setup** (воспроизводимая настройка проекта) и **Void Mall/Tests**
 
 **Готово, когда:** проект открывается без ошибок, в Sandbox работает ввод с клавиатуры и геймпада, консоль принимает команду `echo`.
 
 ---
 
-## Этап 1 — Контроллер персонажа *(часть C)* ← **начинаем здесь**
-- [ ] `PlayerInputFrame`, `InputReader`
-- [ ] `KinematicMover`: collide-and-slide, depenetration, ground check и snap, step-up, склоны
-- [ ] `SourceMovement`: friction, accelerate, air-accelerate, гравитация, прыжок, ограничение bhop
-- [ ] Ходьба, бег, спринт, медленный шаг, приседание (проверка потолка), присед в прыжке
-- [ ] `MovementSettings` (SO) со всеми параметрами
-- [ ] `CameraRig`: интерполяция, высота глаз при приседе, view bob, landing dip, FOV kick при спринте
-- [ ] `MovementModifiers` и агрегатор, debug-источник с ползунками (вес, перелом, перевес → ограничение поворота)
-- [ ] Простой `StaminaPool`, событие `Landed(impactSpeed)`
-- [ ] Толкание Rigidbody, стояние на пропах, `IMovingSurface` (тестовый эскалатор и лифт)
-- [ ] `noclip` и `fly` через консоль
-- [ ] Debug HUD движения (скорость, состояние, модификаторы)
-- [ ] Greybox-полигон: лестницы, полублоки, склоны 30/45/60°, лаз высотой 1 блок, низкий потолок, коробки-пропы, эскалатор, высокий уступ для урона от падения
-- [ ] Тесты: EditMode (формулы), PlayMode (ступени, лаз, вставание под потолком)
+## Этап 1 — Контроллер персонажа *(часть C)* ← **ждёт плейтеста**
+- [x] `PlayerInputFrame`, `PlayerInputReader`, `PlayerLook` (взгляд обновляется каждый кадр, а не в тике)
+- [x] `KinematicMover`: collide-and-slide, depenetration, ground check и snap, step-up, склоны, уточнение нормали на рёбрах
+- [x] `SourceMovement`: friction, accelerate, air-accelerate, гравитация, прыжок (буфер + койот-тайм), ограничение bhop
+- [x] Ходьба, бег, спринт, медленный шаг, приседание (проверка потолка), присед в прыжке
+- [x] `MovementSettings` (SO) со всеми параметрами — `Data/Movement/DefaultMovement.asset`
+- [x] `PlayerCameraRig`: интерполяция, высота глаз при приседе, сглаживание ступенек, view bob, landing dip, FOV при спринте, хромота, раскачка
+- [x] `MovementModifiers` и агрегатор, панель F4 (вес, переломы, руки, боль → ограничение поворота, без спринта/прыжка, «не встать»)
+- [x] `SimpleStaminaPool`, событие `Landed(impactSpeed)` (+ `PlayerLandedEvent` в шине)
+- [x] Толкание Rigidbody с учётом массы, давление на проп под ногами, `IMovingSurface` (эскалаторы, лифт, движущаяся платформа)
+- [x] `noclip`, `fly`, `tp`, `getpos`, `setspeed`, `stamina_infinite` в консоли
+- [x] Debug HUD движения (F3)
+- [x] Greybox-полигон: лестница, ступени 0.25–2 м, полублоки, склоны 15–60°, лаз 1 блок, низкий потолок, проём, коридор 0.8 м, острый угол, пропы 5–300 кг, лифт 12 м, уступы для падений, эскалаторы, платформа
+- [x] Тесты: EditMode (20 — формулы, правила, консоль, ГСЧ), PlayMode (9 — пол, ступенька, блок, прыжок, лаз, потолок, склоны, приземление) — все зелёные
+- [ ] Плейтест: «ощущается как HL2», нет застреваний и дрожания, геймпад, подбор чисел в `DefaultMovement.asset`
 
 **Готово, когда:** движение «ощущается как HL2», нет застреваний и дрожания на полигоне, работает геймпад, модификаторы из debug-окна заметно меняют поведение, тесты зелёные.
 

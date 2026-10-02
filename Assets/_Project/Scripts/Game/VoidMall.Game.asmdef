@@ -1,0 +1,23 @@
+{
+    "name": "VoidMall.Game",
+    "rootNamespace": "VoidMall.Game",
+    "references": [
+        "VoidMall.Core",
+        "VoidMall.Net",
+        "VoidMall.Input",
+        "VoidMall.Console",
+        "VoidMall.Player",
+        "VoidMall.World",
+        "VoidMall.UI",
+        "Unity.InputSystem"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

@@ -33,7 +33,8 @@ Assets/
     Scripts/
       Core/            VoidMall.Core        — ID, реестры, события, сервисы, тики, утилиты, математика
       Net/             VoidMall.Net         — абстракция сессии, команды, NetEntity, LocalSession
-      Player/          VoidMall.Player      — ввод, мотор, движение, камера, взаимодействие
+      Input/           VoidMall.Input       — InputService: project-wide actions, стек контекстов ввода, курсор
+      Player/          VoidMall.Player      — чтение ввода, мотор, движение, камера, взаимодействие
       World/           VoidMall.World       — чанки, мешинг, стриминг, правки, коллайдеры
       World.Gen/       VoidMall.World.Gen   — генерация мола (Burst-джобы + данные шаблонов)
       Props/           VoidMall.Props       — физические пропы, захват, прибивание, контейнеры
@@ -68,7 +69,8 @@ Game ─┬─> Lobby, UI ─┬─> Console
       │              └─> Player, Items, Crafting, Survival, Skills, Combat, AI, Props
       ├─> Save ──────> World, Items, ...
       └─> World.Gen ─> World ─> Net ─> Core
-Player ─> Net, Core          (о Survival и Items мотор знает только через интерфейсы из Core)
+Player ─> Input, Console, Core   (о Survival и Items мотор знает только через интерфейсы из Core)
+Console ─> Core                  (низкоуровневая: команды объявляются в любой сборке атрибутом)
 ```
 Связь между модулями идёт через **интерфейсы в Core** и **события**. Например, `IMovementModifierSource` реализуют Items (вес) и Survival (травмы), а мотор их только опрашивает.
 
@@ -189,17 +191,21 @@ class LocalSession : INetSession   // одиночная игра: прямые 
 
 ### 6.1 Поток данных за тик
 ```
-InputReader (Input System)
-   └─> PlayerInputFrame { move: float2, lookDelta: float2, buttons: Jump|Crouch|Sprint|Walk|Use|... }
-PlayerMotor.Simulate(ref MotorState, in PlayerInputFrame, in MovementModifiers, float dt)
-   ├─ ApplyLook (с ограничением скорости поворота от модификаторов)
-   ├─ UpdateCrouch (проверка потолка перед вставанием)
-   ├─ Ground check (CapsuleCast вниз + снап к земле)
-   ├─ SourceMovement: Friction → Accelerate | AirAccelerate → Gravity → Jump
-   ├─ KinematicMover.Move: collide-and-slide, step-up, depenetration
-   ├─ PushRigidbodies (импульсы пропам)
-   └─ события: Landed(impactSpeed), Jumped, StepTaken
-CameraRig (Update/LateUpdate): интерполяция, высота глаз, bob, landing dip, FOV kick, sway
+PlayerInputReader.Update (каждый кадр)
+   ├─ PlayerLook.AddLook — взгляд крутится каждый кадр (отзывчивость при любом FPS),
+   │                        с ограничением скорости поворота из модификаторов
+   └─ копит нажатия кнопок до следующего тика
+PlayerMotor.FixedUpdate (60 Гц) → IPlayerInputSource.ConsumeFrame()
+   └─> PlayerInputFrame { Move, Yaw, Pitch, Held, Pressed }
+PlayerMotor.Simulate(in PlayerInputFrame, dt)
+   ├─ AggregateModifiers (все IMovementModifierSource + истощение стамины)
+   ├─ Depenetrate → CategorizeGround (CapsuleCast вниз + снап)
+   ├─ UpdateCrouch (проверка потолка перед вставанием, присед в воздухе поднимает ноги)
+   ├─ Friction (если на земле) → Jump (буфер, койот-тайм, лимит скорости) → Accelerate | AirAccelerate + гравитация
+   ├─ GroundMove: вдоль склона + перенос поверхностью → StepSlideMove (collide-and-slide, step-up) → StayOnGround
+   ├─ PushRigidbodies, давление на проп под ногами
+   └─ события: Landed(impactSpeed) + PlayerLandedEvent, Jumped; поправка взгляда StepOffset (интерполируется вместе с позицией)
+PlayerCameraRig.LateUpdate: интерполяция, высота глаз, сглаживание ступенек, bob, landing dip, FOV, хромота, раскачка
 ```
 - `MotorState` — простой struct (позиция, скорость, флаги земли, нормаль, crouch-фактор, ground velocity). `Simulate` — по сути чистая функция от состояния, ввода и физического мира. Это даёт **готовность к предсказанию и реконсиляции** и тестируемость.
 
@@ -361,4 +367,6 @@ interface IMovementModifierSource { void Apply(ref MovementModifiers m); }
 - **PlayMode:** мотор в greybox-сцене (ступеньки, склоны, потолок при вставании, лаз 1 блок, движущаяся платформа), стриминг без дыр, сейв/загрузка.
 - **Debug-инструменты:** оверлей движения (скорость, состояние, модификаторы), визуализация чанков и их состояний, гизмо структур генератора.
 - **Код:** C# 9, `namespace VoidMall.<Module>`, PascalCase, `_camelCase` для приватных полей, без `Find`/`SendMessage`, без `Update` там, где хватает событий или тиков.
+- **Перезагрузка домена при входе в Play отключена** (Enter Play Mode Options). Любое статическое состояние (поля, события, синглтоны) обязано сбрасываться в методе с `[RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]` — см. `Services`, `EventBus`, `DevConsole`, `PlayerMotor.Local`.
+- **Настройка проекта воспроизводима:** меню **Void Mall/Setup** создаёт слои, ассет ввода, PanelSettings, конфиг, материалы, префаб игрока и полигон. Тесты запускаются из **Void Mall/Tests** (отчёт в `Temp/VoidMallTestResults.txt`).
 - **Контроль версий:** проект сейчас **не в git**. Рекомендую `git init` с Unity `.gitignore` и Git LFS для бинарных ассетов перед стартом кода.

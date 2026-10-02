@@ -1,0 +1,28 @@
+{
+    "name": "VoidMall.Editor",
+    "rootNamespace": "VoidMall.Editor",
+    "references": [
+        "VoidMall.Core",
+        "VoidMall.Net",
+        "VoidMall.Input",
+        "VoidMall.Console",
+        "VoidMall.Player",
+        "VoidMall.World",
+        "VoidMall.UI",
+        "VoidMall.Game",
+        "Unity.InputSystem",
+        "UnityEditor.TestRunner",
+        "UnityEngine.TestRunner"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
