@@ -1,0 +1,31 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3b6d19e156aa5a244bb1c2c0a92dc1a3, type: 3}
+  m_Name: cabinet
+  m_EditorClassIdentifier: VoidMall.World::VoidMall.World.PropDef
+  _id: prop.cabinet
+  DisplayName: "\u042D\u043B\u0435\u043A\u0442\u0440\u043E\u0449\u0438\u0442"
+  Shape: 10
+  Size: {x: 0.8, y: 2, z: 0.45}
+  Mesh: {fileID: 0}
+  Material: {fileID: 0}
+  Mass: 70
+  Hardness: 500
+  DisassembleTime: 6
+  Yields:
+  - Material: material.scrap_metal
+    Disassembled: 5
+    Broken: 3
+  - Material: material.wire
+    Disassembled: 5
+    Broken: 2
+  DebrisColor: {r: 0.55, g: 0.57, b: 0.6, a: 1}

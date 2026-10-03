@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
 using VoidMall.Console;
 using VoidMall.Core;
 
@@ -245,6 +246,10 @@ namespace VoidMall.World
             light.type = LightType.Point;
             light.shadows = LightShadows.None;
             light.renderMode = LightRenderMode.ForcePixel;
+            // Низкий уровень разрешения теней: несколько точечных теней (по 6 граней) помещаются в атлас без «ужатия».
+            if (!go.TryGetComponent(out UniversalAdditionalLightData data))
+                data = go.AddComponent<UniversalAdditionalLightData>();
+            data.additionalLightsShadowResolutionTier = UniversalAdditionalLightData.AdditionalLightsShadowResolutionTierLow;
             light.enabled = false;
             return light;
         }

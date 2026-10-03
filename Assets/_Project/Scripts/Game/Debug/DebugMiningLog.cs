@@ -19,24 +19,58 @@ namespace VoidMall.Game
 
         private readonly Dictionary<ushort, float> _mined = new();
         private readonly List<string> _impacts = new();
+        private readonly List<string> _salvaged = new();
         private float _timer;
 
         private void OnEnable()
         {
             EventBus<MaterialMinedEvent>.Subscribe(OnMined);
             EventBus<DebrisImpactEvent>.Subscribe(OnDebris);
+            EventBus<PropSalvagedEvent>.Subscribe(OnSalvaged);
         }
 
         private void OnDisable()
         {
             EventBus<MaterialMinedEvent>.Unsubscribe(OnMined);
             EventBus<DebrisImpactEvent>.Unsubscribe(OnDebris);
+            EventBus<PropSalvagedEvent>.Unsubscribe(OnSalvaged);
         }
 
         private void OnMined(in MaterialMinedEvent evt)
         {
             _mined.TryGetValue(evt.Material, out float amount);
             _mined[evt.Material] = amount + evt.Amount;
+        }
+
+        /// <summary>Названия материалов из пропов — до появления предметов (этап 6).</summary>
+        private static readonly Dictionary<string, string> MaterialNames = new()
+        {
+            ["material.scrap_metal"] = "металлолом",
+            ["material.screws"] = "шурупы",
+            ["material.plank"] = "доски",
+            ["material.glass_shard"] = "стекло",
+            ["material.plastic"] = "пластик",
+            ["material.cardboard"] = "картон",
+            ["material.fabric"] = "ткань",
+            ["material.wire"] = "провод",
+            ["material.rubber"] = "резина",
+            ["material.foam"] = "поролон",
+            ["material.pipe"] = "трубы",
+        };
+
+        private void OnSalvaged(in PropSalvagedEvent evt)
+        {
+            var parts = new List<string>();
+            foreach (var yield in evt.Def.Yields)
+            {
+                int amount = evt.Disassembled ? yield.Disassembled : yield.Broken;
+                if (amount <= 0)
+                    continue;
+                string name = MaterialNames.TryGetValue(yield.Material, out var n) ? n : yield.Material;
+                parts.Add($"{name} ×{amount}");
+            }
+            string verb = evt.Disassembled ? "Разобрано" : "Сломано";
+            _salvaged.Add($"{verb}: {evt.Def.DisplayName} → {(parts.Count > 0 ? string.Join(", ", parts) : "ничего полезного")}");
         }
 
         private void OnDebris(in DebrisImpactEvent evt) =>
@@ -48,13 +82,17 @@ namespace VoidMall.Game
             if (_timer < FlushInterval)
                 return;
             _timer = 0f;
-            if (!Enabled.Value || (_mined.Count == 0 && _impacts.Count == 0))
+            if (!Enabled.Value || (_mined.Count == 0 && _impacts.Count == 0 && _salvaged.Count == 0))
             {
                 _mined.Clear();
                 _impacts.Clear();
+                _salvaged.Clear();
                 return;
             }
 
+            foreach (var line in _salvaged)
+                DevConsole.Log(line);
+            _salvaged.Clear();
             foreach (var impact in _impacts)
                 DevConsole.Warn(impact);
             _impacts.Clear();

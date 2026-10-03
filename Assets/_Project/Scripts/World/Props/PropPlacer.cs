@@ -6,10 +6,39 @@ using VoidMall.Core;
 
 namespace VoidMall.World
 {
+    /// <summary>Индексы пропов, которые ставит генератор (резолвятся по ID при старте).</summary>
+    public struct PropIds
+    {
+        public ushort Shelf, Fridge, Checkout, DisplayTable, ClothesRack, Table, Chair, PalletRack, BoxStack, Car;
+        public ushort Cabinet, Boiler, Bench, Planter, Sofa, CardboardBox, PlasticCrate, TrashBin;
+
+        public static PropIds Resolve(PropRegistry props) => new()
+        {
+            Shelf = props.IndexOf("prop.shelf"),
+            Fridge = props.IndexOf("prop.fridge"),
+            Checkout = props.IndexOf("prop.checkout"),
+            DisplayTable = props.IndexOf("prop.display_table"),
+            ClothesRack = props.IndexOf("prop.clothes_rack"),
+            Table = props.IndexOf("prop.table"),
+            Chair = props.IndexOf("prop.chair"),
+            PalletRack = props.IndexOf("prop.pallet_rack"),
+            BoxStack = props.IndexOf("prop.box_stack"),
+            Car = props.IndexOf("prop.car"),
+            Cabinet = props.IndexOf("prop.cabinet"),
+            Boiler = props.IndexOf("prop.boiler"),
+            Bench = props.IndexOf("prop.bench"),
+            Planter = props.IndexOf("prop.planter"),
+            Sofa = props.IndexOf("prop.sofa"),
+            CardboardBox = props.IndexOf("prop.cardboard_box"),
+            PlasticCrate = props.IndexOf("prop.plastic_crate"),
+            TrashBin = props.IndexOf("prop.trash_bin"),
+        };
+    }
+
     /// <summary>
-    /// Расстановка мебели-заглушек по плану уровня (проход 6 из ARCHITECTURE §4.6): шаблон раздела
-    /// (ряды, острова, периметр, зал, склад...) + скамейки в галереях и машины на парковке.
-    /// Детерминирована: зависит от сида, ячейки, уровня и комнаты.
+    /// Расстановка пропов по плану уровня (проход 6 из ARCHITECTURE §4.6): шаблон раздела
+    /// (ряды, острова, периметр, зал, склад...) + скамейки и урны в галереях, машины на парковке, мелочь для переноски.
+    /// Детерминирована: зависит от сида, ячейки, уровня и комнаты. Каждый проп получает устойчивый ID.
     /// </summary>
     public static class PropPlacer
     {
@@ -22,12 +51,19 @@ namespace VoidMall.World
             public int Level;
             public float FloorY;
             public float2 Origin;
+            public PropRegistry Props;
+            public PropIds Ids;
 
             /// <summary>Занятые прямоугольники (min.xy, max.xy) — мебель не пересекается.</summary>
             public List<float4> Occupied;
         }
 
-        public static void Place(uint seed, in MallCellInfo info, in MallLevelPlan plan, NativeArray<SectionInfo> sections, List<PropSpawn> output)
+        /// <summary>Устойчивый ID пропа: старшие 32 бита — ячейка и уровень, младшие — порядковый номер.</summary>
+        public static ulong MakeId(int2 cell, int level, int index) =>
+            ((ulong)Hash.Get(0x50524F50u, cell.x, cell.y, level) << 32) | (uint)index;
+
+        public static void Place(uint seed, in MallCellInfo info, in MallLevelPlan plan, NativeArray<SectionInfo> sections,
+            PropRegistry props, in PropIds ids, List<PropSpawn> output)
         {
             var ctx = new Context
             {
@@ -36,8 +72,11 @@ namespace VoidMall.World
                 Level = plan.Level,
                 FloorY = MallLayout.FloorTop(plan.Level),
                 Origin = MallLayout.CellOrigin(info.Cell),
+                Props = props,
+                Ids = ids,
                 Occupied = new List<float4>(),
             };
+            int start = output.Count;
             LevelKind kind = MallLayout.Kind(plan.Level);
 
             if (kind == LevelKind.Parking)
@@ -58,47 +97,59 @@ namespace VoidMall.World
                 if (room.Has(RoomFlags.Empty))
                 {
                     if (h % 3 == 0)
-                        TryAdd(ctx, plan, i, PropKind.BoxStack, Center(room.Rect) + new float2(0.5f, 0.5f), 0f, output);
+                        TryAdd(ctx, plan, i, ctx.Ids.BoxStack, Center(room.Rect) + new float2(0.5f, 0.5f), 0f, output);
                     continue;
                 }
                 SectionLayout layout = kind == LevelKind.Tech ? SectionLayout.Tech : sections[room.Section].Layout;
                 switch (layout)
                 {
-                    case SectionLayout.Rows: Rows(ctx, plan, i, PropKind.Shelf, 3f, 2f, h, output); break;
-                    case SectionLayout.Warehouse:
-                        Rows(ctx, plan, i, PropKind.PalletRack, 3.9f, 2.7f, h, output);
-                        Scatter(ctx, plan, i, PropKind.BoxStack, 3, h, output);
+                    case SectionLayout.Rows:
+                        Rows(ctx, plan, i, ctx.Ids.Shelf, 3f, 2f, h, output);
+                        Scatter(ctx, plan, i, ctx.Ids.PlasticCrate, 3, h ^ 0x1234u, output);
                         break;
-                    case SectionLayout.Islands: Grid(ctx, plan, i, PropKind.DisplayTable, 3.4f, 3f, 2.2f, h, output); break;
+                    case SectionLayout.Warehouse:
+                        Rows(ctx, plan, i, ctx.Ids.PalletRack, 3.9f, 2.7f, h, output);
+                        Scatter(ctx, plan, i, ctx.Ids.BoxStack, 3, h, output);
+                        Scatter(ctx, plan, i, ctx.Ids.CardboardBox, 6, h ^ 0x5678u, output);
+                        break;
+                    case SectionLayout.Islands: Grid(ctx, plan, i, ctx.Ids.DisplayTable, 3.4f, 3f, 2.2f, h, output); break;
                     case SectionLayout.Perimeter:
-                        Perimeter(ctx, plan, i, PropKind.Shelf, output);
-                        Grid(ctx, plan, i, PropKind.DisplayTable, 4.5f, 4f, 3.4f, h, output);
+                        Perimeter(ctx, plan, i, ctx.Ids.Shelf, output);
+                        Grid(ctx, plan, i, ctx.Ids.DisplayTable, 4.5f, 4f, 3.4f, h, output);
                         break;
                     case SectionLayout.Clothing:
-                        Perimeter(ctx, plan, i, PropKind.Shelf, output);
-                        Grid(ctx, plan, i, PropKind.ClothesRack, 2.6f, 2.4f, 2.4f, h, output);
+                        Perimeter(ctx, plan, i, ctx.Ids.Shelf, output);
+                        Grid(ctx, plan, i, ctx.Ids.ClothesRack, 2.6f, 2.4f, 2.4f, h, output);
                         break;
                     case SectionLayout.Hall: Dining(ctx, plan, i, output); break;
                     case SectionLayout.Showroom:
-                        Grid(ctx, plan, i, PropKind.Sofa, 4.6f, 4.2f, 2.5f, h, output);
+                        Grid(ctx, plan, i, ctx.Ids.Sofa, 4.6f, 4.2f, 2.5f, h, output);
                         break;
                     case SectionLayout.Tech:
-                        Perimeter(ctx, plan, i, PropKind.Cabinet, output);
+                        Perimeter(ctx, plan, i, ctx.Ids.Cabinet, output);
                         if (math.min(room.Rect.z - room.Rect.x, room.Rect.w - room.Rect.y) >= 6)
-                            TryAdd(ctx, plan, i, PropKind.Boiler, Center(room.Rect), 0f, output);
+                            TryAdd(ctx, plan, i, ctx.Ids.Boiler, Center(room.Rect), 0f, output);
+                        Scatter(ctx, plan, i, ctx.Ids.CardboardBox, 2, h ^ 0x9ABCu, output);
                         break;
                 }
+            }
+
+            for (int i = start; i < output.Count; i++)
+            {
+                var spawn = output[i];
+                spawn.Id = MakeId(info.Cell, plan.Level, i - start);
+                output[i] = spawn;
             }
         }
 
         // ───────────────────────────── Шаблоны ─────────────────────────────
 
         /// <summary>Двойные ряды (спина к спине) вдоль длинной стороны комнаты, поперечный проход каждые 5 секций.</summary>
-        private static void Rows(in Context ctx, in MallLevelPlan plan, int room, PropKind kind, float pitch, float unit, uint h, List<PropSpawn> output)
+        private static void Rows(in Context ctx, in MallLevelPlan plan, int room, ushort kind, float pitch, float unit, uint h, List<PropSpawn> output)
         {
             int4 r = plan.Rooms[room].Rect;
             bool alongX = r.z - r.x >= r.w - r.y;
-            float depth = PropCatalog.Size(kind).z;
+            float depth = ctx.Props.Size(kind).z;
             float a0 = alongX ? r.x : r.y, a1 = alongX ? r.z : r.w;
             float b0 = alongX ? r.y : r.x, b1 = alongX ? r.w : r.z;
             float margin = 1.8f;
@@ -122,7 +173,7 @@ namespace VoidMall.World
             }
         }
 
-        private static void Grid(in Context ctx, in MallLevelPlan plan, int room, PropKind kind, float pitchX, float pitchZ, float margin, uint h, List<PropSpawn> output)
+        private static void Grid(in Context ctx, in MallLevelPlan plan, int room, ushort kind, float pitchX, float pitchZ, float margin, uint h, List<PropSpawn> output)
         {
             int4 r = plan.Rooms[room].Rect;
             int nx = (int)((r.z - r.x - margin * 2f) / pitchX) + 1;
@@ -138,10 +189,10 @@ namespace VoidMall.World
         }
 
         /// <summary>Мебель вдоль стен: секции с отступом от стены, не ближе 1.5 м к дверям.</summary>
-        private static void Perimeter(in Context ctx, in MallLevelPlan plan, int room, PropKind kind, List<PropSpawn> output)
+        private static void Perimeter(in Context ctx, in MallLevelPlan plan, int room, ushort kind, List<PropSpawn> output)
         {
             int4 r = plan.Rooms[room].Rect;
-            Vector3 size = PropCatalog.Size(kind);
+            Vector3 size = ctx.Props.Size(kind);
             float half = size.z * 0.5f + 0.05f;
             // Стены: −Z (y), +Z (w), −X (x), +X (z). Мебель смотрит внутрь комнаты.
             for (int side = 0; side < 4; side++)
@@ -184,16 +235,16 @@ namespace VoidMall.World
             for (int ix = 0; ix < nx; ix++)
             {
                 float2 c = new(sx + ix * pitch, sz + iz * pitch);
-                if (!TryAdd(ctx, plan, room, PropKind.Table, c, 0f, output))
+                if (!TryAdd(ctx, plan, room, ctx.Ids.Table, c, 0f, output))
                     continue;
-                TryAdd(ctx, plan, room, PropKind.Chair, c + new float2(0f, -0.95f), 180f, output);
-                TryAdd(ctx, plan, room, PropKind.Chair, c + new float2(0f, 0.95f), 0f, output);
-                TryAdd(ctx, plan, room, PropKind.Chair, c + new float2(-0.95f, 0f), 270f, output);
-                TryAdd(ctx, plan, room, PropKind.Chair, c + new float2(0.95f, 0f), 90f, output);
+                TryAdd(ctx, plan, room, ctx.Ids.Chair, c + new float2(0f, -0.95f), 180f, output);
+                TryAdd(ctx, plan, room, ctx.Ids.Chair, c + new float2(0f, 0.95f), 0f, output);
+                TryAdd(ctx, plan, room, ctx.Ids.Chair, c + new float2(-0.95f, 0f), 270f, output);
+                TryAdd(ctx, plan, room, ctx.Ids.Chair, c + new float2(0.95f, 0f), 90f, output);
             }
         }
 
-        private static void Scatter(in Context ctx, in MallLevelPlan plan, int room, PropKind kind, int count, uint h, List<PropSpawn> output)
+        private static void Scatter(in Context ctx, in MallLevelPlan plan, int room, ushort kind, int count, uint h, List<PropSpawn> output)
         {
             int4 r = plan.Rooms[room].Rect;
             for (int i = 0; i < count; i++)
@@ -215,8 +266,10 @@ namespace VoidMall.World
                 {
                     float2 bench = axis == 0 ? new float2(along, 7f) : new float2(7f, along);
                     float2 planter = axis == 0 ? new float2(along + 4.5f, 7f) : new float2(7f, along + 4.5f);
-                    TryAdd(ctx, plan, 0, PropKind.Bench, bench, axis == 0 ? 0f : 90f, output);
-                    TryAdd(ctx, plan, 0, PropKind.Planter, planter, 0f, output);
+                    TryAdd(ctx, plan, 0, ctx.Ids.Bench, bench, axis == 0 ? 0f : 90f, output);
+                    TryAdd(ctx, plan, 0, ctx.Ids.Planter, planter, 0f, output);
+                    float2 bin = axis == 0 ? new float2(along + 2.2f, 7f) : new float2(7f, along + 2.2f);
+                    TryAdd(ctx, plan, 0, ctx.Ids.TrashBin, bin, 0f, output);
                 }
             }
         }
@@ -231,16 +284,16 @@ namespace VoidMall.World
                 if (h % 100 >= 30)
                     continue;
                 float2 p = new(bay * 3 + 1.5f, row * 16 + (side == 0 ? 4f : 10f));
-                TryAdd(ctx, plan, 0, PropKind.Car, p, (h >> 8) % 2 == 0 ? 0f : 180f, output);
+                TryAdd(ctx, plan, 0, ctx.Ids.Car, p, (h >> 8) % 2 == 0 ? 0f : 180f, output);
             }
         }
 
         // ───────────────────────────── Проверки ─────────────────────────────
 
         /// <summary>Добавить, если весь габарит лежит на свободном полу этой комнаты и вне аномалий.</summary>
-        private static bool TryAdd(in Context ctx, in MallLevelPlan plan, int room, PropKind kind, float2 local, float yaw, List<PropSpawn> output)
+        private static bool TryAdd(in Context ctx, in MallLevelPlan plan, int room, ushort kind, float2 local, float yaw, List<PropSpawn> output)
         {
-            Vector3 size = PropCatalog.Size(kind);
+            Vector3 size = ctx.Props.Size(kind);
             bool swap = Mathf.Abs(Mathf.Repeat(yaw, 180f) - 90f) < 1f;
             float2 half = (swap ? new float2(size.z, size.x) : new float2(size.x, size.z)) * 0.5f;
             int2 min = (int2)math.floor(local - half + 0.02f);
@@ -262,7 +315,7 @@ namespace VoidMall.World
                 if (box.x < other.z && other.x < box.z && box.y < other.w && other.y < box.w)
                     return false;
             ctx.Occupied.Add(box);
-            output.Add(new PropSpawn { Kind = kind, Position = new Vector3(world.x, ctx.FloorY, world.y), Yaw = yaw });
+            output.Add(new PropSpawn { Def = kind, Position = new Vector3(world.x, ctx.FloorY, world.y), Yaw = yaw });
             return true;
         }
 

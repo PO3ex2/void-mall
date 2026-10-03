@@ -54,7 +54,8 @@ namespace VoidMall.Editor
             Button(map, "Crouch", ("<Keyboard>/leftCtrl", Kbm), ("<Keyboard>/c", Kbm), ("<Gamepad>/buttonEast", Pad));
             Button(map, "Sprint", ("<Keyboard>/leftShift", Kbm), ("<Gamepad>/leftStickPress", Pad));
             Button(map, "Walk", ("<Keyboard>/leftAlt", Kbm));
-            Button(map, "Interact", ("<Keyboard>/f", Kbm), ("<Gamepad>/buttonWest", Pad));
+            Button(map, "Interact", ("<Keyboard>/e", Kbm), ("<Gamepad>/buttonWest", Pad));
+            Button(map, "Disassemble", ("<Keyboard>/f", Kbm), ("<Gamepad>/rightStickPress", Pad));
             Button(map, "Primary", ("<Mouse>/leftButton", Kbm), ("<Gamepad>/rightTrigger", Pad));
             Button(map, "Secondary", ("<Mouse>/rightButton", Kbm), ("<Gamepad>/leftTrigger", Pad));
             for (int slot = 1; slot <= 9; slot++)

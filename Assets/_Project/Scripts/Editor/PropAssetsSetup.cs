@@ -1,0 +1,106 @@
+using System.Collections.Generic;
+using UnityEditor;
+using UnityEngine;
+using VoidMall.World;
+
+namespace VoidMall.Editor
+{
+    /// <summary>Ассеты пропов: описания PropDef (масса, прочность, разбор) и набор PropSet для мира.</summary>
+    public static class PropAssetsSetup
+    {
+        public const string PropsFolder = "Assets/_Project/Data/Props";
+        public const string PropSetPath = PropsFolder + "/PropSet.asset";
+
+        private readonly struct Spec
+        {
+            public readonly string Id, Name;
+            public readonly PropShape Shape;
+            public readonly float Mass, DisassembleTime;
+            public readonly int Hardness;
+            public readonly Color Debris;
+            public readonly (string material, int full, int broken)[] Yields;
+
+            public Spec(string id, string name, PropShape shape, float mass, int hardness, float disassembleTime, Color debris,
+                params (string, int, int)[] yields)
+            {
+                Id = id;
+                Name = name;
+                Shape = shape;
+                Mass = mass;
+                Hardness = hardness;
+                DisassembleTime = disassembleTime;
+                Debris = debris;
+                Yields = yields;
+            }
+        }
+
+        private static readonly Color MetalDust = new(0.55f, 0.57f, 0.6f);
+        private static readonly Color WoodDust = new(0.55f, 0.42f, 0.3f);
+        private static readonly Color PaperDust = new(0.65f, 0.55f, 0.4f);
+        private static readonly Color WhiteDust = new(0.8f, 0.8f, 0.78f);
+
+        /// <summary>Порядок = индекс PropSpawn.Def. Новые пропы добавлять только в конец.</summary>
+        private static readonly Spec[] Specs =
+        {
+            new("prop.shelf", "Стеллаж", PropShape.Shelf, 60f, 400, 6f, MetalDust, ("material.scrap_metal", 6, 3), ("material.screws", 8, 2)),
+            new("prop.fridge", "Холодильник", PropShape.Fridge, 120f, 600, 9f, WhiteDust, ("material.scrap_metal", 8, 4), ("material.glass_shard", 3, 1), ("material.wire", 2, 1), ("material.plastic", 3, 1)),
+            new("prop.checkout", "Кассовая стойка", PropShape.Checkout, 90f, 500, 7f, WhiteDust, ("material.scrap_metal", 4, 2), ("material.plastic", 4, 2), ("material.wire", 2, 0)),
+            new("prop.display_table", "Витринный стол", PropShape.DisplayTable, 35f, 250, 4f, WoodDust, ("material.plank", 4, 2), ("material.screws", 4, 1)),
+            new("prop.clothes_rack", "Вешало", PropShape.ClothesRack, 12f, 150, 3f, MetalDust, ("material.scrap_metal", 2, 1), ("material.fabric", 3, 1)),
+            new("prop.table", "Стол", PropShape.Table, 18f, 200, 3f, WoodDust, ("material.plank", 3, 1), ("material.scrap_metal", 1, 1)),
+            new("prop.chair", "Стул", PropShape.Chair, 5f, 80, 2f, WoodDust, ("material.plank", 2, 1), ("material.scrap_metal", 1, 0)),
+            new("prop.pallet_rack", "Паллетный стеллаж", PropShape.PalletRack, 250f, 900, 12f, MetalDust, ("material.scrap_metal", 12, 6), ("material.cardboard", 4, 2), ("material.screws", 10, 3)),
+            new("prop.box_stack", "Штабель коробок", PropShape.BoxStack, 30f, 120, 3f, PaperDust, ("material.cardboard", 6, 3)),
+            new("prop.car", "Машина", PropShape.Car, 1200f, 3000, 30f, MetalDust, ("material.scrap_metal", 30, 15), ("material.rubber", 4, 2), ("material.glass_shard", 6, 2), ("material.wire", 6, 2)),
+            new("prop.cabinet", "Электрощит", PropShape.Cabinet, 70f, 500, 6f, MetalDust, ("material.scrap_metal", 5, 3), ("material.wire", 5, 2)),
+            new("prop.boiler", "Бойлер", PropShape.Boiler, 400f, 1500, 15f, MetalDust, ("material.scrap_metal", 15, 8), ("material.pipe", 4, 2)),
+            new("prop.bench", "Скамейка", PropShape.Bench, 25f, 250, 4f, WoodDust, ("material.plank", 4, 2), ("material.scrap_metal", 2, 1)),
+            new("prop.planter", "Кадка с растением", PropShape.Planter, 60f, 300, 4f, WhiteDust, ("material.plastic", 3, 1)),
+            new("prop.sofa", "Диван", PropShape.Sofa, 45f, 200, 5f, PaperDust, ("material.fabric", 5, 2), ("material.foam", 4, 2), ("material.plank", 3, 1)),
+            new("prop.cardboard_box", "Картонная коробка", PropShape.CardboardBox, 4f, 30, 1f, PaperDust, ("material.cardboard", 2, 1)),
+            new("prop.plastic_crate", "Пластиковый ящик", PropShape.PlasticCrate, 6f, 60, 1.5f, WhiteDust, ("material.plastic", 3, 1)),
+            new("prop.trash_bin", "Урна", PropShape.TrashBin, 8f, 80, 2f, MetalDust, ("material.scrap_metal", 2, 1), ("material.plastic", 1, 0)),
+        };
+
+        public static void CreatePropAssets()
+        {
+            ProjectSetup.EnsureFolder(PropsFolder);
+            var set = AssetDatabase.LoadAssetAtPath<PropSet>(PropSetPath);
+            if (set == null)
+            {
+                set = ScriptableObject.CreateInstance<PropSet>();
+                AssetDatabase.CreateAsset(set, PropSetPath);
+            }
+            set.Props.Clear();
+
+            foreach (var spec in Specs)
+            {
+                string path = $"{PropsFolder}/{spec.Id.Replace("prop.", "")}.asset";
+                var def = AssetDatabase.LoadAssetAtPath<PropDef>(path);
+                if (def == null)
+                {
+                    def = ScriptableObject.CreateInstance<PropDef>();
+                    AssetDatabase.CreateAsset(def, path);
+                }
+                var so = new SerializedObject(def);
+                so.FindProperty("_id").stringValue = spec.Id;
+                so.ApplyModifiedPropertiesWithoutUndo();
+                def.DisplayName = spec.Name;
+                def.Shape = spec.Shape;
+                // Размер, своя модель и материал — на усмотрение художника: не перезаписываем, если уже заданы.
+                if (def.Size == Vector3.one || def.Size == Vector3.zero)
+                    def.Size = PropMeshes.DefaultSize(spec.Shape);
+                def.Mass = spec.Mass;
+                def.Hardness = spec.Hardness;
+                def.DisassembleTime = spec.DisassembleTime;
+                def.DebrisColor = spec.Debris;
+                def.Yields = new List<PropYield>();
+                foreach (var (material, full, broken) in spec.Yields)
+                    def.Yields.Add(new PropYield { Material = material, Disassembled = full, Broken = broken });
+                EditorUtility.SetDirty(def);
+                set.Props.Add(def);
+            }
+            EditorUtility.SetDirty(set);
+        }
+    }
+}

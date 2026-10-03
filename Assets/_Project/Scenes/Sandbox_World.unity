@@ -119,7 +119,7 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
---- !u!1 &317001180
+--- !u!1 &195212985
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -127,14 +127,15 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 317001188}
-  - component: {fileID: 317001187}
-  - component: {fileID: 317001186}
-  - component: {fileID: 317001185}
-  - component: {fileID: 317001184}
-  - component: {fileID: 317001183}
-  - component: {fileID: 317001182}
-  - component: {fileID: 317001181}
+  - component: {fileID: 195212994}
+  - component: {fileID: 195212993}
+  - component: {fileID: 195212992}
+  - component: {fileID: 195212991}
+  - component: {fileID: 195212990}
+  - component: {fileID: 195212989}
+  - component: {fileID: 195212988}
+  - component: {fileID: 195212987}
+  - component: {fileID: 195212986}
   m_Layer: 0
   m_Name: World
   m_TagString: Untagged
@@ -142,25 +143,40 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &317001181
+--- !u!114 &195212986
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 317001180}
+  m_GameObject: {fileID: 195212985}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 23851c644bb386944b3efc4a116b5cb8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: VoidMall.World::VoidMall.World.PropManager
+  _set: {fileID: 11400000, guid: 13a612b9a3af7ab48b6dc016379b644e, type: 2}
+  _material: {fileID: 2100000, guid: d1d7efd7877eaaf42b2972de3a6850fd, type: 2}
+  _dustMaterial: {fileID: 2100000, guid: 151820b9a3a4fd845a2b8f14d63ab97f, type: 2}
+--- !u!114 &195212987
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 195212985}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 43d014a89ed3d1847b97e73b0b48a420, type: 3}
   m_Name: 
   m_EditorClassIdentifier: VoidMall.World::VoidMall.World.AnomalyFxDirector
---- !u!114 &317001182
+--- !u!114 &195212988
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 317001180}
+  m_GameObject: {fileID: 195212985}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a57003048d9b18245a50482be3056517, type: 3}
@@ -179,64 +195,65 @@ MonoBehaviour:
   _nightAmbient: {r: 0.015, g: 0.015, b: 0.02, a: 1}
   _dayFog: {r: 0.32, g: 0.31, b: 0.29, a: 1}
   _nightFog: {r: 0, g: 0, b: 0, a: 1}
---- !u!114 &317001183
+  _dayReflections: 0.25
+--- !u!114 &195212989
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 317001180}
+  m_GameObject: {fileID: 195212985}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: eb6cab95f3a0d34438140920004e8b75, type: 3}
   m_Name: 
   m_EditorClassIdentifier: VoidMall.World::VoidMall.World.WorldClock
   _settings: {fileID: 11400000, guid: a80008bfb8886514fa856742f06a37ed, type: 2}
---- !u!114 &317001184
+--- !u!114 &195212990
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 317001180}
+  m_GameObject: {fileID: 195212985}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: bb84c75e92c2986439253d50fbb31915, type: 3}
   m_Name: 
   m_EditorClassIdentifier: VoidMall.World::VoidMall.World.MallStructures
   _material: {fileID: 2100000, guid: d1d7efd7877eaaf42b2972de3a6850fd, type: 2}
---- !u!114 &317001185
+--- !u!114 &195212991
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 317001180}
+  m_GameObject: {fileID: 195212985}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 56e12027e3e63c04e88685817f6d7d47, type: 3}
   m_Name: 
   m_EditorClassIdentifier: VoidMall.World::VoidMall.World.DebrisSpawner
   _dustMaterial: {fileID: 2100000, guid: 151820b9a3a4fd845a2b8f14d63ab97f, type: 2}
---- !u!114 &317001186
+--- !u!114 &195212992
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 317001180}
+  m_GameObject: {fileID: 195212985}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f438ec63c69293b4a9f0346197c443bf, type: 3}
   m_Name: 
   m_EditorClassIdentifier: VoidMall.World::VoidMall.World.WorldAuthority
---- !u!114 &317001187
+--- !u!114 &195212993
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 317001180}
+  m_GameObject: {fileID: 195212985}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 562f1fa70d860b24698757142a7dbf27, type: 3}
@@ -247,13 +264,13 @@ MonoBehaviour:
   _transparentMaterial: {fileID: 2100000, guid: 2cd48bdfdef53a24f80016116d631505, type: 2}
   _settings: {fileID: 11400000, guid: a80008bfb8886514fa856742f06a37ed, type: 2}
   _seed: 1337
---- !u!4 &317001188
+--- !u!4 &195212994
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 317001180}
+  m_GameObject: {fileID: 195212985}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
@@ -262,7 +279,7 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1001 &1175193321
+--- !u!1001 &2111887916
 PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
@@ -320,23 +337,38 @@ PrefabInstance:
     m_AddedComponents:
     - targetCorrespondingSourceObject: {fileID: 2279345652427918525, guid: 648813251dc9a804d9b5132ecfc08660, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 1175193324}
+      addedObject: {fileID: 2111887920}
     - targetCorrespondingSourceObject: {fileID: 2279345652427918525, guid: 648813251dc9a804d9b5132ecfc08660, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 1175193323}
+      addedObject: {fileID: 2111887919}
+    - targetCorrespondingSourceObject: {fileID: 2279345652427918525, guid: 648813251dc9a804d9b5132ecfc08660, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 2111887918}
   m_SourcePrefab: {fileID: 100100000, guid: 648813251dc9a804d9b5132ecfc08660, type: 3}
---- !u!1 &1175193322 stripped
+--- !u!1 &2111887917 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 2279345652427918525, guid: 648813251dc9a804d9b5132ecfc08660, type: 3}
-  m_PrefabInstance: {fileID: 1175193321}
+  m_PrefabInstance: {fileID: 2111887916}
   m_PrefabAsset: {fileID: 0}
---- !u!114 &1175193323
+--- !u!114 &2111887918
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1175193322}
+  m_GameObject: {fileID: 2111887917}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0e970b5ee5a83cb43930579d6143a13a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: VoidMall.Game::VoidMall.Game.PropInteractor
+--- !u!114 &2111887919
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2111887917}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: cc416ff1ef7917b48a463a3e4a7ea6cc, type: 3}
@@ -348,13 +380,13 @@ MonoBehaviour:
   _outlineMaterial: {fileID: 2100000, guid: 968c4052043727b4c9583885961b1c6b, type: 2}
   _crackMaterial: {fileID: 2100000, guid: 6677d53d76c3d2049b0b8327c8924747, type: 2}
   _brushMaterial: {fileID: 2100000, guid: c927430dba5f67045a6a77fe0f76e208, type: 2}
---- !u!114 &1175193324
+--- !u!114 &2111887920
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1175193322}
+  m_GameObject: {fileID: 2111887917}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: bb32793e7698bbc4dac2dc7d6669c68c, type: 3}
@@ -364,5 +396,5 @@ MonoBehaviour:
 SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
-  - {fileID: 317001188}
-  - {fileID: 1175193321}
+  - {fileID: 195212994}
+  - {fileID: 2111887916}

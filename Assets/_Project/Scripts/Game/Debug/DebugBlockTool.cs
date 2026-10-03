@@ -34,6 +34,7 @@ namespace VoidMall.Game
 
         private static readonly int DamageId = Shader.PropertyToID("_Damage");
         private const int WorldMask = 1 << GameLayers.World;
+        private const int PropMask = 1 << GameLayers.Props;
 
         private readonly List<ushort> _blocks = new();
         private readonly List<ushort> _smoothMaterials = new();
@@ -63,6 +64,13 @@ namespace VoidMall.Game
         private string _lastInfo;
 
         private ChunkManager World => ChunkManager.Instance;
+
+        /// <summary>Ввод занят другим (игрок держит проп, разбирает его): инструмент не реагирует на кнопки.</summary>
+        public bool InputBlocked { get; set; }
+
+        public bool HammerActive => _mode == ToolMode.Hammer;
+
+        private PropBody _propTarget;
 
         private void Start()
         {
@@ -118,15 +126,28 @@ namespace VoidMall.Game
             _hasTarget = World.Raycast(view.position, view.forward, _reach, out _target);
             _hasDrillTarget = Physics.Raycast(view.position, view.forward, out _drillHit, _reach, WorldMask, QueryTriggerInteraction.Ignore);
 
-            HandleSelection();
-            if (_mode == ToolMode.Hammer)
+            // Проп ближе блока — молоток бьёт по пропу.
+            _propTarget = null;
+            if (Physics.Raycast(view.position, view.forward, out var propHit, _reach, WorldMask | PropMask, QueryTriggerInteraction.Ignore)
+                && PropManager.TryGetProp(propHit.collider, out var prop)
+                && (!_hasTarget || propHit.distance < _target.Distance))
             {
-                HandleBreaking();
-                HandlePlacing();
+                _propTarget = prop;
+                _hasTarget = false;
             }
-            else
+
+            if (!InputBlocked)
             {
-                HandleDrilling();
+                HandleSelection();
+                if (_mode == ToolMode.Hammer)
+                {
+                    HandleBreaking();
+                    HandlePlacing();
+                }
+                else
+                {
+                    HandleDrilling();
+                }
             }
             UpdateVisuals();
             UpdateHud();
@@ -175,7 +196,15 @@ namespace VoidMall.Game
                 return;
             }
             _actionTimer -= Time.deltaTime;
-            if (_actionTimer > 0f || !_hasTarget)
+            if (_actionTimer > 0f)
+                return;
+            if (_propTarget != null && PropManager.Instance != null)
+            {
+                _actionTimer = _swingInterval;
+                PropManager.Instance.Damage(_propTarget, ToolDamage.Value);
+                return;
+            }
+            if (!_hasTarget)
                 return;
             _actionTimer = _swingInterval;
             Send(new DamageBlockCommand { Position = _target.Cell, Amount = ToolDamage.Value });
@@ -346,7 +375,9 @@ namespace VoidMall.Game
             string tool = _mode == ToolMode.Hammer
                 ? $"[1] МОЛОТОК · [2] бур   Блок: {Name(_blocks, _selectedBlock)}   (ЛКМ — ломать, ПКМ — ставить, колесо — блок, СКМ — взять)"
                 : $"[1] молоток · [2] БУР   Материал: {Name(_smoothMaterials, _selectedSmooth)}   (ЛКМ — срезать, ПКМ — нарастить, колесо — материал)";
-            string target = _hasTarget
+            string target = _propTarget != null && PropManager.Instance != null
+                ? $"{_propTarget.Def.DisplayName}  {(1f - PropManager.Instance.Health(_propTarget)) * 100f:0}%"
+                : _hasTarget
                 ? $"{World.Materials.Get(_target.Value.Material).DisplayName}" + (_mode == ToolMode.Hammer ? $"  {DamageFraction() * 100f:0}%" : "")
                 : "—";
             int3 chunk = WorldConstants.CellToChunk((int3)math.floor((float3)transform.position));

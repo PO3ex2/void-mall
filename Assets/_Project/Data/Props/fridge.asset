@@ -1,0 +1,37 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3b6d19e156aa5a244bb1c2c0a92dc1a3, type: 3}
+  m_Name: fridge
+  m_EditorClassIdentifier: VoidMall.World::VoidMall.World.PropDef
+  _id: prop.fridge
+  DisplayName: "\u0425\u043E\u043B\u043E\u0434\u0438\u043B\u044C\u043D\u0438\u043A"
+  Shape: 1
+  Size: {x: 1.2, y: 2.1, z: 0.8}
+  Mesh: {fileID: 0}
+  Material: {fileID: 0}
+  Mass: 120
+  Hardness: 600
+  DisassembleTime: 9
+  Yields:
+  - Material: material.scrap_metal
+    Disassembled: 8
+    Broken: 4
+  - Material: material.glass_shard
+    Disassembled: 3
+    Broken: 1
+  - Material: material.wire
+    Disassembled: 2
+    Broken: 1
+  - Material: material.plastic
+    Disassembled: 3
+    Broken: 1
+  DebrisColor: {r: 0.8, g: 0.8, b: 0.78, a: 1}

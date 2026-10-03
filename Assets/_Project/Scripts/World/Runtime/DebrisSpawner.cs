@@ -19,6 +19,8 @@ namespace VoidMall.World
 
         [SerializeField] private Material _dustMaterial;
 
+        public Material DustMaterial => _dustMaterial;
+
         private ChunkManager _world;
 
         private void Awake() => _world = GetComponent<ChunkManager>();

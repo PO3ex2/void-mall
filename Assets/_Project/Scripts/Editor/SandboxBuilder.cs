@@ -97,6 +97,7 @@ namespace VoidMall.Editor
             var clock = world.AddComponent<WorldClock>();
             world.AddComponent<LightingDirector>();
             world.AddComponent<AnomalyFxDirector>();
+            var props = world.AddComponent<PropManager>();
             ProjectSetup.SetReference(debris, "_dustMaterial", AssetDatabase.LoadAssetAtPath<Material>(WorldAssetsSetup.DustMaterialPath));
             ProjectSetup.SetReference(chunkManager, "_catalog", AssetDatabase.LoadAssetAtPath<MaterialCatalog>(WorldAssetsSetup.CatalogPath));
             ProjectSetup.SetReference(chunkManager, "_opaqueMaterial", AssetDatabase.LoadAssetAtPath<Material>(WorldAssetsSetup.BlockOpaqueMaterialPath));
@@ -104,6 +105,9 @@ namespace VoidMall.Editor
             ProjectSetup.SetReference(chunkManager, "_settings", settings);
             ProjectSetup.SetReference(clock, "_settings", settings);
             ProjectSetup.SetReference(structures, "_material", AssetDatabase.LoadAssetAtPath<Material>(WorldAssetsSetup.PropsMaterialPath));
+            ProjectSetup.SetReference(props, "_set", AssetDatabase.LoadAssetAtPath<PropSet>(PropAssetsSetup.PropSetPath));
+            ProjectSetup.SetReference(props, "_material", AssetDatabase.LoadAssetAtPath<Material>(WorldAssetsSetup.PropsMaterialPath));
+            ProjectSetup.SetReference(props, "_dustMaterial", AssetDatabase.LoadAssetAtPath<Material>(WorldAssetsSetup.DustMaterialPath));
 
             var playerPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(ProjectSetup.PlayerPrefabPath);
             if (playerPrefab != null)
@@ -114,6 +118,7 @@ namespace VoidMall.Editor
                 player.transform.position = MallPlanner.FindSpawn(seed, frequency);
                 player.AddComponent<WorldViewer>();
                 var tool = player.AddComponent<VoidMall.Game.DebugBlockTool>();
+                player.AddComponent<VoidMall.Game.PropInteractor>();
                 ProjectSetup.SetReference(tool, "_outlineMaterial", AssetDatabase.LoadAssetAtPath<Material>(WorldAssetsSetup.OutlineMaterialPath));
                 ProjectSetup.SetReference(tool, "_crackMaterial", AssetDatabase.LoadAssetAtPath<Material>(WorldAssetsSetup.CracksMaterialPath));
                 ProjectSetup.SetReference(tool, "_brushMaterial", AssetDatabase.LoadAssetAtPath<Material>(WorldAssetsSetup.BrushMaterialPath));

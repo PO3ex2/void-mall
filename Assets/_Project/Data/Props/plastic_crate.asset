@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3b6d19e156aa5a244bb1c2c0a92dc1a3, type: 3}
+  m_Name: plastic_crate
+  m_EditorClassIdentifier: VoidMall.World::VoidMall.World.PropDef
+  _id: prop.plastic_crate
+  DisplayName: "\u041F\u043B\u0430\u0441\u0442\u0438\u043A\u043E\u0432\u044B\u0439 \u044F\u0449\u0438\u043A"
+  Shape: 16
+  Size: {x: 0.6, y: 0.32, z: 0.4}
+  Mesh: {fileID: 0}
+  Material: {fileID: 0}
+  Mass: 6
+  Hardness: 60
+  DisassembleTime: 1.5
+  Yields:
+  - Material: material.plastic
+    Disassembled: 3
+    Broken: 1
+  DebrisColor: {r: 0.8, g: 0.8, b: 0.78, a: 1}

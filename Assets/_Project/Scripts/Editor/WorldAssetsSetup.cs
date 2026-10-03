@@ -209,6 +209,7 @@ namespace VoidMall.Editor
             props.enableInstancing = true;
 
             CreateMallAssets(catalog);
+            PropAssetsSetup.CreatePropAssets();
         }
 
         // ───────────────────────────── Разделы и настройки мира ─────────────────────────────

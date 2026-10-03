@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3b6d19e156aa5a244bb1c2c0a92dc1a3, type: 3}
+  m_Name: sofa
+  m_EditorClassIdentifier: VoidMall.World::VoidMall.World.PropDef
+  _id: prop.sofa
+  DisplayName: "\u0414\u0438\u0432\u0430\u043D"
+  Shape: 14
+  Size: {x: 2.2, y: 0.85, z: 0.95}
+  Mesh: {fileID: 0}
+  Material: {fileID: 0}
+  Mass: 45
+  Hardness: 200
+  DisassembleTime: 5
+  Yields:
+  - Material: material.fabric
+    Disassembled: 5
+    Broken: 2
+  - Material: material.foam
+    Disassembled: 4
+    Broken: 2
+  - Material: material.plank
+    Disassembled: 3
+    Broken: 1
+  DebrisColor: {r: 0.65, g: 0.55, b: 0.4, a: 1}

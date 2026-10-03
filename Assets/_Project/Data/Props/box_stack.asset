@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3b6d19e156aa5a244bb1c2c0a92dc1a3, type: 3}
+  m_Name: box_stack
+  m_EditorClassIdentifier: VoidMall.World::VoidMall.World.PropDef
+  _id: prop.box_stack
+  DisplayName: "\u0428\u0442\u0430\u0431\u0435\u043B\u044C \u043A\u043E\u0440\u043E\u0431\u043E\u043A"
+  Shape: 8
+  Size: {x: 1, y: 1.2, z: 1}
+  Mesh: {fileID: 0}
+  Material: {fileID: 0}
+  Mass: 30
+  Hardness: 120
+  DisassembleTime: 3
+  Yields:
+  - Material: material.cardboard
+    Disassembled: 6
+    Broken: 3
+  DebrisColor: {r: 0.65, g: 0.55, b: 0.4, a: 1}

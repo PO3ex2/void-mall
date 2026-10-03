@@ -1,0 +1,31 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3b6d19e156aa5a244bb1c2c0a92dc1a3, type: 3}
+  m_Name: table
+  m_EditorClassIdentifier: VoidMall.World::VoidMall.World.PropDef
+  _id: prop.table
+  DisplayName: "\u0421\u0442\u043E\u043B"
+  Shape: 5
+  Size: {x: 1.2, y: 0.75, z: 1.2}
+  Mesh: {fileID: 0}
+  Material: {fileID: 0}
+  Mass: 18
+  Hardness: 200
+  DisassembleTime: 3
+  Yields:
+  - Material: material.plank
+    Disassembled: 3
+    Broken: 1
+  - Material: material.scrap_metal
+    Disassembled: 1
+    Broken: 1
+  DebrisColor: {r: 0.55, g: 0.42, b: 0.3, a: 1}

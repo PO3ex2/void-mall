@@ -1,0 +1,37 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3b6d19e156aa5a244bb1c2c0a92dc1a3, type: 3}
+  m_Name: car
+  m_EditorClassIdentifier: VoidMall.World::VoidMall.World.PropDef
+  _id: prop.car
+  DisplayName: "\u041C\u0430\u0448\u0438\u043D\u0430"
+  Shape: 9
+  Size: {x: 1.8, y: 1.45, z: 4.3}
+  Mesh: {fileID: 0}
+  Material: {fileID: 0}
+  Mass: 1200
+  Hardness: 3000
+  DisassembleTime: 30
+  Yields:
+  - Material: material.scrap_metal
+    Disassembled: 30
+    Broken: 15
+  - Material: material.rubber
+    Disassembled: 4
+    Broken: 2
+  - Material: material.glass_shard
+    Disassembled: 6
+    Broken: 2
+  - Material: material.wire
+    Disassembled: 6
+    Broken: 2
+  DebrisColor: {r: 0.55, g: 0.57, b: 0.6, a: 1}

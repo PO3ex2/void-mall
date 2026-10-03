@@ -39,6 +39,13 @@ git clone https://github.com/PO3ex2/void-mall.git
 | Выбрать блок или материал / взять под прицелом | Колесо / СКМ |
 | HUD (позиция, этаж, раздел, время, освещённость) | F3 |
 | Карта этажа | F6 |
+| Проп: взять (до 20 кг) или тащить (до 300 кг) / отпустить | E |
+| С пропом в руках: бросить / повернуть на 45° (Shift — наклонить) / ближе-дальше | ЛКМ / R / колесо |
+| Прибить ношу к стене, полу или другому пропу (с молотком) | ПКМ |
+| Вытащить гвозди / аккуратно разобрать проп | удержание E / удержание F |
+| Сломать проп | молоток, ЛКМ |
+
+Команды пропов: `props_list`, `prop_spawn chair` (создать перед собой), `props_info`, `world_props 0`, `world_prop_radius 80`, `sv_hold_mass 20`, `sv_drag_mass 300`.
 
 Команды мола: `where` (где я), `anomalies` (ближайшие аномалии), `goto_anomaly abyss|pool|cutout|distortion|glitch`, `time 22.5` (время суток, ночью свет гаснет), `time_daylength 60`, `time_frozen 1`, `seed 42` (пересоздать мир), `regen_chunk`, `world_props 0`, `world_prop_radius 80`, `r_lamplights 40`, `r_lampshadows 2`, `fx_anomaly_strength 1`.
 
