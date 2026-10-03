@@ -42,6 +42,7 @@ namespace VoidMall.Items
         private sealed class Shelf
         {
             public PropBody Prop;
+            public long Cell;
             public readonly List<ShelfItem> Items = new();
         }
 
@@ -60,7 +61,12 @@ namespace VoidMall.Items
         private readonly List<PropItemSlot> _slots = new();
         private readonly Matrix4x4[] _drawBuffer = new Matrix4x4[1023];
         private PropManager _props;
-        private bool _dirty;
+        // Товары рисуются группами «участок 16×16×16 м × вид предмета». Новая полка дописывает свои товары сразу,
+        // при удалении или изменении полки пересобирается только её участок (раньше — все группы, до 20 мс).
+        private readonly Dictionary<long, List<Shelf>> _cellShelves = new();
+        private readonly Dictionary<long, List<Batch>> _cellBatches = new();
+        private readonly HashSet<long> _dirtyCells = new();
+        private bool _dirtyAll;
 
         // Кэш планов уровней: пропы появляются корзинами, план одной ячейки нужен десяткам полок подряд.
         private MallLevelPlan _plan;
@@ -109,8 +115,11 @@ namespace VoidMall.Items
 
         // ───────────────────────────── Наполнение ─────────────────────────────
 
+        private static readonly Perf.Probe FillProbe = Perf.Register("Items.ShelfLoot.Fill");
+
         private void OnPropSpawned(PropBody prop)
         {
+            using var perf = Perf.Measure(FillProbe);
             PropMeshes.GetItemSlots(prop.Def.Shape, prop.Def.Size, _slots);
             if (_slots.Count == 0 || prop.IsAwake)
                 return;
@@ -170,8 +179,7 @@ namespace VoidMall.Items
             }
             if (shelf.Items.Count > 0)
             {
-                _shelves[prop.Id] = shelf;
-                _dirty = true;
+                AddShelf(prop.Id, shelf);
             }
         }
 
@@ -203,8 +211,7 @@ namespace VoidMall.Items
 
         private void OnPropDespawning(PropBody prop)
         {
-            if (_shelves.Remove(prop.Id))
-                _dirty = true;
+            RemoveShelf(prop.Id);
         }
 
         private void OnPropWoken(PropBody prop) => Spill(prop);
@@ -230,8 +237,7 @@ namespace VoidMall.Items
                 Vector3 velocity = body != null && !body.isKinematic ? body.GetPointVelocity(position) : Vector3.zero;
                 WorldItems.Instance?.Spawn(system.Items.Create(item.Def, item.Count), position, velocity, prop.transform.rotation * item.LocalRotation, tumble: false);
             }
-            _shelves.Remove(prop.Id);
-            _dirty = true;
+            RemoveShelf(prop.Id);
         }
 
         private ShelfMemory Memory(ulong id)
@@ -244,9 +250,10 @@ namespace VoidMall.Items
         private void OnWorldReset()
         {
             _shelves.Clear();
+            _cellShelves.Clear();
             _memory.Clear();
             _planLevel = -1;
-            _dirty = true;
+            _dirtyAll = true;
         }
 
         // ───────────────────────────── Подбор ─────────────────────────────
@@ -296,20 +303,30 @@ namespace VoidMall.Items
             shelf.Items.RemoveAt(itemIndex);
             Memory(prop.Id).Taken.Add(item.Slot);
             if (shelf.Items.Count == 0)
-                _shelves.Remove(prop.Id);
-            _dirty = true;
+                RemoveShelf(prop.Id);
+            else
+                _dirtyCells.Add(shelf.Cell);
             return ItemSystem.Instance.Items.Create(item.Def, item.Count);
         }
 
         // ───────────────────────────── Отрисовка ─────────────────────────────
 
+        private static readonly Perf.Probe RenderProbe = Perf.Register("Items.ShelfLoot.Render");
+
         private void LateUpdate()
         {
+            using var perf = Perf.Measure(RenderProbe);
             var system = ItemSystem.Instance;
             if (system == null)
                 return;
-            if (_dirty)
+            if (_dirtyAll)
                 RebuildBatches();
+            else if (_dirtyCells.Count > 0)
+            {
+                foreach (long cell in _dirtyCells)
+                    RebuildCell(cell);
+                _dirtyCells.Clear();
+            }
             var camera = Camera.main;
             if (!PropManager.Visible.Value || camera == null)
                 return;
@@ -342,31 +359,72 @@ namespace VoidMall.Items
         /// <summary>Группы отрисовки: предметы одного вида на участке BatchCell×BatchCell м.</summary>
         private void RebuildBatches()
         {
-            _dirty = false;
+            _dirtyAll = false;
+            _dirtyCells.Clear();
             foreach (var batch in _batches.Values)
             {
                 batch.Matrices.Clear();
                 batch.HasBounds = false;
             }
             foreach (var shelf in _shelves.Values)
-            {
-                var toWorld = shelf.Prop.transform.localToWorldMatrix;
-                Vector3 p = shelf.Prop.transform.position;
-                long cell = ((long)Mathf.FloorToInt(p.x / BatchCell) << 42) ^ ((long)Mathf.FloorToInt(p.y / BatchCell) << 21) ^ Mathf.FloorToInt(p.z / BatchCell);
-                foreach (var item in shelf.Items)
+                AppendBatches(shelf);
+        }
+
+        private void RebuildCell(long cell)
+        {
+            if (_cellBatches.TryGetValue(cell, out var batches))
+                foreach (var batch in batches)
                 {
-                    var key = (cell, item.Def);
-                    if (!_batches.TryGetValue(key, out var batch))
-                        _batches[key] = batch = new Batch { Def = item.Def };
-                    var matrix = toWorld * Matrix4x4.TRS(item.LocalPosition, item.LocalRotation, Vector3.one);
-                    batch.Matrices.Add(matrix);
-                    var bounds = new Bounds(matrix.GetPosition(), Vector3.one);
-                    if (batch.HasBounds)
-                        batch.Bounds.Encapsulate(bounds);
-                    else
-                        batch.Bounds = bounds;
-                    batch.HasBounds = true;
+                    batch.Matrices.Clear();
+                    batch.HasBounds = false;
                 }
+            if (_cellShelves.TryGetValue(cell, out var shelves))
+                foreach (var shelf in shelves)
+                    AppendBatches(shelf);
+        }
+
+        private void AddShelf(ulong id, Shelf shelf)
+        {
+            Vector3 p = shelf.Prop.transform.position;
+            shelf.Cell = ((long)Mathf.FloorToInt(p.x / BatchCell) << 42) ^ ((long)Mathf.FloorToInt(p.y / BatchCell) << 21) ^ Mathf.FloorToInt(p.z / BatchCell);
+            _shelves[id] = shelf;
+            if (!_cellShelves.TryGetValue(shelf.Cell, out var list))
+                _cellShelves[shelf.Cell] = list = new List<Shelf>();
+            list.Add(shelf);
+            AppendBatches(shelf);
+        }
+
+        private void RemoveShelf(ulong id)
+        {
+            if (!_shelves.Remove(id, out var shelf))
+                return;
+            if (_cellShelves.TryGetValue(shelf.Cell, out var list))
+                list.Remove(shelf);
+            _dirtyCells.Add(shelf.Cell);
+        }
+
+        private void AppendBatches(Shelf shelf)
+        {
+            var toWorld = shelf.Prop.transform.localToWorldMatrix;
+            long cell = shelf.Cell;
+            foreach (var item in shelf.Items)
+            {
+                var key = (cell, item.Def);
+                if (!_batches.TryGetValue(key, out var batch))
+                {
+                    _batches[key] = batch = new Batch { Def = item.Def };
+                    if (!_cellBatches.TryGetValue(cell, out var cellBatches))
+                        _cellBatches[cell] = cellBatches = new List<Batch>();
+                    cellBatches.Add(batch);
+                }
+                var matrix = toWorld * Matrix4x4.TRS(item.LocalPosition, item.LocalRotation, Vector3.one);
+                batch.Matrices.Add(matrix);
+                var bounds = new Bounds(matrix.GetPosition(), Vector3.one);
+                if (batch.HasBounds)
+                    batch.Bounds.Encapsulate(bounds);
+                else
+                    batch.Bounds = bounds;
+                batch.HasBounds = true;
             }
         }
 

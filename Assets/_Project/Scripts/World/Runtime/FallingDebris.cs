@@ -28,8 +28,11 @@ namespace VoidMall.World
             _cells = cells;
         }
 
+        private static readonly Perf.Probe FixedProbe = Perf.Register("World.Debris");
+
         private void FixedUpdate()
         {
+            using var perf = Perf.Measure(FixedProbe);
             _age += Time.fixedDeltaTime;
             _restTimer = _body.linearVelocity.sqrMagnitude < 0.05f ? _restTimer + Time.fixedDeltaTime : 0f;
             // Сразу после появления обломок ещё «висит» — не считаем это покоем.

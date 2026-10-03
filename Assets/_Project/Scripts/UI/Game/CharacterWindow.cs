@@ -5,6 +5,7 @@ using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
 using VoidMall.Input;
 using VoidMall.Items;
+using VoidMall.Core;
 
 namespace VoidMall.UI
 {
@@ -65,8 +66,11 @@ namespace VoidMall.UI
             _root.style.display = DisplayStyle.None;
         }
 
+        private static readonly Perf.Probe UpdateProbe = Perf.Register("UI.CharacterWindow");
+
         private void Update()
         {
+            using var perf = Perf.Measure(UpdateProbe);
             if (_inventory == null && PlayerInventory.Local != null)
             {
                 _inventory = PlayerInventory.Local;

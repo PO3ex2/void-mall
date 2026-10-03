@@ -5,6 +5,7 @@ using UnityEngine.UIElements;
 using VoidMall.Input;
 using VoidMall.Player;
 using VoidMall.World;
+using VoidMall.Core;
 
 namespace VoidMall.UI
 {
@@ -74,8 +75,11 @@ namespace VoidMall.UI
             _panel.Add(legend);
         }
 
+        private static readonly Perf.Probe UpdateProbe = Perf.Register("UI.Map");
+
         private void Update()
         {
+            using var perf = Perf.Measure(UpdateProbe);
             if (_toggle != null && _toggle.WasPressedThisFrame())
             {
                 _open = !_open;

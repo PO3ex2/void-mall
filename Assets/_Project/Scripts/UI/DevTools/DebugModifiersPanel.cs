@@ -88,8 +88,11 @@ namespace VoidMall.UI
             _panel.style.display = DisplayStyle.None;
         }
 
+        private static readonly Perf.Probe UpdateProbe = Perf.Register("UI.Modifiers");
+
         private void Update()
         {
+            using var perf = Perf.Measure(UpdateProbe);
             if (_toggle != null && _toggle.WasPressedThisFrame())
                 SetOpen(!_open);
             if (_open)

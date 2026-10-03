@@ -108,8 +108,11 @@ namespace VoidMall.Player
                 Local = null;
         }
 
+        private static readonly Perf.Probe FixedProbe = Perf.Register("Player.Motor");
+
         private void FixedUpdate()
         {
+            using var perf = Perf.Measure(FixedProbe);
             var input = _input != null ? _input.ConsumeFrame() : default;
 
             if (_state.Mode != MoveMode.Noclip && Services.TryGet(out IWorldCollisionQuery world))

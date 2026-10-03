@@ -97,15 +97,18 @@ namespace VoidMall.Game
 
         // ───────────────────────────── Ввод ─────────────────────────────
 
+        private static readonly Perf.Probe UpdateProbe = Perf.Register("Game.PropInteractor");
+
         private void Update()
         {
+            using var perf = Perf.Measure(UpdateProbe);
             if (_interact == null || _camera == null || PropManager.Instance == null)
                 return;
 
             if (_waitRelease && !_primary.IsPressed() && !_secondary.IsPressed())
                 _waitRelease = false;
 
-            if (_held != null && !_held.isActiveAndEnabled)
+            if (_held != null && !_held.gameObject.activeInHierarchy)
                 Release();
 
             _target = _mode == Mode.None ? FindTarget() : null;
@@ -334,8 +337,11 @@ namespace VoidMall.Game
 
         // ───────────────────────────── Физика ноши ─────────────────────────────
 
+        private static readonly Perf.Probe FixedProbe = Perf.Register("Game.PropInteractor.Fixed");
+
         private void FixedUpdate()
         {
+            using var perf = Perf.Measure(FixedProbe);
             if (_held == null || _held.Body == null || _mode == Mode.None)
                 return;
             var body = _held.Body;

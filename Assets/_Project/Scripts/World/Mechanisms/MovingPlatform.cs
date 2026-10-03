@@ -35,8 +35,11 @@ namespace VoidMall.World
             _waitTimer = _wait;
         }
 
+        private static readonly Perf.Probe FixedProbe = Perf.Register("World.MovingPlatform");
+
         private void FixedUpdate()
         {
+            using var perf = Perf.Measure(FixedProbe);
             float dt = Time.fixedDeltaTime;
             if (_waitTimer > 0f)
             {

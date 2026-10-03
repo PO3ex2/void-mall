@@ -21,6 +21,7 @@ namespace VoidMall.World
         public static readonly CVar<int> ViewDistance = new("r_viewdistance", 6, "Радиус прогрузки мира в колоннах (1 колонна = 32 м).", ConsoleFlags.Archive);
         public static readonly CVar<int> GenerationBudget = new("world_gen_budget", 16, "Сколько чанков генерировать за кадр.");
         public static readonly CVar<int> MeshBudget = new("world_mesh_budget", 24, "Сколько чанков мешить за кадр.");
+        public static readonly CVar<float> ApplyBudgetMs = new("world_apply_budget_ms", 2f, "Сколько миллисекунд за кадр подключать готовые меши и коллайдеры чанков (остальное — в следующих кадрах).");
 
         [SerializeField] private MaterialCatalog _catalog;
         [SerializeField] private Material _opaqueMaterial;
@@ -42,6 +43,11 @@ namespace VoidMall.World
         private readonly List<MeshTask> _meshTasks = new();
         private readonly List<BakeEntry> _bakeQueue = new();
         private readonly List<BakeEntry> _bakeInFlight = new();
+
+        // Готовые меши и запечённые коллайдеры ждут подключения: за кадр — сколько влезет в ApplyBudgetMs,
+        // иначе несколько чанков, доделанных одновременно, давали рывок в десятки миллисекунд.
+        private readonly List<MeshTask> _meshReady = new();
+        private readonly List<BakeEntry> _bakeReady = new();
         private readonly List<Candidate> _candidates = new();
         private readonly HashSet<int2> _candidateSet = new();
         private readonly List<int2> _toUnload = new();
@@ -60,6 +66,8 @@ namespace VoidMall.World
         private Transform _chunkRoot;
         private NativeArray<UnityEngine.EntityId> _bakeIds;
         private JobHandle _bakeHandle;
+        private int _bakeFrame;
+        private bool _unloadPending;
         private int _batchDepth;
 
         public MaterialRegistry Materials => _registry;
@@ -274,16 +282,29 @@ namespace VoidMall.World
             Instance = null;
         }
 
+        private static readonly Perf.Probe GenerationProbe = Perf.Register("World.Chunks.CompleteGeneration");
+        private static readonly Perf.Probe MeshingProbe = Perf.Register("World.Chunks.CompleteMeshing");
+        private static readonly Perf.Probe BakingProbe = Perf.Register("World.Chunks.CompleteBaking");
+        private static readonly Perf.Probe StreamingProbe = Perf.Register("World.Chunks.Streaming");
+        private static readonly Perf.Probe ScheduleProbe = Perf.Register("World.Chunks.Schedule");
+
         private void Update()
         {
-            CompleteGeneration();
-            CompleteMeshing();
-            CompleteBaking();
-            UpdateStreaming();
+            using (Perf.Measure(GenerationProbe))
+                CompleteGeneration();
+            using (Perf.Measure(MeshingProbe))
+                CompleteMeshing();
+            using (Perf.Measure(BakingProbe))
+                CompleteBaking();
+            using (Perf.Measure(StreamingProbe))
+                UpdateStreaming();
         }
 
         private void LateUpdate()
         {
+            using var perf = Perf.Measure(ScheduleProbe);
+            if (_unloadPending)
+                return;
             ScheduleGeneration();
             ScheduleMeshing();
             ScheduleBaking();
@@ -445,6 +466,19 @@ namespace VoidMall.World
                 if (MinViewerDistanceSq(coord) > keepRadius * keepRadius)
                     _toUnload.Add(coord);
             }
+            if (_toUnload.Count == 0)
+            {
+                _unloadPending = false;
+                return;
+            }
+            // Фоновые задачи читают память соседних чанков: выгружаем, только когда в работе ничего нет.
+            // Пока выгрузка ждёт, новые задачи не ставятся — текущие доделываются за пару кадров.
+            if (_generationTasks.Count > 0 || _meshTasks.Count > 0 || _bakeIds.IsCreated)
+            {
+                _unloadPending = true;
+                return;
+            }
+            _unloadPending = false;
             foreach (var coord in _toUnload)
                 UnloadColumn(coord);
         }
@@ -551,16 +585,23 @@ namespace VoidMall.World
                         IsUniform = uniform,
                         Lamps = lamps,
                     };
-                    _generationTasks.Add(new GenerationTask { Column = column, Chunk = chunk, Uniform = uniform, Lamps = lamps, Handle = job.Schedule() });
+                    _generationTasks.Add(new GenerationTask { Column = column, Chunk = chunk, Uniform = uniform, Lamps = lamps, Handle = job.Schedule(), Frame = Time.frameCount });
                     column.PendingGenerationJobs++;
                 }
             }
         }
 
-        private void CompleteGeneration()
+        private void CompleteGeneration(bool force = false)
         {
-            foreach (var task in _generationTasks)
+            int kept = 0;
+            for (int i = 0; i < _generationTasks.Count; i++)
             {
+                var task = _generationTasks[i];
+                if (!force && !IsDone(task.Handle, task.Frame))
+                {
+                    _generationTasks[kept++] = task;
+                    continue;
+                }
                 task.Handle.Complete();
                 if (task.Uniform[0] != 0)
                     task.Chunk.SetUniform(task.Chunk.Cells[0]);
@@ -571,8 +612,17 @@ namespace VoidMall.World
                 if (--task.Column.PendingGenerationJobs == 0)
                     task.Column.State = ColumnState.Generated;
             }
-            _generationTasks.Clear();
+            _generationTasks.RemoveRange(kept, _generationTasks.Count - kept);
         }
+
+        /// <summary>
+        /// Задача готова или ждёт слишком долго. Основной поток не ждёт фоновые задачи: недоделанные забираются в
+        /// следующих кадрах (раньше ожидание в Complete давало кадры по 30–60 мс). TempJob-память живёт не больше
+        /// 4 кадров — старше MaxJobFrames дожидаемся принудительно.
+        /// </summary>
+        private static bool IsDone(JobHandle handle, int frame) => handle.IsCompleted || Time.frameCount - frame >= MaxJobFrames;
+
+        private const int MaxJobFrames = 3;
 
         // ───────────────────────────── Мешинг ─────────────────────────────
 
@@ -597,7 +647,7 @@ namespace VoidMall.World
                     var buffers = RentBuffers();
                     var views = BuildViews(new int3(column.Coord.x, y, column.Coord.y), Allocator.TempJob);
                     var handle = CreateMeshJob(column.Coord, y, views, buffers).Schedule();
-                    _meshTasks.Add(new MeshTask { Column = column, Index = y, Views = views, Buffers = buffers, Handle = handle });
+                    _meshTasks.Add(new MeshTask { Column = column, Index = y, Views = views, Buffers = buffers, Handle = handle, Frame = Time.frameCount });
                     column.MeshInFlight[y] = true;
                     column.MeshDirty[y] = false;
                     budget--;
@@ -605,19 +655,41 @@ namespace VoidMall.World
             }
         }
 
-        private void CompleteMeshing()
+        private void CompleteMeshing(bool all = false)
         {
-            foreach (var task in _meshTasks)
+            int kept = 0;
+            for (int i = 0; i < _meshTasks.Count; i++)
             {
+                var task = _meshTasks[i];
+                if (!all && !IsDone(task.Handle, task.Frame))
+                {
+                    _meshTasks[kept++] = task;
+                    continue;
+                }
                 task.Handle.Complete();
                 task.Views.Dispose();
+                _meshReady.Add(task);
+            }
+            _meshTasks.RemoveRange(kept, _meshTasks.Count - kept);
+
+            long deadline = Deadline(ApplyBudgetMs.Value * 0.5f);
+            int applied = 0;
+            for (; applied < _meshReady.Count; applied++)
+            {
+                if (!all && applied > 0 && System.Diagnostics.Stopwatch.GetTimestamp() > deadline)
+                    break;
+                var task = _meshReady[applied];
+                // Чанк остаётся «в работе», пока меш не подключён: новая задача на него не встанет раньше.
                 task.Column.MeshInFlight[task.Index] = false;
                 if (_columns.ContainsKey(task.Column.Coord))
                     ApplyMesh(task.Column, task.Index, task.Buffers, queueBake: true);
                 ReturnBuffers(task.Buffers);
             }
-            _meshTasks.Clear();
+            _meshReady.RemoveRange(0, applied);
         }
+
+        private static long Deadline(float milliseconds) =>
+            System.Diagnostics.Stopwatch.GetTimestamp() + (long)(milliseconds * 0.001 * System.Diagnostics.Stopwatch.Frequency);
 
         private ChunkMeshJob CreateMeshJob(int2 coord, int y, NativeArray<ChunkView> views, MeshBuffers buffers) => new()
         {
@@ -709,24 +781,34 @@ namespace VoidMall.World
 
         private void ScheduleBaking()
         {
-            if (_bakeQueue.Count == 0)
+            if (_bakeQueue.Count == 0 || _bakeIds.IsCreated)
                 return;
             _bakeIds = new NativeArray<UnityEngine.EntityId>(_bakeQueue.Count, Allocator.TempJob);
             for (int i = 0; i < _bakeQueue.Count; i++)
                 _bakeIds[i] = _bakeQueue[i].Renderer.Mesh.GetEntityId();
             _bakeHandle = new BakeJob { Meshes = _bakeIds }.Schedule(_bakeIds.Length, 1);
+            _bakeFrame = Time.frameCount;
             _bakeInFlight.AddRange(_bakeQueue);
             _bakeQueue.Clear();
         }
 
-        private void CompleteBaking()
+        private void CompleteBaking(bool all = false)
         {
-            if (!_bakeIds.IsCreated)
-                return;
-            _bakeHandle.Complete();
-            _bakeIds.Dispose();
-            foreach (var entry in _bakeInFlight)
+            if (_bakeIds.IsCreated && (all || IsDone(_bakeHandle, _bakeFrame)))
             {
+                _bakeHandle.Complete();
+                _bakeIds.Dispose();
+                _bakeReady.AddRange(_bakeInFlight);
+                _bakeInFlight.Clear();
+            }
+
+            long deadline = Deadline(ApplyBudgetMs.Value * 0.5f);
+            int applied = 0;
+            for (; applied < _bakeReady.Count; applied++)
+            {
+                if (!all && applied > 0 && System.Diagnostics.Stopwatch.GetTimestamp() > deadline)
+                    break;
+                var entry = _bakeReady[applied];
                 // Колонну могли выгрузить, а меш — перестроить заново: применяем только актуальное запекание.
                 if (!_columns.ContainsKey(entry.Column.Coord)
                     || entry.Column.Renderers[entry.Index] != entry.Renderer
@@ -735,16 +817,16 @@ namespace VoidMall.World
                 entry.Renderer.ApplyCollider();
                 entry.Column.CollisionReady[entry.Index] = true;
             }
-            _bakeInFlight.Clear();
+            _bakeReady.RemoveRange(0, applied);
         }
 
         private void CompleteAllJobs()
         {
-            if (_generationTasks.Count == 0 && _meshTasks.Count == 0 && !_bakeIds.IsCreated)
+            if (_generationTasks.Count == 0 && _meshTasks.Count == 0 && !_bakeIds.IsCreated && _meshReady.Count == 0 && _bakeReady.Count == 0)
                 return;
-            CompleteGeneration();
-            CompleteMeshing();
-            CompleteBaking();
+            CompleteGeneration(force: true);
+            CompleteMeshing(all: true);
+            CompleteBaking(all: true);
         }
 
         // ───────────────────────────── IWorldCollisionQuery ─────────────────────────────
@@ -810,6 +892,7 @@ namespace VoidMall.World
             public NativeArray<byte> Uniform;
             public NativeList<int3> Lamps;
             public JobHandle Handle;
+            public int Frame;
         }
 
         private struct MeshTask
@@ -819,6 +902,7 @@ namespace VoidMall.World
             public NativeArray<ChunkView> Views;
             public MeshBuffers Buffers;
             public JobHandle Handle;
+            public int Frame;
         }
 
         private struct BakeEntry

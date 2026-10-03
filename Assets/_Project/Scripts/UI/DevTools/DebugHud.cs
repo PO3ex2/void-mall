@@ -45,8 +45,11 @@ namespace VoidMall.UI
             _panel.Add(_label);
         }
 
+        private static readonly Perf.Probe UpdateProbe = Perf.Register("UI.DebugHud");
+
         private void Update()
         {
+            using var perf = Perf.Measure(UpdateProbe);
             if (_toggle != null && _toggle.WasPressedThisFrame())
             {
                 _visible = !_visible;

@@ -42,7 +42,7 @@ namespace VoidMall.World
 
         private static readonly int ExposureId = Shader.PropertyToID("_Exposure");
         private Material _sky, _sourceSky;
-        private float _dayExposure;
+        private float _dayExposure, _appliedExposure = -1f;
 
         private Color _appliedAmbient = new(-1f, -1f, -1f, -1f);
 
@@ -116,9 +116,16 @@ namespace VoidMall.World
                 _sourceSky = current;
                 _dayExposure = current.GetFloat(ExposureId);
                 _sky = new Material(current) { name = current.name + " (runtime)", hideFlags = HideFlags.DontSave };
+                _appliedExposure = -1f;
                 RenderSettings.skybox = _sky;
             }
-            _sky.SetFloat(ExposureId, _dayExposure * Mathf.Lerp(1f, _nightSkyExposure, darkness));
+            // Только при изменении: смена материала неба может запускать пересчёт отражений от него.
+            float exposure = _dayExposure * Mathf.Lerp(1f, _nightSkyExposure, darkness);
+            if (Mathf.Abs(exposure - _appliedExposure) > 0.001f)
+            {
+                _appliedExposure = exposure;
+                _sky.SetFloat(ExposureId, exposure);
+            }
         }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
@@ -128,8 +135,11 @@ namespace VoidMall.World
             Instance = null;
         }
 
+        private static readonly Perf.Probe UpdateProbe = Perf.Register("World.Lighting");
+
         private void LateUpdate()
         {
+            using var perf = Perf.Measure(UpdateProbe);
             var world = ChunkManager.Instance;
             if (world == null)
                 return;

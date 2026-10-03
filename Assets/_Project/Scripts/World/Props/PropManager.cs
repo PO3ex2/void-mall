@@ -19,7 +19,8 @@ namespace VoidMall.World
     [DefaultExecutionOrder(-180)]
     public sealed class PropManager : MonoBehaviour
     {
-        public static readonly CVar<int> SpawnBudget = new("world_prop_budget", 200, "Сколько пропов создавать за кадр.");
+        public static readonly CVar<int> SpawnBudget = new("world_prop_budget", 200, "Сколько пропов создавать за кадр (не больше).");
+        public static readonly CVar<float> SpawnBudgetMs = new("world_prop_budget_ms", 1.5f, "Сколько миллисекунд за кадр тратить на создание пропов.");
         public static readonly CVar<float> Radius = new("world_prop_radius", 80f, "Радиус появления пропов, м.");
         public static readonly CVar<int> LevelSpan = new("world_prop_levels", 1, "Пропы на скольких уровнях выше и ниже игрока.");
         public static readonly CVar<bool> Visible = new("world_props", true, "Показывать пропы.");
@@ -164,8 +165,19 @@ namespace VoidMall.World
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void ResetStatics() => Instance = null;
 
+        private static readonly Perf.Probe UpdateProbe = Perf.Register("Props.Manager");
+        private static readonly Perf.Probe BucketsProbe = Perf.Register("Props.Manager.Buckets");
+        private static readonly Perf.Probe SpawnProbe = Perf.Register("Props.Manager.Spawn");
+        private static readonly Perf.Probe PlanProbe = Perf.Register("Props.Manager.Buckets.Plan");
+        private static readonly Perf.Probe PlaceProbe = Perf.Register("Props.Manager.Buckets.Place");
+        private static readonly Perf.Probe UnloadProbe = Perf.Register("Props.Manager.Buckets.Unload");
+        private static readonly Perf.Probe DespawnProbe = Perf.Register("Props.Manager.Despawn");
+        private readonly Queue<ulong> _despawnQueue = new();
+        private readonly HashSet<ulong> _despawnSet = new();
+
         private void Update()
         {
+            using var perf = Perf.Measure(UpdateProbe);
             if (_world == null || _world.Sections == null || Props == null)
                 return;
             _viewers.Clear();
@@ -174,8 +186,12 @@ namespace VoidMall.World
                 return;
             _viewers.Add(primary.transform.position);
 
-            UpdateBuckets();
-            SpawnPending();
+            using (Perf.Measure(BucketsProbe))
+                UpdateBuckets();
+            using (Perf.Measure(DespawnProbe))
+                DespawnQueued(System.Diagnostics.Stopwatch.GetTimestamp() + (long)(SpawnBudgetMs.Value * 0.001 * System.Diagnostics.Stopwatch.Frequency));
+            using (Perf.Measure(SpawnProbe))
+                SpawnPending();
             _looseTimer -= Time.deltaTime;
             if (_looseTimer <= 0f)
             {
@@ -196,8 +212,9 @@ namespace VoidMall.World
             foreach (var key in _buckets.Keys)
                 if (DistanceToViewers(key.Cell) > radius + 16f || math.abs(key.Level - viewerLevel) > span + 1)
                     _bucketsToUnload.Add(key);
-            foreach (var key in _bucketsToUnload)
-                UnloadBucket(key);
+            using (Perf.Measure(UnloadProbe))
+                foreach (var key in _bucketsToUnload)
+                    UnloadBucket(key);
 
             _bucketsToLoad.Clear();
             foreach (var cell in CellsAround(radius))
@@ -225,8 +242,10 @@ namespace VoidMall.World
             var plan = new MallLevelPlan(Allocator.Temp);
             try
             {
-                MallPlanner.BuildLevel(_world.Seed, info, key.Level, _world.Sections.Infos, ref plan);
-                PropPlacer.Place(_world.Seed, info, plan, _world.Sections.Infos, Props, _ids, bucket.Pending);
+                using (Perf.Measure(PlanProbe))
+                    MallPlanner.BuildLevel(_world.Seed, info, key.Level, _world.Sections.Infos, ref plan);
+                using (Perf.Measure(PlaceProbe))
+                    PropPlacer.Place(_world.Seed, info, plan, _world.Sections.Infos, Props, _ids, bucket.Pending);
             }
             finally
             {
@@ -240,6 +259,8 @@ namespace VoidMall.World
         private void SpawnPending()
         {
             int budget = Mathf.Max(1, SpawnBudget.Value);
+            // Лимит и по времени: при входе в новую зону пропы появляются за несколько кадров, а не в одном долгом.
+            long deadline = System.Diagnostics.Stopwatch.GetTimestamp() + (long)(SpawnBudgetMs.Value * 0.001 * System.Diagnostics.Stopwatch.Frequency);
             foreach (var bucket in _buckets.Values)
             {
                 while (bucket.PendingIndex < bucket.Pending.Count && budget > 0)
@@ -249,10 +270,16 @@ namespace VoidMall.World
                     if (_states.TryGetValue(spawn.Id, out var state) && (state.Removed || state.Loose || state.Parent != 0))
                         continue;
                     if (_live.ContainsKey(spawn.Id))
+                    {
+                        if (_despawnSet.Remove(spawn.Id))
+                            bucket.Ids.Add(spawn.Id);
                         continue;
+                    }
                     var body = Spawn(spawn.Def, spawn.Id, spawn.Position, Quaternion.Euler(0f, spawn.Yaw, 0f), _root);
                     bucket.Ids.Add(spawn.Id);
                     budget--;
+                    if (System.Diagnostics.Stopwatch.GetTimestamp() > deadline)
+                        budget = 0;
                     if (state != null && state.Anchors.Count > 0)
                         body.Anchors.AddRange(state.Anchors);
                 }
@@ -269,15 +296,30 @@ namespace VoidMall.World
         private void UnloadBucket(BucketKey key)
         {
             var bucket = _buckets[key];
+            // Пропы уходят в очередь: удаляются за несколько кадров (DespawnQueued), а не все в одном.
             foreach (var id in bucket.Ids)
+                if (_live.ContainsKey(id) && _despawnSet.Add(id))
+                    _despawnQueue.Enqueue(id);
+            _buckets.Remove(key);
+        }
+
+        /// <summary>Удалить пропы выгруженных корзин, пока не кончится время кадра.</summary>
+        private void DespawnQueued(long deadline)
+        {
+            while (_despawnQueue.Count > 0)
             {
+                ulong id = _despawnQueue.Dequeue();
+                // Корзину могли загрузить снова — тогда проп остался в ней (см. SpawnPending).
+                if (!_despawnSet.Remove(id))
+                    continue;
                 // Свободные пропы остаются: их выгрузит стриминг по позиции.
                 if (_states.TryGetValue(id, out var state) && state.Loose)
                     continue;
                 if (_live.TryGetValue(id, out var body))
                     Despawn(body);
+                if (System.Diagnostics.Stopwatch.GetTimestamp() > deadline)
+                    return;
             }
-            _buckets.Remove(key);
         }
 
         // ───────────────────────────── Свободные пропы ─────────────────────────────
@@ -355,16 +397,18 @@ namespace VoidMall.World
 
         private PropBody Spawn(ushort defIndex, ulong id, Vector3 position, Quaternion rotation, Transform parent)
         {
+            // Проп настраивается, пока лежит в выключенном пуле, и включается сразу на своём месте: перенос или
+            // изменение уже включённого неподвижного коллайдера заставляет физику перестраивать дерево статики
+            // (рывки Physics.Simulate по 20–60 мс при подгрузке пропов).
             PropBody body;
             if (_pool.Count > 0)
             {
                 body = _pool.Pop();
-                body.transform.SetParent(parent, false);
             }
             else
             {
                 var go = new GameObject("Prop") { layer = GameLayers.Props };
-                go.transform.SetParent(parent, false);
+                go.transform.SetParent(_poolRoot, false);
                 go.AddComponent<MeshFilter>();
                 go.AddComponent<MeshRenderer>();
                 go.AddComponent<BoxCollider>();
@@ -379,6 +423,7 @@ namespace VoidMall.World
             renderer.sharedMaterial = def.Material != null ? def.Material : _material;
             renderer.enabled = Visible.Value;
             SetupColliders(body, def);
+            body.transform.SetParent(parent, true);
             body.Initialize(this, id, defIndex, def);
             PropSpawned?.Invoke(body);
             _live[id] = body;
@@ -431,6 +476,8 @@ namespace VoidMall.World
             _states.Clear();
             _children.Clear();
             _anchorIndex.Clear();
+            _despawnQueue.Clear();
+            _despawnSet.Clear();
         }
 
         private void ApplyVisibility()

@@ -66,6 +66,9 @@ namespace VoidMall.World
             IsAwake = false;
             IsHeld = false;
             _stillTime = 0f;
+            // Спящий проп выключен: Unity не тратит время на вызов FixedUpdate у тысяч неподвижных пропов.
+            // События столкновений приходят и выключенным компонентам — пробуждение от удара работает.
+            enabled = false;
             Body = GetComponent<Rigidbody>();
         }
 
@@ -94,6 +97,7 @@ namespace VoidMall.World
             Body.ResetInertiaTensor();
             Body.WakeUp();
             IsAwake = true;
+            enabled = true;
             _stillTime = 0f;
             Manager.OnWoken(this);
         }
@@ -107,6 +111,7 @@ namespace VoidMall.World
                 Body.isKinematic = true;
             }
             IsAwake = false;
+            enabled = false;
             Manager.OnSettled(this);
         }
 
@@ -123,10 +128,14 @@ namespace VoidMall.World
                 Body.isKinematic = true;
             }
             IsAwake = false;
+            enabled = false;
         }
+
+        private static readonly Perf.Probe FixedProbe = Perf.Register("Props.Body.Fixed");
 
         private void FixedUpdate()
         {
+            using var perf = Perf.Measure(FixedProbe);
             if (!IsAwake || Parent != null || Body == null)
                 return;
             if (transform.position.y < -40f)

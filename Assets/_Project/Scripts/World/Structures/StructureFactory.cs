@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
 using VoidMall.Core;
@@ -23,20 +24,64 @@ namespace VoidMall.World
 
         public const float EscalatorSpeed = 0.6f;
 
+        // Одинаковые меши (марши, двери и кабина лифта, эскалатор, пандус) строятся один раз и переиспользуются:
+        // раньше каждая ячейка собирала свои копии — сотни КБ мусора и меши, которые не удалялись при выгрузке.
+        private static readonly Dictionary<int, Mesh> StairsMeshes = new();
+        private static readonly Dictionary<int, Mesh> DoorMeshes = new();
+        private static readonly Dictionary<long, Mesh> EscalatorMeshes = new();
+        private static Mesh _carMesh, _rampMesh;
+        private static readonly MeshBuilder Builder = new();
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetStatics()
+        {
+            StairsMeshes.Clear();
+            DoorMeshes.Clear();
+            EscalatorMeshes.Clear();
+            _carMesh = null;
+            _rampMesh = null;
+        }
+
         public static void Build(uint seed, in MallCellInfo info, Transform parent, Material material)
         {
-            BuildCore(seed, info, parent, material);
-            if (info.AtriumX)
-                BuildEscalators(info, parent, material, alongX: true);
-            if (info.AtriumZ)
-                BuildEscalators(info, parent, material, alongX: false);
+            var steps = BuildSteps(seed, info, parent, material);
+            while (steps.MoveNext())
+            {
+            }
+        }
+
+        /// <summary>
+        /// Постройка по частям: ядро (марши), лифт, каждый эскалатор, пандус — по одной части за шаг, чтобы
+        /// вход в новую ячейку не стоил одного длинного кадра.
+        /// </summary>
+        public static IEnumerator<bool> BuildSteps(uint seed, MallCellInfo info, Transform parent, Material material)
+        {
+            var core = BuildCore(info, parent, material);
+            yield return true;
+            float4 coreRect = new(info.CoreRect.x, info.CoreRect.y, info.CoreRect.z, info.CoreRect.w);
+            if (!Blocked(info, CellRect(info, coreRect), 0, MallLayout.LevelCount - 1))
+            {
+                BuildElevator(seed, info, core, info.CoreOffset, material);
+                yield return true;
+            }
+            for (int axis = 0; axis < 2; axis++)
+            {
+                bool alongX = axis == 0;
+                if (!(alongX ? info.AtriumX : info.AtriumZ))
+                    continue;
+                for (int k = 0; k < MallLayout.RetailFloors - 1; k++)
+                {
+                    if (BuildEscalator(info, parent, material, alongX, k))
+                        yield return true;
+                }
+            }
             if (info.HasRamp && !Blocked(info, CellRect(info, new float4(info.RampMin.x, info.RampMin.y, info.RampMin.x + MallPlanner.RampLength, info.RampMin.y + MallPlanner.RampWidth)), 0, 1))
                 BuildRamp(info, parent, material);
         }
 
         // ───────────────────────────── Ядро: лестница и лифт ─────────────────────────────
 
-        private static void BuildCore(uint seed, in MallCellInfo info, Transform parent, Material material)
+        private static Transform BuildCore(in MallCellInfo info, Transform parent, Material material)
         {
             // Канонический кадр квартала: локальные x = u, z = v (метры), поворот — как у квартала.
             float2 origin = MallLayout.CellOrigin(info.Cell) + MallPlanner.BlockToCell(float2.zero, info.Rotation);
@@ -47,19 +92,31 @@ namespace VoidMall.World
             float4 coreRect = new(info.CoreRect.x, info.CoreRect.y, info.CoreRect.z, info.CoreRect.w);
             int c = info.CoreOffset;
 
-            var mesh = new MeshBuilder();
             var colliders = NewChild(core, "Stair Colliders");
+            int mask = 0;
             for (int level = 0; level < MallLayout.LevelCount - 1; level++)
             {
                 if (Blocked(info, CellRect(info, coreRect), level, level + 1))
                     continue;
-                BuildStairs(mesh, colliders.transform, c, level, level == MallLayout.LevelCount - 2);
+                mask |= 1 << level;
+                BuildStairs(null, colliders.transform, c, level, level == MallLayout.LevelCount - 2);
             }
-            if (mesh.VertexCount > 0)
-                AddRenderer(NewChild(core, "Stairs"), mesh.ToMesh("Stairs"), material);
-
-            if (!Blocked(info, CellRect(info, coreRect), 0, MallLayout.LevelCount - 1))
-                BuildElevator(seed, info, core, c, material);
+            if (mask != 0)
+            {
+                if (!StairsMeshes.TryGetValue(mask, out var stairs) || stairs == null)
+                {
+                    // Меш маршей — в кадре ядра со смещением 0, объект сдвигается на смещение ядра.
+                    Builder.Clear();
+                    for (int level = 0; level < MallLayout.LevelCount - 1; level++)
+                        if ((mask & (1 << level)) != 0)
+                            BuildStairs(Builder, null, 0, level, level == MallLayout.LevelCount - 2);
+                    StairsMeshes[mask] = stairs = Builder.ToMesh("Stairs");
+                }
+                var stairsObject = NewChild(core, "Stairs");
+                stairsObject.transform.localPosition = new Vector3(c, 0f, 0f);
+                AddRenderer(stairsObject, stairs, material);
+            }
+            return core;
         }
 
         /// <summary>
@@ -68,6 +125,7 @@ namespace VoidMall.World
         /// </summary>
         private static void BuildStairs(MeshBuilder mesh, Transform colliders, int c, int level, bool top)
         {
+            // mesh == null — только коллайдеры, colliders == null — только меш (для кэша).
             float h0 = MallLayout.FloorTop(level);
             float rise = MallLayout.FloorTop(level + 1) - h0;
             float half = rise * 0.5f;
@@ -81,21 +139,21 @@ namespace VoidMall.World
                 // Марш A: вверх по +v.
                 float topA = h0 + (i + 1) * stepRise;
                 float va = v0 + i * tread;
-                mesh.BoxMinMax(new Vector3(uA - width / 2, topA - stepRise - 0.18f, va), new Vector3(uA + width / 2, topA, va + tread), Concrete);
-                mesh.BoxMinMax(new Vector3(uA - width / 2, topA - 0.01f, va), new Vector3(uA + width / 2, topA + 0.005f, va + 0.06f), StepEdge);
+                mesh?.BoxMinMax(new Vector3(uA - width / 2, topA - stepRise - 0.18f, va), new Vector3(uA + width / 2, topA, va + tread), Concrete);
+                mesh?.BoxMinMax(new Vector3(uA - width / 2, topA - 0.01f, va), new Vector3(uA + width / 2, topA + 0.005f, va + 0.06f), StepEdge);
                 // Марш B: вверх по −v.
                 float topB = h0 + half + (i + 1) * stepRise;
                 float vb = v1 - (i + 1) * tread;
-                mesh.BoxMinMax(new Vector3(uB - width / 2, topB - stepRise - 0.18f, vb), new Vector3(uB + width / 2, topB, vb + tread), Concrete);
-                mesh.BoxMinMax(new Vector3(uB - width / 2, topB - 0.01f, vb + tread - 0.06f), new Vector3(uB + width / 2, topB + 0.005f, vb + tread), StepEdge);
+                mesh?.BoxMinMax(new Vector3(uB - width / 2, topB - stepRise - 0.18f, vb), new Vector3(uB + width / 2, topB, vb + tread), Concrete);
+                mesh?.BoxMinMax(new Vector3(uB - width / 2, topB - 0.01f, vb + tread - 0.06f), new Vector3(uB + width / 2, topB + 0.005f, vb + tread), StepEdge);
             }
             // Промежуточная площадка.
-            mesh.BoxMinMax(new Vector3(c + 1f, h0 + half - 0.3f, v1), new Vector3(c + 5f, h0 + half, 12f), Concrete);
-            AddBox(colliders, new Vector3(c + 3f, h0 + half - 0.15f, 11f), new Vector3(4f, 0.3f, 2f));
+            mesh?.BoxMinMax(new Vector3(c + 1f, h0 + half - 0.3f, v1), new Vector3(c + 5f, h0 + half, 12f), Concrete);
+            if (colliders != null) AddBox(colliders, new Vector3(c + 3f, h0 + half - 0.15f, 11f), new Vector3(4f, 0.3f, 2f));
 
             // Наклонные коллайдеры маршей — по линии внутренних углов ступеней.
-            AddRamp(colliders, new Vector3(uA, h0, v0), new Vector3(uA, h0 + half, v1), width, 0.3f);
-            AddRamp(colliders, new Vector3(uB, h0 + half, v1), new Vector3(uB, h0 + rise, v0), width, 0.3f);
+            if (colliders != null) AddRamp(colliders, new Vector3(uA, h0, v0), new Vector3(uA, h0 + half, v1), width, 0.3f);
+            if (colliders != null) AddRamp(colliders, new Vector3(uB, h0 + half, v1), new Vector3(uB, h0 + rise, v0), width, 0.3f);
 
             // Перегородка между полосами: от марша A до перил над маршем B.
             for (int k = 0; k < 6; k++)
@@ -103,16 +161,16 @@ namespace VoidMall.World
                 float v = v0 + k;
                 float bottom = h0 + half * (k / 6f) - 0.25f;
                 float topRail = h0 + half + half * ((6 - k) / 6f) + 1.0f;
-                mesh.BoxMinMax(new Vector3(c + 2.95f, bottom, v), new Vector3(c + 3.05f, topRail, v + 1f), Concrete);
-                AddBox(colliders, new Vector3(c + 3f, (bottom + topRail) * 0.5f, v + 0.5f), new Vector3(0.1f, topRail - bottom, 1f));
+                mesh?.BoxMinMax(new Vector3(c + 2.95f, bottom, v), new Vector3(c + 3.05f, topRail, v + 1f), Concrete);
+                if (colliders != null) AddBox(colliders, new Vector3(c + 3f, (bottom + topRail) * 0.5f, v + 0.5f), new Vector3(0.1f, topRail - bottom, 1f));
             }
-            mesh.BoxMinMax(new Vector3(c + 2.9f, h0 + rise + 0.95f, v0), new Vector3(c + 3.1f, h0 + rise + 1.05f, v1), Rail);
+            mesh?.BoxMinMax(new Vector3(c + 2.9f, h0 + rise + 0.95f, v0), new Vector3(c + 3.1f, h0 + rise + 1.05f, v1), Rail);
 
             if (top)
             {
                 // На верхнем уровне над маршем B — проём в плите: ограждение по его дальнему краю.
-                mesh.BoxMinMax(new Vector3(c + 3f, h0 + rise, v1 - 0.05f), new Vector3(c + 5f, h0 + rise + 1.05f, v1 + 0.05f), Rail);
-                AddBox(colliders, new Vector3(c + 4f, h0 + rise + 0.5f, v1), new Vector3(2f, 1f, 0.1f));
+                mesh?.BoxMinMax(new Vector3(c + 3f, h0 + rise, v1 - 0.05f), new Vector3(c + 5f, h0 + rise + 1.05f, v1 + 0.05f), Rail);
+                if (colliders != null) AddBox(colliders, new Vector3(c + 4f, h0 + rise + 0.5f, v1), new Vector3(2f, 1f, 0.1f));
             }
         }
 
@@ -131,10 +189,15 @@ namespace VoidMall.World
                 // Створка в проёме шахты (u ∈ [c+6, c+9), стена v ∈ [0, 1)); опора — низ створки.
                 var door = NewChild(shaft, $"Door {MallLayout.LevelName(level)}");
                 door.transform.localPosition = new Vector3(c + 7.5f, stops[level], 0.5f);
-                var doorMesh = new MeshBuilder();
-                doorMesh.BoxMinMax(new Vector3(-1.5f, 0f, -0.06f), new Vector3(1.5f, heights[level], 0.06f), DoorColor);
-                doorMesh.BoxMinMax(new Vector3(-0.02f, 0f, -0.07f), new Vector3(0.02f, heights[level], 0.07f), Rail);
-                AddRenderer(door, doorMesh.ToMesh("ElevatorDoor"), material);
+                int doorKey = Mathf.RoundToInt(heights[level] * 100f);
+                if (!DoorMeshes.TryGetValue(doorKey, out var doorMesh) || doorMesh == null)
+                {
+                    Builder.Clear();
+                    Builder.BoxMinMax(new Vector3(-1.5f, 0f, -0.06f), new Vector3(1.5f, heights[level], 0.06f), DoorColor);
+                    Builder.BoxMinMax(new Vector3(-0.02f, 0f, -0.07f), new Vector3(0.02f, heights[level], 0.07f), Rail);
+                    DoorMeshes[doorKey] = doorMesh = Builder.ToMesh("ElevatorDoor");
+                }
+                AddRenderer(door, doorMesh, material);
                 var doorCollider = door.AddComponent<BoxCollider>();
                 doorCollider.center = new Vector3(0f, heights[level] * 0.5f, 0f);
                 doorCollider.size = new Vector3(3f, heights[level], 0.12f);
@@ -144,10 +207,14 @@ namespace VoidMall.World
             var car = NewChild(shaft, "Car");
             car.transform.localPosition = new Vector3(c + 7.5f, stops[0], 2.5f);
             car.transform.localRotation = Quaternion.identity;
-            var carMesh = new MeshBuilder();
-            carMesh.BoxMinMax(new Vector3(-1.45f, -0.25f, -1.45f), new Vector3(1.45f, 0f, 1.45f), CarFloor);
-            carMesh.BoxMinMax(new Vector3(-1.45f, 0f, 1.35f), new Vector3(1.45f, 1.05f, 1.45f), Rail);
-            AddRenderer(car, carMesh.ToMesh("ElevatorCar"), material);
+            if (_carMesh == null)
+            {
+                Builder.Clear();
+                Builder.BoxMinMax(new Vector3(-1.45f, -0.25f, -1.45f), new Vector3(1.45f, 0f, 1.45f), CarFloor);
+                Builder.BoxMinMax(new Vector3(-1.45f, 0f, 1.35f), new Vector3(1.45f, 1.05f, 1.45f), Rail);
+                _carMesh = Builder.ToMesh("ElevatorCar");
+            }
+            AddRenderer(car, _carMesh, material);
             var carCollider = car.AddComponent<BoxCollider>();
             carCollider.center = new Vector3(0f, -0.125f, 0f);
             carCollider.size = new Vector3(2.9f, 0.25f, 2.9f);
@@ -159,28 +226,26 @@ namespace VoidMall.World
         // ───────────────────────────── Эскалаторы ─────────────────────────────
 
         /// <summary>Эскалатор k (этаж k → k+1) в полосе k % 2; чётные идут к концу пустоты атриума, нечётные — обратно.</summary>
-        private static void BuildEscalators(in MallCellInfo info, Transform parent, Material material, bool alongX)
+        private static bool BuildEscalator(in MallCellInfo info, Transform parent, Material material, bool alongX, int k)
         {
             float2 cellOrigin = MallLayout.CellOrigin(info.Cell);
-            for (int k = 0; k < MallLayout.RetailFloors - 1; k++)
-            {
-                int lane = k % 2;
-                float across = MallPlanner.AtriumAcrossMin + MallPlanner.AtriumLaneWidth * (lane + 0.5f);
-                float bottomAlong = k % 2 == 0 ? MallPlanner.AtriumAlongMin : MallPlanner.AtriumAlongMax;
-                float topAlong = k % 2 == 0 ? MallPlanner.AtriumAlongMax : MallPlanner.AtriumAlongMin;
-                int floorLevel = MallLayout.FirstRetailLevel + k;
-                float y0 = MallLayout.FloorTop(floorLevel), y1 = MallLayout.FloorTop(floorLevel + 1);
+            int lane = k % 2;
+            float across = MallPlanner.AtriumAcrossMin + MallPlanner.AtriumLaneWidth * (lane + 0.5f);
+            float bottomAlong = k % 2 == 0 ? MallPlanner.AtriumAlongMin : MallPlanner.AtriumAlongMax;
+            float topAlong = k % 2 == 0 ? MallPlanner.AtriumAlongMax : MallPlanner.AtriumAlongMin;
+            int floorLevel = MallLayout.FirstRetailLevel + k;
+            float y0 = MallLayout.FloorTop(floorLevel), y1 = MallLayout.FloorTop(floorLevel + 1);
 
-                float2 bottom = alongX ? new float2(bottomAlong, across) : new float2(across, bottomAlong);
-                float2 top = alongX ? new float2(topAlong, across) : new float2(across, topAlong);
-                float4 rect = new(math.min(bottom, top) - 1f, math.max(bottom, top) + 1f);
-                if (Blocked(info, CellRect(info, rect), floorLevel, floorLevel + 1))
-                    continue;
+            float2 bottom = alongX ? new float2(bottomAlong, across) : new float2(across, bottomAlong);
+            float2 top = alongX ? new float2(topAlong, across) : new float2(across, topAlong);
+            float4 rect = new(math.min(bottom, top) - 1f, math.max(bottom, top) + 1f);
+            if (Blocked(info, CellRect(info, rect), floorLevel, floorLevel + 1))
+                return false;
 
-                Vector3 start = new(cellOrigin.x + bottom.x, y0, cellOrigin.y + bottom.y);
-                Vector3 end = new(cellOrigin.x + top.x, y1, cellOrigin.y + top.y);
-                BuildEscalator(parent, material, start, end, k);
-            }
+            Vector3 start = new(cellOrigin.x + bottom.x, y0, cellOrigin.y + bottom.y);
+            Vector3 end = new(cellOrigin.x + top.x, y1, cellOrigin.y + top.y);
+            BuildEscalator(parent, material, start, end, k);
+            return true;
         }
 
         private static void BuildEscalator(Transform parent, Material material, Vector3 start, Vector3 end, int index)
@@ -192,28 +257,34 @@ namespace VoidMall.World
             var root = NewChild(parent, $"Escalator {index}").transform;
             root.SetPositionAndRotation(start, Quaternion.LookRotation(flat / run, Vector3.up));
 
-            var mesh = new MeshBuilder();
             Vector3 a = Vector3.zero, b = new(0f, rise, run);
             const float width = 1.6f;
-            mesh.Slab(a + Vector3.down * 0.02f, b + Vector3.down * 0.02f, width + 0.3f, 0.9f, EscalatorBody);
-            int steps = Mathf.RoundToInt(run / 0.4f);
-            for (int i = 0; i < steps; i++)
+            long escalatorKey = ((long)Mathf.RoundToInt(rise * 100f) << 32) | (uint)Mathf.RoundToInt(run * 100f);
+            if (!EscalatorMeshes.TryGetValue(escalatorKey, out var escalatorMesh) || escalatorMesh == null)
             {
-                float t = (i + 0.5f) / steps;
-                Vector3 p = Vector3.Lerp(a, b, t);
-                mesh.Box(p + new Vector3(0f, 0.02f, 0f), new Vector3(width, 0.05f, 0.12f), EscalatorStep);
+                var mesh = Builder;
+                mesh.Clear();
+                mesh.Slab(a + Vector3.down * 0.02f, b + Vector3.down * 0.02f, width + 0.3f, 0.9f, EscalatorBody);
+                int steps = Mathf.RoundToInt(run / 0.4f);
+                for (int i = 0; i < steps; i++)
+                {
+                    float t = (i + 0.5f) / steps;
+                    Vector3 p = Vector3.Lerp(a, b, t);
+                    mesh.Box(p + new Vector3(0f, 0.02f, 0f), new Vector3(width, 0.05f, 0.12f), EscalatorStep);
+                }
+                // Гребёнки на площадках у концов.
+                mesh.BoxMinMax(new Vector3(-width / 2, -0.01f, -1f), new Vector3(width / 2, 0.03f, 0f), EscalatorStep);
+                mesh.BoxMinMax(new Vector3(-width / 2, rise - 0.01f, run), new Vector3(width / 2, rise + 0.03f, run + 1f), EscalatorStep);
+                // Балюстрады с поручнями.
+                for (int side = -1; side <= 1; side += 2)
+                {
+                    float x = side * (width / 2 + 0.08f);
+                    mesh.Slab(new Vector3(x, 1f, -0.6f), new Vector3(x, rise + 1f, run + 0.6f), 0.06f, 0.95f, Balustrade);
+                    mesh.Slab(new Vector3(x, 1.05f, -0.8f), new Vector3(x, rise + 1.05f, run + 0.8f), 0.12f, 0.1f, Rubber);
+                }
+                EscalatorMeshes[escalatorKey] = escalatorMesh = mesh.ToMesh("Escalator");
             }
-            // Гребёнки на площадках у концов.
-            mesh.BoxMinMax(new Vector3(-width / 2, -0.01f, -1f), new Vector3(width / 2, 0.03f, 0f), EscalatorStep);
-            mesh.BoxMinMax(new Vector3(-width / 2, rise - 0.01f, run), new Vector3(width / 2, rise + 0.03f, run + 1f), EscalatorStep);
-            // Балюстрады с поручнями.
-            for (int side = -1; side <= 1; side += 2)
-            {
-                float x = side * (width / 2 + 0.08f);
-                mesh.Slab(new Vector3(x, 1f, -0.6f), new Vector3(x, rise + 1f, run + 0.6f), 0.06f, 0.95f, Balustrade);
-                mesh.Slab(new Vector3(x, 1.05f, -0.8f), new Vector3(x, rise + 1.05f, run + 0.8f), 0.12f, 0.1f, Rubber);
-            }
-            AddRenderer(root.gameObject, mesh.ToMesh("Escalator"), material);
+            AddRenderer(root.gameObject, escalatorMesh, material);
 
             var belt = AddRamp(root, a, b, width, 0.4f);
             belt.AddComponent<Escalator>().Configure(EscalatorSpeed);
@@ -230,20 +301,29 @@ namespace VoidMall.World
         {
             float2 origin = MallLayout.CellOrigin(info.Cell);
             float z = origin.y + info.RampMin.y + MallPlanner.RampWidth * 0.5f;
-            Vector3 start = new(origin.x + info.RampMin.x, MallLayout.FloorTop(0), z);
-            Vector3 end = new(origin.x + info.RampMin.x + MallPlanner.RampLength, MallLayout.FloorTop(1), z);
+            // Пандус строится в своём кадре (от начала подъёма) — меш один на все ячейки.
             var root = NewChild(parent, "Ramp").transform;
-            root.position = Vector3.zero;
+            root.position = new Vector3(origin.x + info.RampMin.x, MallLayout.FloorTop(0), z);
+            Vector3 start = Vector3.zero;
+            Vector3 end = new(MallPlanner.RampLength, MallLayout.FloorTop(1) - MallLayout.FloorTop(0), 0f);
 
-            var mesh = new MeshBuilder();
-            mesh.Slab(start, end, MallPlanner.RampWidth, 0.35f, Concrete);
+            if (_rampMesh == null)
+            {
+                Builder.Clear();
+                Builder.Slab(start, end, MallPlanner.RampWidth, 0.35f, Concrete);
+                for (int side = -1; side <= 1; side += 2)
+                {
+                    Vector3 offset = new(0f, 0.45f, side * (MallPlanner.RampWidth * 0.5f - 0.1f));
+                    Builder.Slab(start + offset, end + offset, 0.2f, 0.9f, Concrete);
+                }
+                _rampMesh = Builder.ToMesh("Ramp");
+            }
             for (int side = -1; side <= 1; side += 2)
             {
                 Vector3 offset = new(0f, 0.45f, side * (MallPlanner.RampWidth * 0.5f - 0.1f));
-                mesh.Slab(start + offset, end + offset, 0.2f, 0.9f, Concrete);
                 AddRamp(root, start + offset, end + offset, 0.2f, 0.9f);
             }
-            AddRenderer(root.gameObject, mesh.ToMesh("Ramp"), material);
+            AddRenderer(root.gameObject, _rampMesh, material);
             AddRamp(root, start, end, MallPlanner.RampWidth, 0.35f);
         }
 

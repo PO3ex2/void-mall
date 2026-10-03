@@ -76,8 +76,11 @@ namespace VoidMall.Game
         private void OnDebris(in DebrisImpactEvent evt) =>
             _impacts.Add($"Обрушение: обломок {evt.Mass:0} кг разбился на скорости {evt.Speed:0.0} м/с");
 
+        private static readonly Perf.Probe UpdateProbe = Perf.Register("Debug.MiningLog");
+
         private void Update()
         {
+            using var perf = Perf.Measure(UpdateProbe);
             _timer += Time.unscaledDeltaTime;
             if (_timer < FlushInterval)
                 return;

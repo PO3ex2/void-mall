@@ -23,8 +23,11 @@ namespace VoidMall.Game
         private bool _hasSafePosition;
         private float _sampleTimer;
 
+        private static readonly Perf.Probe UpdateProbe = Perf.Register("Game.FallGuard");
+
         private void LateUpdate()
         {
+            using var perf = Perf.Measure(UpdateProbe);
             var motor = PlayerMotor.Local;
             if (motor == null)
             {

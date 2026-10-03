@@ -97,8 +97,11 @@ namespace VoidMall.Game
                 LightingDirector.DynamicLights.Remove(_flashlight);
         }
 
+        private static readonly Perf.Probe UpdateProbe = Perf.Register("Game.ToolController");
+
         private void Update()
         {
+            using var perf = Perf.Measure(UpdateProbe);
             if (World == null || _primary == null || Inventory == null)
                 return;
 

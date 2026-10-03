@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
 using VoidMall.Input;
+using VoidMall.Core;
 
 namespace VoidMall.UI
 {
@@ -39,8 +40,11 @@ namespace VoidMall.UI
             _panel.style.display = DisplayStyle.None;
         }
 
+        private static readonly Perf.Probe UpdateProbe = Perf.Register("UI.Console");
+
         private void Update()
         {
+            using var perf = Perf.Measure(UpdateProbe);
             if (_toggle != null && _toggle.WasPressedThisFrame())
                 SetOpen(!_open);
         }

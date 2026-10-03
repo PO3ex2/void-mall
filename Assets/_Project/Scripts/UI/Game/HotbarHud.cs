@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.UIElements;
 using VoidMall.Items;
+using VoidMall.Core;
 
 namespace VoidMall.UI
 {
@@ -26,8 +27,11 @@ namespace VoidMall.UI
             root.Add(_bar);
         }
 
+        private static readonly Perf.Probe UpdateProbe = Perf.Register("UI.Hotbar");
+
         private void Update()
         {
+            using var perf = Perf.Measure(UpdateProbe);
             if (_inventory == null && PlayerInventory.Local != null)
             {
                 _inventory = PlayerInventory.Local;

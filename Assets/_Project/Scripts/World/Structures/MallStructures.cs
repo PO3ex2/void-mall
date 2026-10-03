@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
+using VoidMall.Core;
 
 namespace VoidMall.World
 {
@@ -16,6 +17,8 @@ namespace VoidMall.World
         private readonly Dictionary<int2, GameObject> _cells = new();
         private readonly List<int2> _toUnload = new();
         private readonly List<(float distance, int2 cell)> _toLoad = new();
+        private IEnumerator<bool> _building;
+        private GameObject _buildingRoot;
         private Transform _root;
         private ChunkManager _world;
 
@@ -42,8 +45,21 @@ namespace VoidMall.World
                 _world.WorldReset -= UnloadAll;
         }
 
+        private static readonly Perf.Probe UpdateProbe = Perf.Register("World.Structures");
+
         private void Update()
         {
+            using var perf = Perf.Measure(UpdateProbe);
+            // Ячейка строится по одной части за кадр (марши, лифт, эскалаторы, пандус).
+            if (_building != null)
+            {
+                if (_buildingRoot == null || !_building.MoveNext())
+                {
+                    _building = null;
+                    _buildingRoot = null;
+                }
+                return;
+            }
             if (_world == null)
                 _world = ChunkManager.Instance;
             var viewer = WorldViewer.Primary;
@@ -79,12 +95,17 @@ namespace VoidMall.World
                 return;
             _toLoad.Sort((a, b) => a.distance.CompareTo(b.distance));
 
-            // Одна ячейка за кадр: структуры — это десятки объектов.
             int2 next = _toLoad[0].cell;
             var root = new GameObject($"Cell {next.x},{next.y}");
             root.transform.SetParent(_root, false);
-            StructureFactory.Build(_world.Seed, _world.GetCellInfo(next), root.transform, _material);
             _cells.Add(next, root);
+            _buildingRoot = root;
+            _building = StructureFactory.BuildSteps(_world.Seed, _world.GetCellInfo(next), root.transform, _material);
+            if (!_building.MoveNext())
+            {
+                _building = null;
+                _buildingRoot = null;
+            }
         }
 
         private void UnloadAll()

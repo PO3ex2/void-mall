@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
 using VoidMall.Console;
+using VoidMall.Core;
 
 namespace VoidMall.World
 {
@@ -28,8 +29,11 @@ namespace VoidMall.World
 
         private void OnDisable() => Shader.SetGlobalFloat(CountId, 0f);
 
+        private static readonly Perf.Probe UpdateProbe = Perf.Register("World.AnomalyFx");
+
         private void LateUpdate()
         {
+            using var perf = Perf.Measure(UpdateProbe);
             var world = ChunkManager.Instance;
             var camera = Camera.main;
             if (world == null || camera == null)

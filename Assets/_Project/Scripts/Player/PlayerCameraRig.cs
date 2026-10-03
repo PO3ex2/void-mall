@@ -1,5 +1,6 @@
 using UnityEngine;
 using VoidMall.Console;
+using VoidMall.Core;
 
 namespace VoidMall.Player
 {
@@ -75,8 +76,11 @@ namespace VoidMall.Player
             _fov = Fov.Value;
         }
 
+        private static readonly Perf.Probe UpdateProbe = Perf.Register("Player.Camera");
+
         private void LateUpdate()
         {
+            using var perf = Perf.Measure(UpdateProbe);
             float dt = Time.deltaTime;
             ref readonly var state = ref _motor.State;
             var modifiers = _motor.Modifiers;

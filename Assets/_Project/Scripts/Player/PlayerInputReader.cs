@@ -65,8 +65,11 @@ namespace VoidMall.Player
             return true;
         }
 
+        private static readonly Perf.Probe UpdateProbe = Perf.Register("Player.Input");
+
         private void Update()
         {
+            using var perf = Perf.Measure(UpdateProbe);
             if (!TryBind())
                 return;
 

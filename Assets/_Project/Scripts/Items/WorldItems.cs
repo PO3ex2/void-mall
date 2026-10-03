@@ -169,8 +169,11 @@ namespace VoidMall.Items
             _pool.Push(item);
         }
 
+        private static readonly Perf.Probe FixedProbe = Perf.Register("Items.WorldItems.Fixed");
+
         private void FixedUpdate()
         {
+            using var perf = Perf.Measure(FixedProbe);
             for (int i = _entries.Count - 1; i >= 0; i--)
             {
                 var item = _entries[i].Instance;
@@ -190,8 +193,11 @@ namespace VoidMall.Items
             }
         }
 
+        private static readonly Perf.Probe UpdateProbe = Perf.Register("Items.WorldItems.Stream");
+
         private void Update()
         {
+            using var perf = Perf.Measure(UpdateProbe);
             _streamTimer -= Time.deltaTime;
             if (_streamTimer > 0f || WorldViewer.Primary == null || ItemSystem.Instance == null)
                 return;

@@ -80,8 +80,11 @@ namespace VoidMall.World
             return Mathf.Lerp(from, to, Mathf.Clamp01((local - Wait) / Mathf.Max(travel, 0.001f)));
         }
 
+        private static readonly Perf.Probe FixedProbe = Perf.Register("World.Elevator");
+
         private void FixedUpdate()
         {
+            using var perf = Perf.Measure(FixedProbe);
             if (_stops == null)
                 return;
             float dt = Time.fixedDeltaTime;
