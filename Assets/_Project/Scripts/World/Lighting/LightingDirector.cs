@@ -37,6 +37,13 @@ namespace VoidMall.World
         [SerializeField] private Color _nightFog = new(0f, 0f, 0f);
         [SerializeField, Range(0f, 1f)] private float _dayReflections = 0.25f;
 
+        /// <summary>Яркость неба ночью относительно дневной: небо в проёмах и за дальностью прорисовки гаснет вместе с туманом (ночной туман чёрный).</summary>
+        [SerializeField, Range(0f, 1f)] private float _nightSkyExposure = 0f;
+
+        private static readonly int ExposureId = Shader.PropertyToID("_Exposure");
+        private Material _sky, _sourceSky;
+        private float _dayExposure;
+
         private Color _appliedAmbient = new(-1f, -1f, -1f, -1f);
 
         private static readonly int SeedId = Shader.PropertyToID("_VM_Seed");
@@ -82,6 +89,38 @@ namespace VoidMall.World
 
         private void OnDisable() => Services.Unregister<ILightProbe>(this);
 
+        private void OnDestroy()
+        {
+            if (_sky == null)
+                return;
+            if (RenderSettings.skybox == _sky)
+                RenderSettings.skybox = _sourceSky;
+            Destroy(_sky);
+        }
+
+        /// <summary>
+        /// Скайбокс туман не берёт: ночью дневное небо светилось бы в концах галерей (за прогруженными чанками) и в
+        /// проёмах. Небо — копия материала сцены (сам ассет не трогаем), её экспозиция гаснет к ночи.
+        /// </summary>
+        private void UpdateSky(float darkness)
+        {
+            var current = RenderSettings.skybox;
+            if (current == null)
+                return;
+            if (current != _sky)
+            {
+                if (!current.HasProperty(ExposureId))
+                    return;
+                if (_sky != null)
+                    Destroy(_sky);
+                _sourceSky = current;
+                _dayExposure = current.GetFloat(ExposureId);
+                _sky = new Material(current) { name = current.name + " (runtime)", hideFlags = HideFlags.DontSave };
+                RenderSettings.skybox = _sky;
+            }
+            _sky.SetFloat(ExposureId, _dayExposure * Mathf.Lerp(1f, _nightSkyExposure, darkness));
+        }
+
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void ResetStatics()
         {
@@ -119,6 +158,7 @@ namespace VoidMall.World
                 RenderSettings.reflectionIntensity = Mathf.Lerp(_dayReflections, 0f, darkness);
             }
             RenderSettings.fogColor = Color.Lerp(_dayFog, _nightFog, darkness);
+            UpdateSky(darkness);
 
             Vector3 center = ViewerPosition();
             if (Time.unscaledTime >= _nextRefresh)

@@ -701,7 +701,7 @@ namespace VoidMall.World
                 if (floor < 0 || room.Has(RoomFlags.Service))
                 {
                     room.Flags |= RoomFlags.Service;
-                    room.Section = (byte)PickService(sections, floor, h);
+                    room.Section = (byte)PickService(sections, level, h);
                 }
                 else
                 {
@@ -755,7 +755,7 @@ namespace VoidMall.World
                 if (IsEligible(sections[i], floor))
                     total += sections[i].Weight;
             if (total <= 0f)
-                return PickService(sections, floor, h);
+                return PickService(sections, MallLayout.FirstRetailLevel + floor, h);
             float roll = Hash.ToFloat01(h) * total;
             int last = 0;
             for (int i = 0; i < sections.Length; i++)
@@ -773,9 +773,33 @@ namespace VoidMall.World
         private static bool IsEligible(SectionInfo section, int floor) =>
             !section.Service && section.Weight > 0f && (section.RetailFloorMask & (1 << floor)) != 0;
 
-        /// <summary>Служебный раздел: на торговых этажах — с битом этажа в маске, на техническом и парковке — с пустой маской.</summary>
-        private static int PickService(NativeArray<SectionInfo> sections, int floor, uint h)
+        /// <summary>
+        /// Служебный раздел комнаты по весам для типа этажа (подсобка, вентиляционная, щитовая…). Без весов —
+        /// поровну среди служебных: на торговых этажах — с битом этажа в маске, на техническом и парковке — с пустой маской.
+        /// </summary>
+        private static int PickService(NativeArray<SectionInfo> sections, int level, uint h)
         {
+            LevelKind kind = MallLayout.Kind(level);
+            int floor = MallLayout.RetailFloor(level);
+            float total = 0f;
+            for (int i = 0; i < sections.Length; i++)
+                total += ServiceWeight(sections[i], kind, floor);
+            if (total > 0f)
+            {
+                float roll = Hash.ToFloat01(h) * total;
+                int last = 0;
+                for (int i = 0; i < sections.Length; i++)
+                {
+                    float w = ServiceWeight(sections[i], kind, floor);
+                    if (w <= 0f)
+                        continue;
+                    last = i;
+                    roll -= w;
+                    if (roll < 0f)
+                        return i;
+                }
+                return last;
+            }
             int count = 0;
             for (int i = 0; i < sections.Length; i++)
                 if (IsService(sections[i], floor))
@@ -787,6 +811,20 @@ namespace VoidMall.World
                 if (IsService(sections[i], floor) && pick-- == 0)
                     return i;
             return 0;
+        }
+
+        private static float ServiceWeight(in SectionInfo section, LevelKind kind, int floor)
+        {
+            if (!section.Service)
+                return 0f;
+            if (kind == LevelKind.Retail && section.RetailFloorMask != 0 && (section.RetailFloorMask & (1 << floor)) == 0)
+                return 0f;
+            return kind switch
+            {
+                LevelKind.Retail => section.ServiceRetail,
+                LevelKind.Tech => section.ServiceTech,
+                _ => section.ServiceParking,
+            };
         }
 
         private static bool IsService(SectionInfo section, int floor) =>

@@ -1,0 +1,44 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9f0051f3e8b3438408ddcd1c06a3bc12, type: 3}
+  m_Name: material_fuse
+  m_EditorClassIdentifier: VoidMall.Items::VoidMall.Items.ItemDef
+  _id: material.fuse
+  DisplayName: "\u041F\u0440\u0435\u0434\u043E\u0445\u0440\u0430\u043D\u0438\u0442\u0435\u043B\u044C"
+  Description: "\u0418\u0437 \u0449\u0438\u0442\u043E\u0432\u044B\u0445. \u041F\u043E\u043D\u0430\u0434\u043E\u0431\u0438\u0442\u0441\u044F, \u0447\u0442\u043E\u0431\u044B \u043E\u0436\u0438\u0432\u0438\u0442\u044C \u0449\u0438\u0442\u043E\u043A."
+  Category: 0
+  Shape: 1
+  Tint: {r: 0.85, g: 0.8, b: 0.7, a: 1}
+  ModelSize: {x: 0.03, y: 0.07, z: 0.03}
+  Mesh: {fileID: 0}
+  Material: {fileID: 0}
+  Icon: {fileID: 2800000, guid: 66a5ea06a2a22f94db54e3d0033cc9d1, type: 3}
+  GridSize: {x: 1, y: 1}
+  Weight: 0.03
+  MaxStack: 20
+  Tool: 0
+  ToolTier: 0
+  BlockDamage: 0
+  PropDamage: 0
+  SwingInterval: 0.35
+  DrillStrength: 0
+  Calories: 0
+  Fat: 0
+  Protein: 0
+  Carbs: 0
+  Water: 0
+  Slot: 0
+  Layer: 0
+  Armor: 0
+  ContainerGrid: {x: 0, y: 0}
+  PlacesBlock: {fileID: 0}
+  SmoothMaterial: {fileID: 0}

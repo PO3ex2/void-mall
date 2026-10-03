@@ -17,7 +17,11 @@ namespace VoidMall.World
         Warehouse,
         Clothing,
         Showroom,
+        /// <summary>Вентиляционная (технический этаж): вентустановки, бойлеры.</summary>
         Tech,
+
+        /// <summary>Щитовая: электрощиты по стенам, главный щит, кабельные барабаны, стеллаж с электрикой.</summary>
+        Electrical,
     }
 
     /// <summary>
@@ -49,6 +53,16 @@ namespace VoidMall.World
 
         [Tooltip("Служебный раздел: ставится в комнаты без витрины и на технический этаж, в случайный выбор не входит.")]
         public bool Service;
+
+        [Header("Служебный: вес выбора по типу этажа")]
+        [Tooltip("Подсобки торговых этажей (комнаты без витрины).")]
+        [Min(0)] public float ServiceWeightRetail;
+
+        [Tooltip("Комнаты технического этажа.")]
+        [Min(0)] public float ServiceWeightTech;
+
+        [Tooltip("Служебная комната ядра на парковке.")]
+        [Min(0)] public float ServiceWeightParking;
     }
 
     /// <summary>Сжатое описание раздела для Burst.</summary>
@@ -59,6 +73,9 @@ namespace VoidMall.World
         public byte RetailFloorMask;
         public bool Service;
         public float Weight;
+
+        /// <summary>Вес служебного раздела на торговых этажах, техническом этаже и парковке.</summary>
+        public float ServiceRetail, ServiceTech, ServiceParking;
     }
 
     /// <summary>Таблица разделов мира: NativeArray для джобов + управляемые описания.</summary>
@@ -93,6 +110,9 @@ namespace VoidMall.World
                     RetailFloorMask = (byte)(def.RetailFloorMask & 0x1F),
                     Service = def.Service,
                     Weight = Mathf.Max(0f, weight(def)),
+                    ServiceRetail = Mathf.Max(0f, def.ServiceWeightRetail),
+                    ServiceTech = Mathf.Max(0f, def.ServiceWeightTech),
+                    ServiceParking = Mathf.Max(0f, def.ServiceWeightParking),
                 };
             }
             Infos = infos;

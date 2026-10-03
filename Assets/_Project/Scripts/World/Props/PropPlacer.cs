@@ -11,6 +11,7 @@ namespace VoidMall.World
     {
         public ushort Shelf, Fridge, Checkout, DisplayTable, ClothesRack, Table, Chair, PalletRack, BoxStack, Car;
         public ushort Cabinet, Boiler, Bench, Planter, Sofa, CardboardBox, PlasticCrate, TrashBin;
+        public ushort Switchboard, CableReel, VentUnit;
 
         public static PropIds Resolve(PropRegistry props) => new()
         {
@@ -32,6 +33,9 @@ namespace VoidMall.World
             CardboardBox = props.IndexOf("prop.cardboard_box"),
             PlasticCrate = props.IndexOf("prop.plastic_crate"),
             TrashBin = props.IndexOf("prop.trash_bin"),
+            Switchboard = props.IndexOf("prop.switchboard"),
+            CableReel = props.IndexOf("prop.cable_reel"),
+            VentUnit = props.IndexOf("prop.vent_unit"),
         };
     }
 
@@ -100,7 +104,7 @@ namespace VoidMall.World
                         TryAdd(ctx, plan, i, ctx.Ids.BoxStack, Center(room.Rect) + new float2(0.5f, 0.5f), 0f, output);
                     continue;
                 }
-                SectionLayout layout = kind == LevelKind.Tech ? SectionLayout.Tech : sections[room.Section].Layout;
+                SectionLayout layout = sections[room.Section].Layout;
                 switch (layout)
                 {
                     case SectionLayout.Rows:
@@ -126,11 +130,34 @@ namespace VoidMall.World
                         Grid(ctx, plan, i, ctx.Ids.Sofa, 4.6f, 4.2f, 2.5f, h, output);
                         break;
                     case SectionLayout.Tech:
-                        Perimeter(ctx, plan, i, ctx.Ids.Cabinet, output);
-                        if (math.min(room.Rect.z - room.Rect.x, room.Rect.w - room.Rect.y) >= 6)
-                            TryAdd(ctx, plan, i, ctx.Ids.Boiler, Center(room.Rect), 0f, output);
+                    {
+                        // Вентиляционная: вентустановка посередине (в тесной — у стены), в больших — бойлер.
+                        int4 r = room.Rect;
+                        bool longX = r.z - r.x >= r.w - r.y;
+                        if (math.min(r.z - r.x, r.w - r.y) >= 5)
+                            TryAdd(ctx, plan, i, ctx.Ids.VentUnit, Center(r), longX ? 0f : 90f, output);
+                        else
+                            AgainstWall(ctx, plan, i, ctx.Ids.VentUnit, output);
+                        if (math.min(r.z - r.x, r.w - r.y) >= 8)
+                            Scatter(ctx, plan, i, ctx.Ids.Boiler, 1, h ^ 0x4321u, output);
+                        if (h % 3 == 0)
+                            Scatter(ctx, plan, i, ctx.Ids.CableReel, 1, h ^ 0x1357u, output);
                         Scatter(ctx, plan, i, ctx.Ids.CardboardBox, 2, h ^ 0x9ABCu, output);
                         break;
+                    }
+                    case SectionLayout.Electrical:
+                    {
+                        // Щитовая: главный щит у самой длинной стены (позже — кандидат в рабочий щиток), по остальным
+                        // стенам — электрощиты, посередине — стеллаж с электрикой, кабельные барабаны.
+                        int4 r = room.Rect;
+                        AgainstWall(ctx, plan, i, ctx.Ids.Switchboard, output);
+                        Perimeter(ctx, plan, i, ctx.Ids.Cabinet, output);
+                        if (math.min(r.z - r.x, r.w - r.y) >= 5)
+                            TryAdd(ctx, plan, i, ctx.Ids.Shelf, Center(r), r.z - r.x >= r.w - r.y ? 0f : 90f, output);
+                        Scatter(ctx, plan, i, ctx.Ids.CableReel, 1 + (int)(h % 2), h ^ 0x2468u, output);
+                        Scatter(ctx, plan, i, ctx.Ids.CardboardBox, 1, h ^ 0x9ABCu, output);
+                        break;
+                    }
                 }
             }
 
@@ -189,6 +216,40 @@ namespace VoidMall.World
         }
 
         /// <summary>Мебель вдоль стен: секции с отступом от стены, не ближе 1.5 м к дверям.</summary>
+        /// <summary>Один проп посередине самой длинной стены, где нет двери (иначе — следующей по длине).</summary>
+        private static bool AgainstWall(in Context ctx, in MallLevelPlan plan, int room, ushort kind, List<PropSpawn> output)
+        {
+            int4 r = plan.Rooms[room].Rect;
+            Vector3 size = ctx.Props.Size(kind);
+            float half = size.z * 0.5f + 0.05f;
+            bool xLonger = r.z - r.x >= r.w - r.y;
+            for (int n = 0; n < 4; n++)
+            {
+                // Сначала две длинные стены, потом две короткие.
+                int side = xLonger ? n : (n + 2) % 4;
+                bool alongX = side < 2;
+                float a0 = alongX ? r.x : r.y, a1 = alongX ? r.z : r.w;
+                if (a1 - a0 < size.x + 1f)
+                    continue;
+                float a = (a0 + a1) * 0.5f;
+                float2 position;
+                float yaw;
+                int2 wall;
+                switch (side)
+                {
+                    case 0: position = new float2(a, r.y + half); yaw = 180f; wall = new int2((int)a, r.y - 1); break;
+                    case 1: position = new float2(a, r.w - half); yaw = 0f; wall = new int2((int)a, r.w); break;
+                    case 2: position = new float2(r.x + half, a); yaw = 270f; wall = new int2(r.x - 1, (int)a); break;
+                    default: position = new float2(r.z - half, a); yaw = 90f; wall = new int2(r.z, (int)a); break;
+                }
+                if (NearDoor(plan, wall, alongX, size.x * 0.5f + 1.5f))
+                    continue;
+                if (TryAdd(ctx, plan, room, kind, position, yaw, output))
+                    return true;
+            }
+            return false;
+        }
+
         private static void Perimeter(in Context ctx, in MallLevelPlan plan, int room, ushort kind, List<PropSpawn> output)
         {
             int4 r = plan.Rooms[room].Rect;

@@ -124,6 +124,48 @@ namespace VoidMall.Tests
         }
 
         [Test]
+        public void ServiceRooms_ElectricalOnParking_RareInBackrooms_AndAFewOnTechLevel()
+        {
+            // Подсобка (только торговые), вентиляционная (только техэтаж), щитовая (парковка, изредка остальные).
+            var sections = new NativeArray<SectionInfo>(4, Allocator.Persistent);
+            sections[0] = new SectionInfo { Layout = SectionLayout.Rows, RetailFloorMask = 0b11111, Weight = 1f };
+            sections[1] = new SectionInfo { Layout = SectionLayout.Warehouse, RetailFloorMask = 0b11111, Service = true, ServiceRetail = 1f };
+            sections[2] = new SectionInfo { Layout = SectionLayout.Tech, Service = true, ServiceTech = 1f };
+            sections[3] = new SectionInfo { Layout = SectionLayout.Electrical, Service = true, ServiceRetail = 0.12f, ServiceTech = 0.07f, ServiceParking = 1f };
+            var plan = new MallLevelPlan(Allocator.Persistent);
+            try
+            {
+                var counts = new int[3, 4]; // [парковка, торговые, техэтаж] × раздел
+                for (int x = 0; x < 12; x++)
+                for (int level = 0; level < MallLayout.LevelCount; level++)
+                {
+                    var info = MallPlanner.GetCellInfo(21, 0f, new int2(x, 2));
+                    MallPlanner.BuildLevel(21, info, level, sections, ref plan);
+                    int kind = (int)MallLayout.Kind(level);
+                    for (int i = 1; i < plan.Rooms.Length; i++)
+                    {
+                        var room = plan.Rooms[i];
+                        if (room.Has(RoomFlags.Service) && !room.Has(RoomFlags.Stairwell))
+                            counts[kind, room.Section]++;
+                    }
+                }
+                int parking = (int)LevelKind.Parking, retail = (int)LevelKind.Retail, tech = (int)LevelKind.Tech;
+                Assert.That(counts[parking, 3], Is.GreaterThan(0));
+                Assert.That(counts[parking, 1] + counts[parking, 2], Is.Zero, "На парковке служебная комната ядра — щитовая");
+                Assert.That(counts[retail, 2], Is.Zero, "Вентиляционные — только на техэтаже");
+                Assert.That(counts[retail, 3], Is.GreaterThan(0), "В закулисье магазинов есть щитовые");
+                Assert.That(counts[retail, 3], Is.LessThan(counts[retail, 1] / 3), "…но подсобок намного больше");
+                Assert.That(counts[tech, 3], Is.GreaterThan(0), "На техэтаже есть пара щитовых");
+                Assert.That(counts[tech, 3], Is.LessThan(counts[tech, 2] / 5), "…а в основном — вентиляционные");
+            }
+            finally
+            {
+                plan.Dispose();
+                sections.Dispose();
+            }
+        }
+
+        [Test]
         public void Anomalies_VaryInSize_AndBigAbyssesSpareCoresAndReachNeighbours()
         {
             float abyssMin = float.MaxValue, abyssMax = 0f, poolMin = float.MaxValue, poolMax = 0f;

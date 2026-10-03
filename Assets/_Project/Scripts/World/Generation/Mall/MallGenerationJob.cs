@@ -13,6 +13,7 @@ namespace VoidMall.World
         public ushort Terrazzo, CeilingTile, PaintWhite, Glass, Shutter, FacadeDark;
         public ushort Asphalt, LineX, LineZ;
         public ushort Lamp, Emergency, Skylight;
+        public ushort Duct, CableTray;
 
         public static MallMaterials Resolve(MaterialRegistry registry) => new()
         {
@@ -33,6 +34,8 @@ namespace VoidMall.World
             Lamp = registry.IndexOf("block.lamp_panel"),
             Emergency = registry.IndexOf("block.emergency_lamp"),
             Skylight = registry.IndexOf("block.skylight"),
+            Duct = registry.IndexOf("block.duct"),
+            CableTray = registry.IndexOf("block.cable_tray"),
         };
     }
 
@@ -345,9 +348,52 @@ namespace VoidMall.World
                 case Tile.CoreDoor: return rel <= doorHeight ? Cell.Air : new Cell(M.Concrete);
                 case Tile.Railing: return rel == 1 ? new Cell(M.Glass) : Cell.Air;
                 case Tile.Barrier: return rel == 1 ? new Cell(M.Concrete) : Cell.Air;
-                default: return Cell.Air;
+                default:
+                {
+                    ushort overhead = rel == free ? OverheadAt(local, kind, room, isPublic, section) : (ushort)0;
+                    return overhead != 0 ? new Cell(overhead) : Cell.Air;
+                }
             }
         }
+
+        /// <summary>
+        /// Под потолком (верхний ряд свободной высоты): воздуховоды и кабельные лотки в служебных коридорах
+        /// технического этажа, воздуховод в вентиляционных, лоток в щитовых. Линии идут мимо ламп и колонн.
+        /// </summary>
+        private ushort OverheadAt(int2 local, LevelKind kind, in MallRoom room, bool isPublic, in SectionInfo section)
+        {
+            int x = local.x, z = local.y;
+            if (isPublic)
+            {
+                if (kind != LevelKind.Tech)
+                    return 0;
+                // Обе галереи ячейки: лампы — сетка 8 м с остатком 2, аварийные — на 12, колонны — 6–7.
+                bool alongZ = x < MallLayout.Band, alongX = z < MallLayout.Band;
+                if ((alongZ && x == 4) || (alongX && z == 4))
+                    return M.Duct;
+                if ((alongZ && x == 9) || (alongX && z == 9))
+                    return M.CableTray;
+                return 0;
+            }
+            if (room.Has(RoomFlags.Stairwell))
+                return 0;
+            int4 r = room.Rect;
+            bool longX = r.z - r.x >= r.w - r.y;
+            if (section.Layout == SectionLayout.Tech)
+            {
+                int line = AwayFromLamps(longX ? r.y + 1 : r.x + 1);
+                return (longX ? z == line : x == line) ? M.Duct : (ushort)0;
+            }
+            if (section.Layout == SectionLayout.Electrical)
+            {
+                int line = AwayFromLamps(longX ? r.y : r.x);
+                return (longX ? z == line : x == line) ? M.CableTray : (ushort)0;
+            }
+            return 0;
+        }
+
+        /// <summary>Лампы в комнатах — через 4 клетки с остатком 2: линию сдвигаем, чтобы не закрыть их снизу.</summary>
+        private static int AwayFromLamps(int line) => (line & 3) == 2 ? line + 1 : line;
 
         /// <summary>Лампа в потолочном ряду (или 0). Сетка 4 м в магазинах и галереях, аварийные — вдоль фасадов и на лестницах.</summary>
         private ushort LampAt(int2 local, LevelKind kind, MallRoom room, bool isPublic, in MallCellInfo info)

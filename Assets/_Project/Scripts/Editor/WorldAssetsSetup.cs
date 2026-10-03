@@ -89,6 +89,8 @@ namespace VoidMall.Editor
             new("block.asphalt", "Асфальт", MaterialKind.Block, BlockPattern.Asphalt, 1000),
             new("block.parking_line_x", "Разметка (вдоль X)", MaterialKind.Block, BlockPattern.ParkingLineU, 1000),
             new("block.parking_line_z", "Разметка (вдоль Z)", MaterialKind.Block, BlockPattern.ParkingLineV, 1000),
+            new("block.duct", "Воздуховод", MaterialKind.Block, BlockPattern.Metal, 500, tint: new Color(0.92f, 0.94f, 0.97f)),
+            new("block.cable_tray", "Кабельный лоток", MaterialKind.Block, BlockPattern.Shutter, 300, tint: new Color(0.32f, 0.32f, 0.34f)),
             new("smooth.tile", "Плитка бассейна (гладкая)", MaterialKind.Smooth, BlockPattern.FloorTile, 600, tint: new Color(0.82f, 0.92f, 0.98f)),
             // Гладкие двойники полов — облицовка аномалий (тот же узор и оттенок, что у блока).
             new("smooth.floor_tile", "Плитка (гладкая)", MaterialKind.Smooth, BlockPattern.FloorTile, 600),
@@ -223,10 +225,14 @@ namespace VoidMall.Editor
             public readonly int Mask;
             public readonly bool Service;
             public readonly Color MapColor;
+            public readonly float ServiceRetail, ServiceTech, ServiceParking;
 
             public SectionSpec(string id, string name, SectionLayout layout, string floor, string wall, string facade, string ceiling,
-                float weight, int mask, Color mapColor, bool service = false)
+                float weight, int mask, Color mapColor, bool service = false, float serviceRetail = 0f, float serviceTech = 0f, float serviceParking = 0f)
             {
+                ServiceRetail = serviceRetail;
+                ServiceTech = serviceTech;
+                ServiceParking = serviceParking;
                 Id = id;
                 Name = name;
                 Layout = layout;
@@ -255,8 +261,10 @@ namespace VoidMall.Editor
             new("section.toys", "Игрушки", SectionLayout.Rows, "block.tile_checker", "block.paint_salmon", "block.facade_light", "block.ceiling_tile", 1.5f, AllFloors, new Color(0.95f, 0.4f, 0.3f)),
             new("section.foodcourt", "Фудкорт", SectionLayout.Hall, "block.tile_checker", "block.paint_white", "block.facade_dark", "block.ceiling_tile", 1f, 0b11000, new Color(0.85f, 0.3f, 0.85f)),
             new("section.empty", "Пустой зал", SectionLayout.Empty, "block.carpet", "block.wallpaper", "block.facade_light", "block.ceiling_tile", 0.6f, AllFloors, new Color(0.85f, 0.8f, 0.5f)),
-            new("section.storage", "Подсобка", SectionLayout.Warehouse, "block.concrete", "block.drywall", "block.facade_dark", "block.concrete", 1f, AllFloors, new Color(0.5f, 0.5f, 0.5f), service: true),
-            new("section.tech", "Техническое помещение", SectionLayout.Tech, "block.concrete", "block.concrete", "block.concrete", "block.concrete", 1f, 0, new Color(0.35f, 0.35f, 0.4f), service: true),
+            new("section.storage", "Подсобка", SectionLayout.Warehouse, "block.concrete", "block.drywall", "block.facade_dark", "block.concrete", 1f, AllFloors, new Color(0.5f, 0.5f, 0.5f), service: true, serviceRetail: 1f),
+            new("section.tech", "Вентиляционная", SectionLayout.Tech, "block.concrete", "block.concrete", "block.concrete", "block.concrete", 1f, 0, new Color(0.35f, 0.35f, 0.4f), service: true, serviceTech: 1f),
+            // Щитовые: всегда — служебная комната ядра на парковке, изредка — подсобки магазинов, пара на техническом этаже.
+            new("section.electrical", "Щитовая", SectionLayout.Electrical, "block.tile_dark", "block.paint_gray", "block.facade_dark", "block.concrete", 1f, 0, new Color(0.95f, 0.8f, 0.2f), service: true, serviceRetail: 0.12f, serviceTech: 0.07f, serviceParking: 1f),
         };
 
         private static void CreateMallAssets(MaterialCatalog catalog)
@@ -280,6 +288,9 @@ namespace VoidMall.Editor
                 def.Weight = spec.Weight;
                 def.RetailFloorMask = spec.Mask;
                 def.Service = spec.Service;
+                def.ServiceWeightRetail = spec.ServiceRetail;
+                def.ServiceWeightTech = spec.ServiceTech;
+                def.ServiceWeightParking = spec.ServiceParking;
                 def.MapColor = spec.MapColor;
                 def.Floor = FindMaterial(catalog, spec.Floor);
                 def.Wall = FindMaterial(catalog, spec.Wall);

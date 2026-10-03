@@ -23,3 +23,6 @@ MonoBehaviour:
   Ceiling: {fileID: 11400000, guid: e47ffbb32b390ee44b2ed3abd776323e, type: 2}
   RetailFloorMask: 3
   Service: 0
+  ServiceWeightRetail: 0
+  ServiceWeightTech: 0
+  ServiceWeightParking: 0

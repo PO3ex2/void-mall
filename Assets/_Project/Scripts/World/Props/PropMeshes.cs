@@ -24,6 +24,9 @@ namespace VoidMall.World
         CardboardBox,
         PlasticCrate,
         TrashBin,
+        Switchboard,
+        CableReel,
+        VentUnit,
         Count,
     }
 
@@ -51,6 +54,9 @@ namespace VoidMall.World
             PropShape.CardboardBox => new Vector3(0.5f, 0.4f, 0.4f),
             PropShape.PlasticCrate => new Vector3(0.6f, 0.32f, 0.4f),
             PropShape.TrashBin => new Vector3(0.5f, 0.8f, 0.5f),
+            PropShape.Switchboard => new Vector3(2.4f, 2.1f, 0.6f),
+            PropShape.CableReel => new Vector3(0.7f, 1f, 1f),
+            PropShape.VentUnit => new Vector3(2.2f, 1.6f, 1.2f),
             _ => Vector3.one,
         };
 
@@ -298,6 +304,55 @@ namespace VoidMall.World
                     b.BoxMinMax(new Vector3(-w / 2 + 0.03f, 0, -d / 2 + 0.03f), new Vector3(w / 2 - 0.03f, h - 0.06f, d / 2 - 0.03f), bin);
                     b.BoxMinMax(new Vector3(-w / 2, h - 0.06f, -d / 2), new Vector3(w / 2, h, d / 2), DarkMetal);
                     break;
+                case PropShape.Switchboard:
+                {
+                    // Главный распределительный щит: три секции с дверцами, индикаторы и табличка «опасно».
+                    var panel = new Color(0.58f, 0.6f, 0.56f, 0.45f);
+                    b.BoxMinMax(new Vector3(-w / 2, 0, -d / 2), new Vector3(w / 2, h, d / 2), panel);
+                    b.BoxMinMax(new Vector3(-w / 2, 0, -d / 2 - 0.02f), new Vector3(w / 2, 0.1f, d / 2), DarkMetal);
+                    for (int i = 0; i < 3; i++)
+                    {
+                        float x0 = -w / 2 + w * i / 3f;
+                        if (i > 0)
+                            b.BoxMinMax(new Vector3(x0 - 0.01f, 0.1f, -d / 2 - 0.012f), new Vector3(x0 + 0.01f, h, -d / 2), DarkMetal);
+                        float cx = x0 + w / 6f;
+                        b.BoxMinMax(new Vector3(cx + w / 6f - 0.12f, 0.9f, -d / 2 - 0.03f), new Vector3(cx + w / 6f - 0.08f, 1.15f, -d / 2), DarkMetal);
+                        b.BoxMinMax(new Vector3(cx - 0.08f, h - 0.3f, -d / 2 - 0.02f), new Vector3(cx - 0.02f, h - 0.24f, -d / 2), new Color(0.9f, 0.15f, 0.1f, 0.8f));
+                        b.BoxMinMax(new Vector3(cx + 0.02f, h - 0.3f, -d / 2 - 0.02f), new Vector3(cx + 0.08f, h - 0.24f, -d / 2), new Color(0.2f, 0.85f, 0.25f, 0.8f));
+                    }
+                    b.BoxMinMax(new Vector3(-0.15f, h - 0.55f, -d / 2 - 0.015f), new Vector3(0.15f, h - 0.4f, -d / 2), new Color(0.95f, 0.8f, 0.1f, 0.3f));
+                    break;
+                }
+                case PropShape.CableReel:
+                {
+                    // Кабельный барабан на боку: ось вдоль X, щёки и намотка — восьмиугольники из повёрнутых коробок.
+                    var reelWood = new Color(0.5f, 0.38f, 0.25f, 0.2f);
+                    var cable = new Color(0.12f, 0.12f, 0.13f, 0.35f);
+                    float r = h * 0.5f;
+                    for (int k = 0; k < 4; k++)
+                    {
+                        var rot = Quaternion.Euler(k * 45f, 0, 0);
+                        float side = r * 2f * 0.4142f;
+                        b.Box(new Vector3(-w / 2 + 0.03f, r, 0), new Vector3(0.06f, r * 2f, side), reelWood, rot);
+                        b.Box(new Vector3(w / 2 - 0.03f, r, 0), new Vector3(0.06f, r * 2f, side), reelWood, rot);
+                        b.Box(new Vector3(0, r, 0), new Vector3(w - 0.12f, r * 1.5f, r * 1.5f * 0.4142f), cable, rot);
+                    }
+                    break;
+                }
+                case PropShape.VentUnit:
+                {
+                    // Вентустановка: корпус, круглая решётка вентилятора спереди, патрубок воздуховода сверху.
+                    var body = new Color(0.78f, 0.8f, 0.82f, 0.55f);
+                    b.BoxMinMax(new Vector3(-w / 2, 0, -d / 2), new Vector3(w / 2, 0.12f, d / 2), DarkMetal);
+                    b.BoxMinMax(new Vector3(-w / 2, 0.12f, -d / 2), new Vector3(w / 2, h, d / 2), body);
+                    float fr = h * 0.32f;
+                    for (int k = 0; k < 4; k++)
+                        b.Box(new Vector3(-w * 0.2f, h * 0.5f, -d / 2 - 0.02f), new Vector3(fr * 2f * 0.4142f, fr * 2f, 0.04f), DarkMetal, Quaternion.Euler(0, 0, k * 45f));
+                    for (int k = 0; k < 3; k++)
+                        b.BoxMinMax(new Vector3(w * 0.15f, 0.3f + k * 0.35f, -d / 2 - 0.01f), new Vector3(w * 0.42f, 0.36f + k * 0.35f, -d / 2), DarkMetal);
+                    b.BoxMinMax(new Vector3(-0.35f, h, -0.3f), new Vector3(0.35f, h + 0.4f, 0.3f), body);
+                    break;
+                }
             }
             return b.ToMesh("Prop_" + kind);
         }

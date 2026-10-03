@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: tech
   m_EditorClassIdentifier: VoidMall.World::VoidMall.World.SectionDef
   _id: section.tech
-  DisplayName: "\u0422\u0435\u0445\u043D\u0438\u0447\u0435\u0441\u043A\u043E\u0435 \u043F\u043E\u043C\u0435\u0449\u0435\u043D\u0438\u0435"
+  DisplayName: "\u0412\u0435\u043D\u0442\u0438\u043B\u044F\u0446\u0438\u043E\u043D\u043D\u0430\u044F"
   Weight: 1
   MapColor: {r: 0.35, g: 0.35, b: 0.4, a: 1}
   Layout: 8
@@ -23,3 +23,6 @@ MonoBehaviour:
   Ceiling: {fileID: 11400000, guid: a2c7f07c96722bf4ba743217c2f0fa80, type: 2}
   RetailFloorMask: 0
   Service: 1
+  ServiceWeightRetail: 0
+  ServiceWeightTech: 1
+  ServiceWeightParking: 0

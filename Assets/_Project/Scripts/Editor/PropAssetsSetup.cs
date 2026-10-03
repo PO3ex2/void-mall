@@ -60,6 +60,9 @@ namespace VoidMall.Editor
             new("prop.cardboard_box", "Картонная коробка", PropShape.CardboardBox, 4f, 30, 1f, PaperDust, ("material.cardboard", 2, 1)),
             new("prop.plastic_crate", "Пластиковый ящик", PropShape.PlasticCrate, 6f, 60, 1.5f, WhiteDust, ("material.plastic", 3, 1)),
             new("prop.trash_bin", "Урна", PropShape.TrashBin, 8f, 80, 2f, MetalDust, ("material.scrap_metal", 2, 1), ("material.plastic", 1, 0)),
+            new("prop.switchboard", "Главный распределительный щит", PropShape.Switchboard, 320f, 1400, 14f, MetalDust, ("material.scrap_metal", 10, 5), ("material.wire", 8, 3), ("material.fuse", 4, 1)),
+            new("prop.cable_reel", "Кабельный барабан", PropShape.CableReel, 70f, 300, 6f, WoodDust, ("material.wire", 10, 5), ("material.plank", 3, 1)),
+            new("prop.vent_unit", "Вентустановка", PropShape.VentUnit, 380f, 1300, 14f, MetalDust, ("material.scrap_metal", 12, 6), ("material.wire", 3, 1), ("material.pipe", 2, 1)),
         };
 
         public static void CreatePropAssets()

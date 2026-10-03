@@ -62,6 +62,8 @@ namespace VoidMall.Editor
             new() { Id = "material.cardboard", Name = "Картон", Category = ItemCategory.Material, Shape = ItemShape.Plank, Size = new(0.4f, 0.02f, 0.3f), Weight = 0.1f, Stack = 30, Tint = new(0.65f, 0.5f, 0.32f) },
             new() { Id = "material.fabric", Name = "Ткань", Category = ItemCategory.Material, Shape = ItemShape.Pack, Size = new(0.3f, 0.05f, 0.25f), Weight = 0.1f, Stack = 20, Tint = new(0.5f, 0.35f, 0.55f) },
             new() { Id = "material.wire", Name = "Провод", Category = ItemCategory.Material, Shape = ItemShape.Coil, Size = new(0.15f, 0.06f, 0.15f), Weight = 0.15f, Stack = 20, Tint = new(0.85f, 0.3f, 0.15f) },
+            new() { Id = "material.fuse", Name = "Предохранитель", Description = "Из щитовых. Понадобится, чтобы оживить щиток.", Category = ItemCategory.Material, Shape = ItemShape.Can, Size = new(0.03f, 0.07f, 0.03f), Weight = 0.03f, Stack = 20, Tint = new(0.85f, 0.8f, 0.7f) },
+            new() { Id = "material.electrical_tape", Name = "Изолента", Category = ItemCategory.Material, Shape = ItemShape.Coil, Size = new(0.08f, 0.03f, 0.08f), Weight = 0.05f, Stack = 10, Tint = new(0.15f, 0.25f, 0.75f) },
             new() { Id = "material.rubber", Name = "Резина", Category = ItemCategory.Material, Shape = ItemShape.Pile, Size = new(0.2f, 0.08f, 0.15f), Weight = 0.3f, Stack = 20, Tint = new(0.12f, 0.12f, 0.12f) },
             new() { Id = "material.foam", Name = "Поролон", Category = ItemCategory.Material, Shape = ItemShape.Pack, Size = new(0.3f, 0.08f, 0.25f), Weight = 0.05f, Stack = 20, Tint = new(0.95f, 0.88f, 0.5f) },
             new() { Id = "material.pipe", Name = "Труба", Category = ItemCategory.Material, Shape = ItemShape.Pipe, Size = new(0.8f, 0.05f, 0.05f), Grid = new(3, 1), Weight = 1.2f, Stack = 10, Tint = Steel },
@@ -118,6 +120,7 @@ namespace VoidMall.Editor
             ("section.empty", 0.05f, new[] { ("material.cardboard", 5f, 1, 2), ("material.plastic", 3f, 1, 2) }),
             ("section.storage", 0.3f, new[] { ("material.cardboard", 6f, 1, 4), ("material.nails", 3f, 5, 20), ("material.screws", 3f, 5, 20), ("item.canned_beans", 3f, 1, 3), ("item.water_bottle", 3f, 1, 2), ("material.plank", 4f, 1, 3), ("item.hammer", 1f, 1, 1), ("item.flashlight", 1f, 1, 1), ("item.hiking_backpack", 0.3f, 1, 1) }),
             ("section.tech", 0.25f, new[] { ("material.wire", 8f, 1, 4), ("material.pipe", 6f, 1, 2), ("material.scrap_metal", 6f, 1, 3), ("item.flashlight", 2f, 1, 1), ("item.crowbar", 1f, 1, 1), ("item.gloves_work", 2f, 1, 1), ("item.hard_hat", 1f, 1, 1) }),
+            ("section.electrical", 0.3f, new[] { ("material.wire", 10f, 1, 4), ("material.fuse", 8f, 1, 4), ("material.electrical_tape", 6f, 1, 2), ("material.screws", 4f, 5, 20), ("item.flashlight", 2f, 1, 1), ("item.gloves_work", 2f, 1, 1), ("item.crowbar", 1f, 1, 1), ("item.hard_hat", 1f, 1, 1) }),
             ("", 0.2f, new[] { ("material.cardboard", 4f, 1, 2), ("material.plastic", 4f, 1, 2), ("item.water_bottle", 2f, 1, 1), ("item.chips", 2f, 1, 1) }),
         };
 
