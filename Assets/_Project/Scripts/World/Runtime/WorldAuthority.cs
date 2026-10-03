@@ -88,22 +88,28 @@ namespace VoidMall.World
 
         private void OnPlace(PlayerId sender, in PlaceBlockCommand command)
         {
-            if (!_session.IsAuthority || command.Material == 0 || command.Material >= _world.Materials.Count)
+            if (!_session.IsAuthority || !CanPlaceBlock(_world, command.Position, command.Material))
                 return;
-            if (!_world.IsLoaded(command.Position) || !_world.GetCell(command.Position).IsAir)
-                return;
-            var def = _world.Materials.Get(command.Material);
-            if (!def.Placeable || def.Kind != MaterialKind.Block)
-                return;
-
-            // Нельзя поставить блок внутрь игрока, пропа или врага.
-            Vector3 center = new Vector3(command.Position.x, command.Position.y, command.Position.z) + Vector3.one * 0.5f;
-            if (Physics.CheckBox(center, Vector3.one * 0.49f, Quaternion.identity, EntityMask, QueryTriggerInteraction.Ignore))
-                return;
-
             var cell = new Cell(command.Material);
             if (_world.SetCell(command.Position, cell))
                 Broadcast(command.Position, cell, 0);
+        }
+
+        /// <summary>
+        /// Можно ли поставить блок: клетка загружена и пуста, материал ставится, внутри нет игрока, пропа или врага.
+        /// Инструмент проверяет то же самое до того, как списать блок из инвентаря.
+        /// </summary>
+        public static bool CanPlaceBlock(ChunkManager world, int3 position, ushort material)
+        {
+            if (world == null || material == 0 || material >= world.Materials.Count)
+                return false;
+            if (!world.IsLoaded(position) || !world.GetCell(position).IsAir)
+                return false;
+            var def = world.Materials.Get(material);
+            if (!def.Placeable || def.Kind != MaterialKind.Block)
+                return false;
+            Vector3 center = new Vector3(position.x, position.y, position.z) + Vector3.one * 0.5f;
+            return !Physics.CheckBox(center, Vector3.one * 0.49f, Quaternion.identity, EntityMask, QueryTriggerInteraction.Ignore);
         }
 
         private void OnSet(PlayerId sender, in SetBlockCommand command)

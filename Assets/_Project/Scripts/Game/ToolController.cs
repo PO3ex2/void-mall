@@ -198,8 +198,13 @@ namespace VoidMall.Game
             if (!World.Materials.TryGetIndex(item.PlacesBlock.Id, out ushort material))
                 return;
             int3 cell = _target.Cell + _target.Normal;
-            if (!World.GetCell(cell).IsAir)
+            // Та же проверка, что у сервера мира: иначе блок списывался, а внутрь игрока или пропа не ставился.
+            if (!WorldAuthority.CanPlaceBlock(World, cell, material))
+            {
+                _message = "Мешает: игрок или предмет";
+                _messageTime = 1.5f;
                 return;
+            }
             var stack = Inventory.ActiveStack;
             int slot = Inventory.Hotbar.Selected;
             if (!Inventory.TryConsume(stack.Def, 1))
