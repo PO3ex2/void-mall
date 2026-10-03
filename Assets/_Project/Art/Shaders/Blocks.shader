@@ -1,5 +1,8 @@
 // Блоки мира: Texture2DArray (слой и AO в UV0.zw), полное освещение URP: Forward+ (_CLUSTER_LIGHT_LOOP),
 // тени основного и дополнительных источников, SSAO, туман. Прозрачный вариант — для стекла.
+// Эмиссия ламп считается по LampRules.hlsl (те же правила, что у LightingDirector на CPU).
+// Аномалии «Искажение» (смещение вершин) и «Глитч» (подмена текстур, полосы) — AnomalyFx.hlsl.
+// Проходы глубины и теней свои: смещение вершин должно совпадать во всех проходах.
 Shader "VoidMall/Blocks"
 {
     Properties
@@ -24,6 +27,8 @@ Shader "VoidMall/Blocks"
             half _AOStrength;
             half _TransparentSmoothness;
         CBUFFER_END
+
+        #include "AnomalyFx.hlsl"
         ENDHLSL
 
         Pass
@@ -34,7 +39,7 @@ Shader "VoidMall/Blocks"
             ZWrite [_ZWrite]
 
             HLSLPROGRAM
-            #pragma target 3.5
+            #pragma target 4.5
             #pragma vertex Vert
             #pragma fragment Frag
 
@@ -54,6 +59,8 @@ Shader "VoidMall/Blocks"
             TEXTURE2D_ARRAY(_BlockTextures);
             SAMPLER(sampler_BlockTextures);
 
+            float4 _VM_LayerEmission[64]; // rgb — цвет × яркость, a — LampKind
+
             struct Attributes
             {
                 float4 positionOS : POSITION;
@@ -69,6 +76,7 @@ Shader "VoidMall/Blocks"
                 float4 uv : TEXCOORD2;
                 float fogFactor : TEXCOORD3;
                 nointerpolation float layer : TEXCOORD4; // < 0 — гладкая поверхность (трипланар), слой = −layer − 1
+                float3 cellPositionWS : TEXCOORD5;       // позиция до искажения — для клетки лампы и глитча
             };
 
             half4 SampleBlockTexture(float2 uv, float layer, float3 positionWS, float3 normalWS)
@@ -89,19 +97,43 @@ Shader "VoidMall/Blocks"
             Varyings Vert(Attributes input)
             {
                 Varyings output;
-                VertexPositionInputs positions = GetVertexPositionInputs(input.positionOS.xyz);
-                output.positionCS = positions.positionCS;
-                output.positionWS = positions.positionWS;
+                float3 positionWS = TransformObjectToWorld(input.positionOS.xyz);
+                output.cellPositionWS = positionWS;
+                positionWS = VM_Distort(positionWS);
+                output.positionCS = TransformWorldToHClip(positionWS);
+                output.positionWS = positionWS;
                 output.normalWS = TransformObjectToWorldNormal(input.normalOS);
                 output.uv = input.uv;
                 output.layer = input.uv.z;
-                output.fogFactor = ComputeFogFactor(positions.positionCS.z);
+                output.fogFactor = ComputeFogFactor(output.positionCS.z);
                 return output;
             }
 
             half4 Frag(Varyings input) : SV_Target
             {
-                half4 texel = SampleBlockTexture(input.uv.xy, input.layer, input.positionWS, input.normalWS);
+                float layer = input.layer;
+                float2 uv = input.uv.xy;
+                int3 cell = (int3)floor(input.cellPositionWS - input.normalWS * 0.01);
+
+                // Глитч: блоки меняют текстуру, полосы сдвигаются, изображение рвётся.
+                float glitch = VM_Glitch(input.cellPositionWS);
+                float glitchFlash = 0;
+                if (glitch > 0.001)
+                {
+                    int tick = (int)floor(_VM_Time * 6.0);
+                    uint h = VM_Hash4(_VM_Seed, cell.x, cell.y, cell.z, tick);
+                    if (VM_ToFloat01(h) < glitch * 0.45)
+                    {
+                        float other = (float)((h >> 4) % (uint)max(_VM_LayerCount, 1.0));
+                        layer = layer >= 0 ? other : -other - 1;
+                        glitchFlash = VM_ToFloat01(h * 747796405u) < 0.15 ? 1 : 0;
+                    }
+                    int band = (int)floor(input.cellPositionWS.y * 3.0 + _VM_Time * 2.0);
+                    if (VM_ToFloat01(VM_Hash1((uint)tick, band)) < glitch * 0.3)
+                        uv.x += 0.37;
+                }
+
+                half4 texel = SampleBlockTexture(uv, layer, input.cellPositionWS, input.normalWS);
 
                 InputData inputData = (InputData)0;
                 inputData.positionWS = input.positionWS;
@@ -128,16 +160,140 @@ Shader "VoidMall/Blocks"
                 surface.alpha = 1;
             #endif
 
+                // Эмиссия ламп: слой исходного материала, состояние — по клетке и правилам ламп.
+                int baseLayer = (int)(input.layer >= 0 ? input.layer : -input.layer - 1);
+                float4 emission = _VM_LayerEmission[baseLayer];
+                if (emission.a > 0.5)
+                    surface.emission = texel.rgb * emission.rgb * VM_LampKindIntensity(cell, (int)(emission.a + 0.5));
+                surface.emission += glitchFlash * glitch * half3(0.6, 0.2, 0.8);
+
                 half4 color = UniversalFragmentPBR(inputData, surface);
+                if (glitch > 0.001)
+                {
+                    float scan = step(0.5, frac(input.positionCS.y * 0.2 + _VM_Time * 13.0));
+                    color.rgb *= 1.0 - glitch * 0.18 * scan;
+                }
                 color.rgb = MixFog(color.rgb, inputData.fogCoord);
                 return color;
             }
             ENDHLSL
         }
 
-        UsePass "Universal Render Pipeline/Lit/ShadowCaster"
-        UsePass "Universal Render Pipeline/Lit/DepthOnly"
-        UsePass "Universal Render Pipeline/Lit/DepthNormals"
+        Pass
+        {
+            Name "ShadowCaster"
+            Tags { "LightMode" = "ShadowCaster" }
+            ZWrite On
+            ZTest LEqual
+            ColorMask 0
+
+            HLSLPROGRAM
+            #pragma target 4.5
+            #pragma vertex ShadowVert
+            #pragma fragment ShadowFrag
+            #pragma multi_compile_vertex _ _CASTING_PUNCTUAL_LIGHT_SHADOW
+
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Shadows.hlsl"
+
+            float3 _LightDirection;
+            float3 _LightPosition;
+
+            struct ShadowAttributes
+            {
+                float4 positionOS : POSITION;
+                float3 normalOS : NORMAL;
+            };
+
+            float4 ShadowVert(ShadowAttributes input) : SV_POSITION
+            {
+                float3 positionWS = VM_Distort(TransformObjectToWorld(input.positionOS.xyz));
+                float3 normalWS = TransformObjectToWorldNormal(input.normalOS);
+            #if defined(_CASTING_PUNCTUAL_LIGHT_SHADOW)
+                float3 lightDirection = normalize(_LightPosition - positionWS);
+            #else
+                float3 lightDirection = _LightDirection;
+            #endif
+                float4 positionCS = TransformWorldToHClip(ApplyShadowBias(positionWS, normalWS, lightDirection));
+            #if UNITY_REVERSED_Z
+                positionCS.z = min(positionCS.z, UNITY_NEAR_CLIP_VALUE);
+            #else
+                positionCS.z = max(positionCS.z, UNITY_NEAR_CLIP_VALUE);
+            #endif
+                return positionCS;
+            }
+
+            half4 ShadowFrag() : SV_Target { return 0; }
+            ENDHLSL
+        }
+
+        Pass
+        {
+            Name "DepthOnly"
+            Tags { "LightMode" = "DepthOnly" }
+            ZWrite On
+            ColorMask R
+
+            HLSLPROGRAM
+            #pragma target 4.5
+            #pragma vertex DepthVert
+            #pragma fragment DepthFrag
+
+            float4 DepthVert(float4 positionOS : POSITION) : SV_POSITION
+            {
+                return TransformWorldToHClip(VM_Distort(TransformObjectToWorld(positionOS.xyz)));
+            }
+
+            half DepthFrag(float4 positionCS : SV_POSITION) : SV_Target { return positionCS.z; }
+            ENDHLSL
+        }
+
+        Pass
+        {
+            Name "DepthNormals"
+            Tags { "LightMode" = "DepthNormals" }
+            ZWrite On
+
+            HLSLPROGRAM
+            #pragma target 4.5
+            #pragma vertex DepthNormalsVert
+            #pragma fragment DepthNormalsFrag
+            #pragma multi_compile_fragment _ _GBUFFER_NORMALS_OCT
+
+            #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Packing.hlsl"
+
+            struct DepthNormalsAttributes
+            {
+                float4 positionOS : POSITION;
+                float3 normalOS : NORMAL;
+            };
+
+            struct DepthNormalsVaryings
+            {
+                float4 positionCS : SV_POSITION;
+                float3 normalWS : TEXCOORD0;
+            };
+
+            DepthNormalsVaryings DepthNormalsVert(DepthNormalsAttributes input)
+            {
+                DepthNormalsVaryings output;
+                output.positionCS = TransformWorldToHClip(VM_Distort(TransformObjectToWorld(input.positionOS.xyz)));
+                output.normalWS = TransformObjectToWorldNormal(input.normalOS);
+                return output;
+            }
+
+            half4 DepthNormalsFrag(DepthNormalsVaryings input) : SV_Target
+            {
+            #if defined(_GBUFFER_NORMALS_OCT)
+                float3 normalWS = normalize(input.normalWS);
+                float2 octNormalWS = PackNormalOctQuadEncode(normalWS);
+                float2 remapped = saturate(octNormalWS * 0.5 + 0.5);
+                return half4(PackFloat2To888(remapped), 0.0);
+            #else
+                return half4(NormalizeNormalPerPixel(input.normalWS), 0.0);
+            #endif
+            }
+            ENDHLSL
+        }
     }
 
     FallBack "Hidden/Universal Render Pipeline/FallbackError"

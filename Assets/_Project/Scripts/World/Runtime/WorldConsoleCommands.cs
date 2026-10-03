@@ -54,27 +54,128 @@ namespace VoidMall.World
                    $"Джобов: генерация {world.GenerationTasksInFlight}, мешинг {world.MeshTasksInFlight}";
         }
 
-        [ConsoleCommand("anomalies", "Ближайшие аномалии-бездны (до 5) и расстояние до них.")]
+        [ConsoleCommand("anomalies", "Ближайшие аномалии (до 8): вид, этаж, координаты. Телепорт: goto_anomaly <вид>.")]
         private static string Anomalies()
         {
             if (!TryGetWorld(out var world, out var error))
                 return error;
-            var player = Camera.main != null ? Camera.main.transform.position : Vector3.zero;
-            int cellX = (int)math.floor(player.x / TestWorldGenerationJob.AnomalyCellSize);
-            int cellZ = (int)math.floor(player.z / TestWorldGenerationJob.AnomalyCellSize);
-            var found = new System.Collections.Generic.List<(float distance, string text)>();
-            for (int dz = -3; dz <= 3; dz++)
-            for (int dx = -3; dx <= 3; dx++)
-            {
-                if (!TestWorldGenerationJob.TryGetShaft(world.Seed, cellX + dx, cellZ + dz, out float2 center, out float radius))
-                    continue;
-                float distance = math.distance(new float2(player.x, player.z), center);
-                found.Add((distance, $"  бездна ({center.x:0}, {TestWorldGenerationJob.FloorBlockY + 1}, {center.y:0}): радиус шахты {radius:0} м, край пола в {TestWorldGenerationJob.ZoneRadius(radius):0} м от центра, до неё {distance:0} м"));
-            }
+            var found = FindAnomalies(world, PlayerPosition(), 4);
             if (found.Count == 0)
                 return "Рядом аномалий нет.";
-            found.Sort((a, b) => a.distance.CompareTo(b.distance));
-            return "Аномалии (tp к краю: tp x 18 z):\n" + string.Join("\n", found.Take(5).Select(f => f.text));
+            return "Аномалии:\n" + string.Join("\n", found.Take(8).Select(a =>
+                $"  {KindName(a.Kind),-10} этаж {MallLayout.LevelName(a.Level),-2} ({a.Target.x:0}, {a.Target.y:0}, {a.Target.z:0}), до неё {a.Distance:0} м"));
+        }
+
+        [ConsoleCommand("goto_anomaly", "Телепорт к ближайшей аномалии: abyss, pool, cutout, distortion, glitch.", Flags = ConsoleFlags.Cheat)]
+        private static string GotoAnomaly(string kind)
+        {
+            if (!TryGetWorld(out var world, out var error))
+                return error;
+            var match = FindAnomalies(world, PlayerPosition(), 6).FirstOrDefault(a => KindId(a.Kind) == kind.ToLowerInvariant());
+            if (match.Kind == null)
+                return $"Рядом нет аномалии '{kind}'.";
+            DevConsole.Execute(string.Format(System.Globalization.CultureInfo.InvariantCulture, "tp {0:0.##} {1:0.##} {2:0.##}", match.Target.x, match.Target.y, match.Target.z));
+            return $"{KindName(match.Kind)}: этаж {MallLayout.LevelName(match.Level)}";
+        }
+
+        [ConsoleCommand("where", "Где я: этаж, комната и раздел, макроячейка.")]
+        private static string Where()
+        {
+            if (!TryGetWorld(out var world, out var error))
+                return error;
+            return MallDebug.Describe(world, PlayerPosition());
+        }
+
+        [ConsoleCommand("seed", "Сид мира. seed <число> — пересоздать мир с новым сидом (правки теряются).", Flags = ConsoleFlags.Cheat)]
+        private static string Seed(string value = "")
+        {
+            if (!TryGetWorld(out var world, out var error))
+                return error;
+            if (string.IsNullOrEmpty(value))
+                return $"seed {world.Seed}";
+            uint seed = uint.TryParse(value, out uint parsed) ? parsed : Core.Hash.String(value);
+            world.ResetWorld(seed);
+            return $"Мир пересоздан, seed {seed}";
+        }
+
+        [ConsoleCommand("regen_chunk", "Перегенерировать колонну под игроком (правки в ней теряются).", Flags = ConsoleFlags.Cheat)]
+        private static string RegenChunk()
+        {
+            if (!TryGetWorld(out var world, out var error))
+                return error;
+            int2 column = WorldConstants.CellToColumn((int3)math.floor((float3)PlayerPosition()));
+            return world.RegenerateColumn(column) ? $"Колонна ({column.x}, {column.y}) перегенерируется." : "Колонна не загружена.";
+        }
+
+        private struct AnomalyEntry
+        {
+            public string Kind;
+            public int Level;
+            public Vector3 Target;
+            public float Distance;
+        }
+
+        /// <summary>Аномалии в макроячейках вокруг точки. Target — точка для телепорта (у края, на полу).</summary>
+        private static System.Collections.Generic.List<AnomalyEntry> FindAnomalies(ChunkManager world, Vector3 from, int radius)
+        {
+            var list = new System.Collections.Generic.List<AnomalyEntry>();
+            int2 center = MallLayout.CellOf(from);
+            for (int dz = -radius; dz <= radius; dz++)
+            for (int dx = -radius; dx <= radius; dx++)
+            {
+                var info = world.GetCellInfo(center + new int2(dx, dz));
+                if (info.Anomaly != AnomalyKind.None)
+                {
+                    int level = info.AnomalyLevel;
+                    float2 c = info.AnomalyCenter;
+                    float edge = info.Anomaly == AnomalyKind.Abyss ? MallAnomalies.AbyssZoneRadius(info.AnomalyRadius) + 1f
+                        : info.Anomaly == AnomalyKind.Pool ? MallAnomalies.PoolZoneRadius(info.AnomalyRadius) + 1f
+                        : 0f;
+                    Vector3 target = info.Anomaly == AnomalyKind.Cutout
+                        ? new Vector3(c.x - 1.5f, MallLayout.FloorTop(level), c.y + 16f)
+                        : new Vector3(c.x + edge, MallLayout.FloorTop(level), c.y);
+                    list.Add(new AnomalyEntry { Kind = info.Anomaly.ToString(), Level = level, Target = target });
+                }
+                for (int i = 0; i < info.MarkerCount; i++)
+                {
+                    var marker = info.GetMarker(i);
+                    int level = MallLayout.LevelAtFeet(marker.Center.y);
+                    list.Add(new AnomalyEntry
+                    {
+                        Kind = marker.Kind.ToString(),
+                        Level = level,
+                        Target = new Vector3(marker.Center.x, MallLayout.FloorTop(level), marker.Center.z),
+                    });
+                }
+            }
+            for (int i = 0; i < list.Count; i++)
+            {
+                var entry = list[i];
+                entry.Distance = Vector3.Distance(from, entry.Target);
+                list[i] = entry;
+            }
+            list.Sort((a, b) => a.Distance.CompareTo(b.Distance));
+            return list;
+        }
+
+        private static string KindId(string kind) => kind.ToLowerInvariant();
+
+        private static string KindName(string kind) => kind switch
+        {
+            nameof(AnomalyKind.Abyss) => "бездна",
+            nameof(AnomalyKind.Pool) => "котлован",
+            nameof(AnomalyKind.Cutout) => "вырез",
+            nameof(AnomalyMarkerKind.Distortion) => "искажение",
+            nameof(AnomalyMarkerKind.Glitch) => "глитч",
+            _ => kind,
+        };
+
+        private static Vector3 PlayerPosition()
+        {
+            var viewer = WorldViewer.Primary;
+            if (viewer != null)
+                return viewer.transform.position;
+            return Camera.main != null ? Camera.main.transform.position : Vector3.zero;
         }
 
         private static void Send<T>(in T command) where T : struct, INetCommand

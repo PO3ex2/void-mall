@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2c4dae1c006d83a4d9bf27f1c5e1d607, type: 3}
+  m_Name: pharmacy
+  m_EditorClassIdentifier: VoidMall.World::VoidMall.World.SectionDef
+  _id: section.pharmacy
+  DisplayName: "\u0410\u043F\u0442\u0435\u043A\u0430"
+  Weight: 2
+  MapColor: {r: 0.4, g: 0.85, b: 0.75, a: 1}
+  Layout: 3
+  Floor: {fileID: 11400000, guid: 81ec0eacec9b9534b88728bdc075cf03, type: 2}
+  Wall: {fileID: 11400000, guid: 44b32a2c844670244b30908af25070db, type: 2}
+  Facade: {fileID: 11400000, guid: 906081518967af749b7ea87615b8d393, type: 2}
+  Ceiling: {fileID: 11400000, guid: e47ffbb32b390ee44b2ed3abd776323e, type: 2}
+  RetailFloorMask: 31
+  Service: 0

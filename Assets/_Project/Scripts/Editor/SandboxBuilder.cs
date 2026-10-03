@@ -68,8 +68,8 @@ namespace VoidMall.Editor
         public const string WorldScenePath = "Assets/_Project/Scenes/Sandbox_World.unity";
 
         /// <summary>
-        /// Полигон мира из блоков (этап 2): ChunkManager с тестовым генератором, игрок с наблюдателем
-        /// и временным молотком. Игрок появляется в комнате лабиринта на высоте пола (18).
+        /// Полигон мира (этап 4): мол на ChunkManager, структуры и мебель, часы и освещение, эффекты аномалий.
+        /// Игрок появляется в галерее первого этажа. Солнца нет — только лампы мола.
         /// </summary>
         [MenuItem("Void Mall/Setup/Build World Sandbox", priority = 23)]
         public static void BuildWorldSandbox()
@@ -78,28 +78,40 @@ namespace VoidMall.Editor
                 return;
 
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-            SetupLighting();
             RenderSettings.skybox = AssetDatabase.LoadAssetAtPath<Material>(WorldAssetsSetup.VoidSkyboxPath);
+            RenderSettings.sun = null;
+            RenderSettings.ambientMode = AmbientMode.Flat;
+            RenderSettings.ambientLight = new Color(0.2f, 0.2f, 0.21f);
             RenderSettings.fog = true;
             RenderSettings.fogMode = FogMode.Linear;
-            RenderSettings.fogColor = new Color(0.66f, 0.7f, 0.76f);
-            RenderSettings.fogStartDistance = 100f;
-            RenderSettings.fogEndDistance = 185f;
+            RenderSettings.fogColor = new Color(0.32f, 0.31f, 0.29f);
+            RenderSettings.fogStartDistance = 45f;
+            RenderSettings.fogEndDistance = 170f;
 
+            var settings = AssetDatabase.LoadAssetAtPath<WorldSettings>(WorldAssetsSetup.WorldSettingsPath);
             var world = new GameObject("World");
             var chunkManager = world.AddComponent<ChunkManager>();
             world.AddComponent<WorldAuthority>();
             var debris = world.AddComponent<DebrisSpawner>();
+            var structures = world.AddComponent<MallStructures>();
+            var clock = world.AddComponent<WorldClock>();
+            world.AddComponent<LightingDirector>();
+            world.AddComponent<AnomalyFxDirector>();
             ProjectSetup.SetReference(debris, "_dustMaterial", AssetDatabase.LoadAssetAtPath<Material>(WorldAssetsSetup.DustMaterialPath));
             ProjectSetup.SetReference(chunkManager, "_catalog", AssetDatabase.LoadAssetAtPath<MaterialCatalog>(WorldAssetsSetup.CatalogPath));
             ProjectSetup.SetReference(chunkManager, "_opaqueMaterial", AssetDatabase.LoadAssetAtPath<Material>(WorldAssetsSetup.BlockOpaqueMaterialPath));
             ProjectSetup.SetReference(chunkManager, "_transparentMaterial", AssetDatabase.LoadAssetAtPath<Material>(WorldAssetsSetup.BlockTransparentMaterialPath));
+            ProjectSetup.SetReference(chunkManager, "_settings", settings);
+            ProjectSetup.SetReference(clock, "_settings", settings);
+            ProjectSetup.SetReference(structures, "_material", AssetDatabase.LoadAssetAtPath<Material>(WorldAssetsSetup.PropsMaterialPath));
 
             var playerPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(ProjectSetup.PlayerPrefabPath);
             if (playerPrefab != null)
             {
                 var player = (GameObject)PrefabUtility.InstantiatePrefab(playerPrefab, scene);
-                player.transform.position = new Vector3(4f, TestWorldGenerationJob.FloorBlockY + 1, 4f);
+                uint seed = settings != null ? settings.Seed : 1337u;
+                float frequency = settings != null ? settings.AnomalyFrequency : 1f;
+                player.transform.position = MallPlanner.FindSpawn(seed, frequency);
                 player.AddComponent<WorldViewer>();
                 var tool = player.AddComponent<VoidMall.Game.DebugBlockTool>();
                 ProjectSetup.SetReference(tool, "_outlineMaterial", AssetDatabase.LoadAssetAtPath<Material>(WorldAssetsSetup.OutlineMaterialPath));

@@ -215,8 +215,6 @@ namespace VoidMall.UI
             if (_cycleMatches == null)
             {
                 string value = _input.value.TrimStart();
-                if (value.Contains(" "))
-                    return;
                 List<string> matches = DevConsole.GetCompletions(value);
                 if (matches.Count == 0)
                     return;
@@ -250,7 +248,7 @@ namespace VoidMall.UI
             {
                 if (i > start)
                     sb.Append("   ");
-                string name = _cycleMatches[i];
+                string name = LastToken(_cycleMatches[i]);
                 sb.Append(i == _cycleIndex ? $"<b><color=#{HighlightColor}>{name}</color></b>" : name);
             }
             if (end < count)
@@ -261,10 +259,17 @@ namespace VoidMall.UI
 
         private void StopCycle() => _cycleMatches = null;
 
+        /// <summary>Последнее слово строки — то, что дополняется.</summary>
+        private static string LastToken(string line)
+        {
+            int space = line.LastIndexOf(' ');
+            return space < 0 ? line : line.Substring(space + 1);
+        }
+
         private void UpdateSuggestions(string value)
         {
             value = value.TrimStart();
-            if (value.Length == 0 || value.Contains(" "))
+            if (value.Length == 0)
             {
                 _suggestions.text = string.Empty;
                 return;
@@ -275,7 +280,7 @@ namespace VoidMall.UI
                 _suggestions.text = string.Empty;
                 return;
             }
-            string text = string.Join("   ", matches.GetRange(0, Mathf.Min(matches.Count, MaxSuggestions)));
+            string text = string.Join("   ", matches.GetRange(0, Mathf.Min(matches.Count, MaxSuggestions)).ConvertAll(LastToken));
             if (matches.Count > MaxSuggestions)
                 text += $"   … +{matches.Count - MaxSuggestions}";
             _suggestions.text = text;

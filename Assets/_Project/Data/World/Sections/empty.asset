@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2c4dae1c006d83a4d9bf27f1c5e1d607, type: 3}
+  m_Name: empty
+  m_EditorClassIdentifier: VoidMall.World::VoidMall.World.SectionDef
+  _id: section.empty
+  DisplayName: "\u041F\u0443\u0441\u0442\u043E\u0439 \u0437\u0430\u043B"
+  Weight: 0.6
+  MapColor: {r: 0.85, g: 0.8, b: 0.5, a: 1}
+  Layout: 0
+  Floor: {fileID: 11400000, guid: 7b8c145c8fe2ec948978e1978cec433e, type: 2}
+  Wall: {fileID: 11400000, guid: dcef336a131c20f4ba90f8c625db8868, type: 2}
+  Facade: {fileID: 11400000, guid: 906081518967af749b7ea87615b8d393, type: 2}
+  Ceiling: {fileID: 11400000, guid: e47ffbb32b390ee44b2ed3abd776323e, type: 2}
+  RetailFloorMask: 31
+  Service: 0

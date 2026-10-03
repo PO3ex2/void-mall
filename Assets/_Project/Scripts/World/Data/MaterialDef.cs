@@ -29,6 +29,32 @@ namespace VoidMall.World
         Glass,
         Wood,
         Soil,
+        LampPanel,
+        EmergencyLamp,
+        Skylight,
+        Terrazzo,
+        CheckerTile,
+        Linoleum,
+        Shutter,
+        Asphalt,
+        ParkingLineU,
+        ParkingLineV,
+        FacadePanel,
+    }
+
+    /// <summary>Светящийся материал: как им управляет LightingDirector (см. LampRules).</summary>
+    public enum LampKind : byte
+    {
+        None,
+
+        /// <summary>Обычная лампа: гаснет ночью волнами по участкам, бывает нестабильной или мёртвой.</summary>
+        Lamp,
+
+        /// <summary>Аварийная лампа: тусклая, горит всегда.</summary>
+        Emergency,
+
+        /// <summary>Световой фонарь атриума: яркость следует за временем суток.</summary>
+        Skylight,
     }
 
     /// <summary>Описание материала мира (блок или гладкий воксель). Порядок в каталоге = runtime-индекс в Cell.Material.</summary>
@@ -53,5 +79,14 @@ namespace VoidMall.World
         [Header("Текстура")]
         public BlockPattern Pattern = BlockPattern.Flat;
         public Color Tint = Color.white;
+
+        [Tooltip("Гладкий двойник блока (тот же узор): им облицовываются аномалии в полу из этого материала.")]
+        public MaterialDef SmoothVariant;
+
+        [Header("Свечение")]
+        public LampKind Lamp;
+
+        [Tooltip("Яркость эмиссии (цвет — Tint).")]
+        [Min(0)] public float Emission;
     }
 }

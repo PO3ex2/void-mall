@@ -1,0 +1,366 @@
+using System.Collections.Generic;
+using NUnit.Framework;
+using Unity.Collections;
+using Unity.Jobs;
+using Unity.Mathematics;
+using VoidMall.Core;
+using VoidMall.World;
+
+namespace VoidMall.Tests
+{
+    public sealed class MallGenerationTests
+    {
+        private static readonly MallMaterials Materials = new()
+        {
+            Bedrock = 1, Concrete = 2, ConcreteMass = 3, Soil = 4, SmoothTile = 5, Terrazzo = 6, CeilingTile = 7,
+            PaintWhite = 8, Glass = 9, Shutter = 10, FacadeDark = 11, Asphalt = 12, LineX = 13, LineZ = 14,
+            Lamp = 15, Emergency = 16, Skylight = 17,
+        };
+
+        private NativeArray<SectionInfo> _sections;
+        private NativeArray<MaterialInfo> _materials;
+
+        [SetUp]
+        public void SetUp()
+        {
+            _sections = new NativeArray<SectionInfo>(4, Allocator.Persistent);
+            _materials = new NativeArray<MaterialInfo>(32, Allocator.Persistent);
+            _sections[0] = new SectionInfo { Floor = 20, Wall = 21, Facade = 22, Ceiling = 23, Layout = SectionLayout.Rows, RetailFloorMask = 0b11111, Weight = 2f };
+            _sections[1] = new SectionInfo { Floor = 24, Wall = 25, Facade = 22, Ceiling = 23, Layout = SectionLayout.Hall, RetailFloorMask = 0b11000, Weight = 1f };
+            _sections[2] = new SectionInfo { Floor = 2, Wall = 26, Facade = 22, Ceiling = 2, Layout = SectionLayout.Warehouse, RetailFloorMask = 0b11111, Service = true, Weight = 1f };
+            _sections[3] = new SectionInfo { Floor = 2, Wall = 2, Facade = 2, Ceiling = 2, Layout = SectionLayout.Tech, RetailFloorMask = 0, Service = true, Weight = 1f };
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            _sections.Dispose();
+            _materials.Dispose();
+        }
+
+        // ───────────── Детерминизм ─────────────
+
+        [Test]
+        public void SameSeed_SameChunkHashes_InAnyOrder()
+        {
+            var chunks = new[] { new int3(0, 0, 0), new int3(3, 1, -2), new int3(-5, 0, 7), new int3(1, 1, 1) };
+            var forward = new List<uint>();
+            foreach (var chunk in chunks)
+                forward.Add(ChunkHash(chunk, 42));
+            var backward = new List<uint>();
+            for (int i = chunks.Length - 1; i >= 0; i--)
+                backward.Insert(0, ChunkHash(chunks[i], 42));
+            Assert.That(backward, Is.EqualTo(forward));
+        }
+
+        [Test]
+        public void DifferentSeed_DifferentMall()
+        {
+            Assert.That(ChunkHash(new int3(0, 0, 0), 1), Is.Not.EqualTo(ChunkHash(new int3(0, 0, 0), 2)));
+        }
+
+        [Test]
+        public void AboveRoof_IsUniformAir()
+        {
+            var cells = Generate(new int3(0, 2, 0), 7, out bool uniform, out _);
+            try
+            {
+                Assert.That(uniform, Is.True);
+                Assert.That(cells[0].IsAir, Is.True);
+            }
+            finally
+            {
+                cells.Dispose();
+            }
+        }
+
+        [Test]
+        public void VerticalSection_FoundationSlabsAndRoof()
+        {
+            // Ищем ячейку без аномалии и смотрим колонку внутри галереи (у фасада, вне атриума).
+            uint seed = 5;
+            int2 cell = FindPlainCell(seed);
+            int3 chunk = new(cell.x * 2, 0, cell.y * 2);
+            var low = Generate(chunk, seed, out _, out _);
+            var high = Generate(chunk + new int3(0, 1, 0), seed, out _, out _);
+            try
+            {
+                Cell At(int y) => y < 32 ? low[WorldConstants.CellIndex(1, y, 20)] : high[WorldConstants.CellIndex(1, y - 32, 20)];
+                Assert.That(At(0).Material, Is.EqualTo(Materials.Bedrock));
+                Assert.That(At(3).Material, Is.EqualTo(Materials.Soil));
+                Assert.That(At(MallLayout.LevelBase(0)).Material, Is.Not.EqualTo(0), "Плита P2");
+                Assert.That(At(MallLayout.FloorTop(0)).IsAir, Is.True, "Над плитой P2 — воздух");
+                Assert.That(At(MallLayout.LevelBase(2)).Material, Is.EqualTo(Materials.Terrazzo), "Пол галереи этажа 1");
+                Assert.That(At(MallLayout.FloorTop(2) + 2).IsAir, Is.True);
+                Assert.That(At(MallLayout.RoofY).Material, Is.EqualTo(Materials.Concrete), "Кровля");
+                Assert.That(At(MallLayout.RoofY + 1).IsAir, Is.True);
+            }
+            finally
+            {
+                low.Dispose();
+                high.Dispose();
+            }
+        }
+
+        [Test]
+        public void Lamps_AreReported()
+        {
+            int2 cell = FindPlainCell(11);
+            var cells = Generate(new int3(cell.x * 2, 0, cell.y * 2), 11, out _, out var lamps);
+            try
+            {
+                Assert.That(lamps.Count, Is.GreaterThan(0));
+                foreach (var lamp in lamps)
+                {
+                    int3 local = lamp - new int3(cell.x * 64, 0, cell.y * 64);
+                    ushort material = cells[WorldConstants.CellIndex(local)].Material;
+                    Assert.That(material == Materials.Lamp || material == Materials.Emergency || material == Materials.Skylight, Is.True);
+                }
+            }
+            finally
+            {
+                cells.Dispose();
+            }
+        }
+
+        [Test]
+        public void PoolLining_UsesSmoothVariantOfSectionFloor()
+        {
+            // Гладкие двойники полов разделов: 20 → 30, 24 → 31, 2 → 32.
+            _materials[20] = new MaterialInfo { SmoothVariant = 30 };
+            _materials[24] = new MaterialInfo { SmoothVariant = 31 };
+            _materials[2] = new MaterialInfo { SmoothVariant = 32 };
+            for (int x = 0; x < 400; x++)
+            {
+                var info = MallPlanner.GetCellInfo(13, 1f, new int2(x, 3));
+                if (info.Anomaly != AnomalyKind.Pool)
+                    continue;
+                int3 center = new((int)info.AnomalyCenter.x, MallLayout.FloorTop(info.AnomalyLevel) - 1, (int)info.AnomalyCenter.y);
+                int3 chunk = center >> WorldConstants.ChunkShift;
+                var cells = Generate(chunk, 13, out _, out _);
+                try
+                {
+                    int lined = 0;
+                    for (int i = 0; i < cells.Length; i++)
+                    {
+                        ushort m = cells[i].Material;
+                        if (m == 30 || m == 31 || m == 32)
+                            lined++;
+                    }
+                    Assert.That(lined, Is.GreaterThan(0), "Чаша облицована полом раздела");
+                    return;
+                }
+                finally
+                {
+                    cells.Dispose();
+                }
+            }
+            Assert.Fail("No pool anomaly found.");
+        }
+
+        // ───────────── Планировка ─────────────
+
+        [Test]
+        public void EveryOpenRoom_IsReachableFromGallery()
+        {
+            var plan = new MallLevelPlan(Allocator.Persistent);
+            try
+            {
+                for (uint seed = 1; seed <= 4; seed++)
+                for (int cx = -2; cx <= 2; cx++)
+                for (int level = MallLayout.FirstRetailLevel; level < MallLayout.LevelCount; level++)
+                {
+                    var info = MallPlanner.GetCellInfo(seed, 1f, new int2(cx, cx * 3));
+                    MallPlanner.BuildLevel(seed, info, level, _sections, ref plan);
+                    var reached = Flood(plan);
+                    for (int room = 1; room < plan.Rooms.Length; room++)
+                    {
+                        if (plan.Rooms[room].Has(RoomFlags.Closed))
+                            continue;
+                        Assert.That(reached.Contains(room), Is.True,
+                            $"seed {seed}, cell {cx}, level {level}: room {room} {plan.Rooms[room].Rect} [{plan.Rooms[room].Flags}] is unreachable");
+                    }
+                }
+            }
+            finally
+            {
+                plan.Dispose();
+            }
+        }
+
+        [Test]
+        public void CorePosition_IsSameOnAllLevels()
+        {
+            var plan = new MallLevelPlan(Allocator.Persistent);
+            try
+            {
+                var info = MallPlanner.GetCellInfo(9, 1f, new int2(3, -4));
+                int2? elevator = null;
+                for (int level = 0; level < MallLayout.LevelCount; level++)
+                {
+                    MallPlanner.BuildLevel(9, info, level, _sections, ref plan);
+                    int2 found = new(-1, -1);
+                    for (int z = 0; z < 64 && found.x < 0; z++)
+                    for (int x = 0; x < 64; x++)
+                        if (plan.TileAt(x, z) == Tile.ElevatorVoid)
+                        {
+                            found = new int2(x, z);
+                            break;
+                        }
+                    Assert.That(found.x, Is.GreaterThanOrEqualTo(0), $"level {level}: no elevator");
+                    elevator ??= found;
+                    Assert.That(found, Is.EqualTo(elevator.Value), $"level {level}: elevator moved");
+                }
+            }
+            finally
+            {
+                plan.Dispose();
+            }
+        }
+
+        [Test]
+        public void EscalatorLandings_MatchEscalatorEnds()
+        {
+            for (int k = 0; k < MallLayout.RetailFloors - 1; k++)
+            {
+                int lane = k % 2;
+                bool bottomAtEnd = k % 2 == 1;
+                Assert.That(MallPlanner.IsEscalatorLanding(k, bottomAtEnd, lane), Is.True, $"escalator {k} bottom");
+                Assert.That(MallPlanner.IsEscalatorLanding(k + 1, !bottomAtEnd, lane), Is.True, $"escalator {k} top");
+            }
+            // На верхнем этаже начинающихся эскалаторов нет: в начале пустоты открыт только приход снизу.
+            Assert.That(MallPlanner.IsEscalatorLanding(MallLayout.RetailFloors - 1, false, 0), Is.False);
+        }
+
+        [Test]
+        public void Sections_RespectFloorMask()
+        {
+            for (int x = 0; x < 512; x += 7)
+            {
+                int section = MallPlanner.SectionAt(3, _sections, new int2(x, x * 2), 0);
+                Assert.That(section, Is.EqualTo(0), "Фудкорт (маска этажей 4–5) не должен попадать на этаж 1");
+            }
+        }
+
+        [Test]
+        public void ShaftProfile_FloorLipAndVerticalWall()
+        {
+            const float floor = 18f;
+            const float lip = MallAnomalies.LipRadius;
+            const float shaft = 8f;
+            Assert.That(MallAnomalies.ShaftSolidDistance(30f, floor - 2f, shaft, floor), Is.EqualTo(2f).Within(1e-4f));
+            Assert.That(MallAnomalies.ShaftSolidDistance(shaft + 0.5f, 3f, shaft, floor), Is.EqualTo(0.5f).Within(1e-4f));
+            Assert.That(MallAnomalies.ShaftSolidDistance(shaft - 0.5f, -50f, shaft, floor), Is.LessThan(0f));
+            Assert.That(MallAnomalies.ShaftSolidDistance(shaft + lip - 1e-3f, floor - 0.3f, shaft, floor), Is.EqualTo(0.3f).Within(0.01f));
+            Assert.That(MallAnomalies.ShaftSolidDistance(shaft + 0.3f, floor - 0.3f, shaft, floor), Is.LessThan(0f));
+        }
+
+        [Test]
+        public void LampWave_DayOnNightOff()
+        {
+            Assert.That(LampRules.Wave(12f), Is.EqualTo(0f));
+            Assert.That(LampRules.Wave(2f), Is.EqualTo(1f));
+            Assert.That(LampRules.Wave(22.5f), Is.EqualTo(0.5f).Within(1e-4f));
+            Assert.That(LampRules.Wave(6.5f), Is.EqualTo(0.5f).Within(1e-4f));
+            Assert.That(LampRules.Intensity(1, new int3(10, 24, 10), LampKind.Emergency, 1f, 0f, 0f), Is.EqualTo(1f));
+        }
+
+        // ───────────── Вспомогательное ─────────────
+
+        /// <summary>Комнаты, достижимые пешком от галереи (проходимые плитки: пол, двери, входы).</summary>
+        private static HashSet<int> Flood(in MallLevelPlan plan)
+        {
+            var reached = new HashSet<int>();
+            var visited = new bool[MallLevelPlan.Area];
+            var queue = new Queue<int2>();
+            queue.Enqueue(new int2(1, 1));
+            visited[MallLevelPlan.Index(1, 1)] = true;
+            // Северный и восточный фасады квартала выходят на галереи соседних ячеек: проходы на краю — тоже вход.
+            for (int i = 0; i < 64; i++)
+            {
+                foreach (var edge in new[] { new int2(63, i), new int2(i, 63) })
+                {
+                    int index = MallLevelPlan.Index(edge.x, edge.y);
+                    if (!visited[index] && IsWalkable(plan.TileAt(edge.x, edge.y)))
+                    {
+                        visited[index] = true;
+                        queue.Enqueue(edge);
+                    }
+                }
+            }
+            while (queue.Count > 0)
+            {
+                int2 p = queue.Dequeue();
+                reached.Add(plan.RoomIds[MallLevelPlan.Index(p.x, p.y)]);
+                foreach (var d in new[] { new int2(1, 0), new int2(-1, 0), new int2(0, 1), new int2(0, -1) })
+                {
+                    int2 n = p + d;
+                    if (n.x < 0 || n.y < 0 || n.x >= 64 || n.y >= 64)
+                        continue;
+                    int index = MallLevelPlan.Index(n.x, n.y);
+                    if (visited[index] || !IsWalkable(plan.TileAt(n.x, n.y)))
+                        continue;
+                    visited[index] = true;
+                    queue.Enqueue(n);
+                }
+            }
+            return reached;
+        }
+
+        private static bool IsWalkable(Tile tile) =>
+            tile == Tile.Open || tile == Tile.Door || tile == Tile.FacadeDoor || tile == Tile.CoreDoor || tile == Tile.AtriumVoid
+            || tile == Tile.Shutter; // рольставню можно сломать
+
+        private static int2 FindPlainCell(uint seed)
+        {
+            for (int x = 0; x < 100; x++)
+            {
+                var info = MallPlanner.GetCellInfo(seed, 1f, new int2(x, 0));
+                if (info.Anomaly == AnomalyKind.None && !info.AtriumZ)
+                    return info.Cell;
+            }
+            Assert.Fail("No plain cell found.");
+            return default;
+        }
+
+        private uint ChunkHash(int3 chunk, uint seed)
+        {
+            var cells = Generate(chunk, seed, out _, out _);
+            try
+            {
+                uint hash = 0;
+                for (int i = 0; i < cells.Length; i++)
+                    hash = Hash.Get(hash, cells[i].GetHashCode());
+                return hash;
+            }
+            finally
+            {
+                cells.Dispose();
+            }
+        }
+
+        private NativeArray<Cell> Generate(int3 chunk, uint seed, out bool uniform, out List<int3> lamps)
+        {
+            var cells = new NativeArray<Cell>(WorldConstants.ChunkVolume, Allocator.TempJob);
+            var flag = new NativeArray<byte>(1, Allocator.TempJob);
+            var lampList = new NativeList<int3>(64, Allocator.TempJob);
+            new MallGenerationJob
+            {
+                Chunk = chunk,
+                Seed = seed,
+                AnomalyFrequency = 1f,
+                M = Materials,
+                Sections = _sections,
+                Materials = _materials,
+                Cells = cells,
+                IsUniform = flag,
+                Lamps = lampList,
+            }.Run();
+            uniform = flag[0] != 0;
+            lamps = new List<int3>(lampList.AsArray().ToArray());
+            flag.Dispose();
+            lampList.Dispose();
+            return cells;
+        }
+    }
+}

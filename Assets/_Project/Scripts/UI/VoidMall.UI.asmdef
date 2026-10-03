@@ -6,6 +6,9 @@
         "VoidMall.Input",
         "VoidMall.Console",
         "VoidMall.Player",
+        "VoidMall.World",
+        "Unity.Mathematics",
+        "Unity.Collections",
         "Unity.InputSystem"
     ],
     "includePlatforms": [],

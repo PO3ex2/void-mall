@@ -11,6 +11,7 @@ namespace VoidMall.UI
         {
             CreateDocument<DebugHud>("DebugHud", parent, panelSettings, 10).Initialize(input);
             CreateDocument<DebugModifiersPanel>("DebugModifiersPanel", parent, panelSettings, 20).Initialize(input);
+            CreateDocument<MapPanel>("MapPanel", parent, panelSettings, 30).Initialize(input);
             CreateDocument<ConsoleOverlay>("ConsoleOverlay", parent, panelSettings, 100).Initialize(input);
         }
 

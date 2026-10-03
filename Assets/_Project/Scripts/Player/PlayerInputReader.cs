@@ -12,10 +12,10 @@ namespace VoidMall.Player
     [DefaultExecutionOrder(-50)]
     public sealed class PlayerInputReader : MonoBehaviour, IPlayerInputSource
     {
-        public static readonly CVar<float> MouseSensitivity = new("sensitivity", 0.08f, "Чувствительность мыши, °/пиксель.");
-        public static readonly CVar<float> StickSensitivity = new("joy_sensitivity", 220f, "Скорость поворота стиком, °/с.");
-        public static readonly CVar<bool> InvertY = new("m_invert", false, "Инвертировать ось Y взгляда.");
-        public static readonly CVar<bool> CrouchToggle = new("crouch_toggle", false, "Присед переключением, а не удержанием.");
+        public static readonly CVar<float> MouseSensitivity = new("sensitivity", 0.08f, "Чувствительность мыши, °/пиксель.", ConsoleFlags.Archive);
+        public static readonly CVar<float> StickSensitivity = new("joy_sensitivity", 220f, "Скорость поворота стиком, °/с.", ConsoleFlags.Archive);
+        public static readonly CVar<bool> InvertY = new("m_invert", false, "Инвертировать ось Y взгляда.", ConsoleFlags.Archive);
+        public static readonly CVar<bool> CrouchToggle = new("crouch_toggle", false, "Присед переключением, а не удержанием.", ConsoleFlags.Archive);
 
         [SerializeField] private PlayerLook _look;
         [SerializeField] private PlayerMotor _motor;

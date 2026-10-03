@@ -12,11 +12,31 @@ namespace VoidMall.World
     {
         public const int Resolution = 128;
 
+        /// <summary>Размер массива эмиссии слоёв в шейдере (_VM_LayerEmission).</summary>
+        public const int MaxLayers = 64;
+
+        /// <summary>
+        /// Эмиссия по слоям текстур: rgb — цвет × яркость, a — LampKind. Слои светящихся материалов уникальны
+        /// (ключ слоя включает LampKind), поэтому эмиссию можно хранить по слою.
+        /// </summary>
+        public static Vector4[] BuildLayerEmission(IReadOnlyList<MaterialDef> materials, IReadOnlyList<ushort> layers)
+        {
+            var emission = new Vector4[MaxLayers];
+            for (int i = 0; i < materials.Count; i++)
+            {
+                var def = materials[i];
+                if (def.Kind == MaterialKind.Air || def.Lamp == LampKind.None || layers[i] >= MaxLayers)
+                    continue;
+                emission[layers[i]] = new Vector4(def.Tint.r * def.Emission, def.Tint.g * def.Emission, def.Tint.b * def.Emission, (float)def.Lamp);
+            }
+            return emission;
+        }
+
         /// <param name="layers">Для каждого материала каталога — индекс слоя в массиве.</param>
         public static Texture2DArray Build(IReadOnlyList<MaterialDef> materials, out ushort[] layers)
         {
             layers = new ushort[materials.Count];
-            var unique = new Dictionary<(BlockPattern, Color), ushort>();
+            var unique = new Dictionary<(BlockPattern, Color, LampKind), ushort>();
             var pixelsPerLayer = new List<Color32[]>();
 
             for (int i = 0; i < materials.Count; i++)
@@ -24,12 +44,13 @@ namespace VoidMall.World
                 var def = materials[i];
                 if (def.Kind == MaterialKind.Air)
                     continue;
-                var key = (def.Pattern, def.Tint);
+                var key = (def.Pattern, def.Lamp != LampKind.None ? Color.white : def.Tint, def.Lamp);
                 if (!unique.TryGetValue(key, out ushort layer))
                 {
                     layer = (ushort)pixelsPerLayer.Count;
                     unique.Add(key, layer);
-                    pixelsPerLayer.Add(Generate(def.Pattern, def.Tint, (uint)layer + 1));
+                    // У светящихся материалов Tint — цвет свечения, текстура остаётся белой.
+                    pixelsPerLayer.Add(Generate(def.Pattern, key.Item2, (uint)layer + 1));
                 }
                 layers[i] = layer;
             }
@@ -162,6 +183,92 @@ namespace VoidMall.World
                     float pebble = Noise(x / 2, y / 2, seed + 9) > 0.9f ? 0.12f : 0f;
                     float g = 0.75f + clumps * 0.35f + pebble;
                     return new Color(0.42f * g, 0.32f * g, 0.22f * g, 0.08f);
+                }
+                case BlockPattern.LampPanel:
+                {
+                    // Светильник 600×600: рамка и рассеиватель с решёткой.
+                    float frame = Mathf.Min(Mathf.Min(u, 1f - u), Mathf.Min(v, 1f - v));
+                    if (frame < 0.06f)
+                        return new Color(0.55f, 0.55f, 0.55f, 0.4f);
+                    bool louver = Mathf.Repeat(u * 6f, 1f) < 0.06f || Mathf.Repeat(v * 6f, 1f) < 0.06f;
+                    float g = louver ? 0.78f : 1f;
+                    return new Color(g, g, g * 0.98f, 0.5f);
+                }
+                case BlockPattern.EmergencyLamp:
+                {
+                    // Корпус тёмный, светится только табличка в центре.
+                    bool sign = Mathf.Abs(u - 0.5f) < 0.3f && Mathf.Abs(v - 0.5f) < 0.16f;
+                    return sign ? new Color(1f, 0.32f, 0.22f, 0.5f) : new Color(0.06f, 0.06f, 0.06f, 0.3f);
+                }
+                case BlockPattern.Skylight:
+                {
+                    // Матовое стекло фонаря: 2×2 стекла, переплёт.
+                    float mu = Mathf.Repeat(u * 2f, 1f), mv = Mathf.Repeat(v * 2f, 1f);
+                    float mullion = Mathf.Min(Mathf.Min(mu, 1f - mu), Mathf.Min(mv, 1f - mv));
+                    if (mullion < 0.04f)
+                        return new Color(0.3f, 0.32f, 0.34f, 0.6f);
+                    float g = 0.92f + Fbm(u, v, 4, 4, seed, 3) * 0.08f;
+                    return new Color(g * 0.92f, g * 0.97f, g, 0.8f);
+                }
+                case BlockPattern.Terrazzo:
+                {
+                    // Терраццо: светлая основа с разноцветной крошкой.
+                    float baseTone = 0.8f + Fbm(u, v, 6, 6, seed, 3) * 0.08f;
+                    Color c = new(baseTone, baseTone * 0.97f, baseTone * 0.92f, 0.65f);
+                    uint chip = Hash.Get(seed, x / 4, y / 4);
+                    if (chip % 100 < 14)
+                    {
+                        float t = Hash.ToFloat01(chip);
+                        c = t < 0.4f ? new Color(0.45f, 0.42f, 0.4f, 0.7f) : t < 0.7f ? new Color(0.72f, 0.55f, 0.45f, 0.7f) : new Color(0.3f, 0.32f, 0.33f, 0.7f);
+                    }
+                    return c;
+                }
+                case BlockPattern.CheckerTile:
+                {
+                    float tu = Mathf.Repeat(u * 2f, 1f), tv = Mathf.Repeat(v * 2f, 1f);
+                    float grout = Mathf.Min(Mathf.Min(tu, 1f - tu), Mathf.Min(tv, 1f - tv));
+                    if (grout < 0.02f)
+                        return new Color(0.5f, 0.5f, 0.5f, 0.2f);
+                    bool dark = ((int)(u * 2f) + (int)(v * 2f)) % 2 == 1;
+                    float g = (dark ? 0.16f : 0.88f) + Fbm(u, v, 6, 6, seed, 2) * 0.04f;
+                    return new Color(g, g, g, 0.75f);
+                }
+                case BlockPattern.Linoleum:
+                {
+                    float mottle = Fbm(u, v, 5, 5, seed, 4);
+                    float g = 0.8f + mottle * 0.12f + (Noise(x, y, seed) - 0.5f) * 0.03f;
+                    return new Color(g, g, g, 0.45f);
+                }
+                case BlockPattern.Shutter:
+                {
+                    // Рольставня: горизонтальные ламели.
+                    float rib = Mathf.Repeat(v * 10f, 1f);
+                    float shade = rib < 0.15f ? 0.62f : rib > 0.85f ? 0.8f : 0.72f;
+                    float g = shade + Noise(x / 8, y, seed) * 0.04f;
+                    return new Color(g, g * 1.01f, g * 1.03f, 0.55f);
+                }
+                case BlockPattern.Asphalt:
+                case BlockPattern.ParkingLineU:
+                case BlockPattern.ParkingLineV:
+                {
+                    float n = Fbm(u, v, 8, 8, seed, 4);
+                    float speck = Noise(x, y, seed + 5) > 0.9f ? 0.06f : 0f;
+                    float g = 0.24f + n * 0.08f + speck;
+                    // Линия разметки идёт вдоль u (по X мира на полу) или вдоль v (по Z).
+                    float distance = pattern == BlockPattern.ParkingLineU ? Mathf.Abs(v - 0.5f) : pattern == BlockPattern.ParkingLineV ? Mathf.Abs(u - 0.5f) : 1f;
+                    if (distance < 0.06f)
+                    {
+                        float wear = Fbm(u, v, 8, 8, seed + 11, 3);
+                        if (wear > 0.35f)
+                            return new Color(0.86f, 0.82f, 0.62f, 0.25f);
+                    }
+                    return new Color(g, g, g * 1.02f, 0.2f);
+                }
+                case BlockPattern.FacadePanel:
+                {
+                    float frame = Mathf.Min(Mathf.Min(u, 1f - u), Mathf.Min(v, 1f - v));
+                    float g = frame < 0.015f ? 0.6f : 0.85f + Fbm(u, v, 3, 3, seed, 2) * 0.06f;
+                    return new Color(g, g, g, 0.6f);
                 }
                 default:
                     return new Color(0.8f, 0.8f, 0.8f, 0.2f);

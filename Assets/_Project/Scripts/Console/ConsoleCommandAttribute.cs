@@ -12,6 +12,9 @@ namespace VoidMall.Console
 
         /// <summary>CVar нельзя менять из консоли.</summary>
         ReadOnly = 1 << 1,
+
+        /// <summary>CVar сохраняется в config.cfg (настройки игрока: чувствительность, FOV, графика).</summary>
+        Archive = 1 << 2,
     }
 
     /// <summary>

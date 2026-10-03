@@ -10,8 +10,8 @@ namespace VoidMall.Player
     [DefaultExecutionOrder(100)]
     public sealed class PlayerCameraRig : MonoBehaviour
     {
-        public static readonly CVar<float> Fov = new("fov", 80f, "Вертикальный угол обзора, градусы.");
-        public static readonly CVar<bool> ViewBob = new("cl_bob", true, "Покачивание камеры при ходьбе.");
+        public static readonly CVar<float> Fov = new("fov", 80f, "Вертикальный угол обзора, градусы.", ConsoleFlags.Archive);
+        public static readonly CVar<bool> ViewBob = new("cl_bob", true, "Покачивание камеры при ходьбе.", ConsoleFlags.Archive);
 
         [SerializeField] private PlayerMotor _motor;
         [SerializeField] private PlayerLook _look;

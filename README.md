@@ -28,8 +28,8 @@ git clone https://github.com/PO3ex2/void-mall.git
 
 Полезные команды консоли: `help`, `noclip`, `fly`, `tp x y z`, `getpos`, `time_scale 0.2`, `fov 90`, `sensitivity 0.1`.
 
-## Полигон мира из блоков
-Сцена `Assets/_Project/Scenes/Sandbox_World.unity`: бесконечный лабиринт комнат, мир подгружается вокруг игрока.
+## Полигон мира: мол
+Сцена `Assets/_Project/Scenes/Sandbox_World.unity` (собирается меню **Void Mall → Setup → Build World Sandbox**): бесконечный мол — парковки P2/P1, 5 торговых этажей, технический этаж. Игрок появляется в галерее первого этажа.
 
 | Действие | Клавиши |
 |---|---|
@@ -37,7 +37,13 @@ git clone https://github.com/PO3ex2/void-mall.git
 | Молоток: ломать (удержание) / поставить блок | ЛКМ / ПКМ |
 | Бур: срезать / нарастить гладкий массив | ЛКМ / ПКМ (удержание) |
 | Выбрать блок или материал / взять под прицелом | Колесо / СКМ |
+| HUD (позиция, этаж, раздел, время, освещённость) | F3 |
+| Карта этажа | F6 |
 
-Команды: `blocks`, `setblock x y z материал`, `fill x1 y1 z1 x2 y2 z2 материал`, `world_info`, `r_viewdistance 8`, `tool_damage 1000`, `drill_radius 2`, `drill_strength 1`, `debug_mining_log 0`, `anomalies` (ближайшие бездны).
+Команды мола: `where` (где я), `anomalies` (ближайшие аномалии), `goto_anomaly abyss|pool|cutout|distortion|glitch`, `time 22.5` (время суток, ночью свет гаснет), `time_daylength 60`, `time_frozen 1`, `seed 42` (пересоздать мир), `regen_chunk`, `world_props 0`, `world_prop_radius 80`, `r_lamplights 40`, `r_lampshadows 2`, `fx_anomaly_strength 1`.
 
-Подрубленная конструкция, которая больше ни на что не опирается, падает обломком. Под полом гладкий бетон и грунт, примерно в каждом третьем квадрате 96×96 м — аномалия-бездна: шахта без дна. Упал ниже −40 м — погиб.
+Команды мира: `blocks`, `setblock x y z материал`, `fill x1 y1 z1 x2 y2 z2 материал`, `world_info`, `r_viewdistance 8`, `tool_damage 1000`, `drill_radius 2`, `drill_strength 1`, `debug_mining_log 0`.
+
+Консоль: Tab дополняет команды и аргументы (материалы, виды аномалий, 0/1). Настройки (чувствительность, FOV, графика) сохраняются в `config.cfg` в папке данных игры, свои команды при старте — в `autoexec.cfg`; `exec файл`, `host_writeconfig`.
+
+Подрубленная конструкция, которая больше ни на что не опирается, падает обломком. Бездна прорезает этажи до пустоты под миром: упал ниже −40 м — погиб.

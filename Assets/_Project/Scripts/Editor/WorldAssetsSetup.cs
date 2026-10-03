@@ -19,6 +19,9 @@ namespace VoidMall.Editor
         public const string BrushMaterialPath = Root + "/Art/Materials/Tool_DrillBrush.mat";
         public const string DustMaterialPath = Root + "/Art/Materials/Fx_Dust.mat";
         public const string VoidSkyboxPath = Root + "/Art/Materials/Sky_VoidBelow.mat";
+        public const string PropsMaterialPath = Root + "/Art/Materials/Props.mat";
+        public const string SectionsFolder = Root + "/Data/World/Sections";
+        public const string WorldSettingsPath = Root + "/Data/World/WorldSettings.asset";
 
         private readonly struct Spec
         {
@@ -28,9 +31,12 @@ namespace VoidMall.Editor
             public readonly int Hardness;
             public readonly bool Transparent, Unbreakable, Placeable;
             public readonly Color Tint;
+            public readonly LampKind Lamp;
+            public readonly float Emission;
 
             public Spec(string id, string name, MaterialKind kind, BlockPattern pattern, int hardness,
-                bool transparent = false, bool unbreakable = false, bool placeable = true, Color? tint = null)
+                bool transparent = false, bool unbreakable = false, bool placeable = true, Color? tint = null,
+                LampKind lamp = LampKind.None, float emission = 0f)
             {
                 Id = id;
                 Name = name;
@@ -41,6 +47,8 @@ namespace VoidMall.Editor
                 Unbreakable = unbreakable;
                 Placeable = placeable;
                 Tint = tint ?? Color.white;
+                Lamp = lamp;
+                Emission = emission;
             }
         }
 
@@ -61,6 +69,52 @@ namespace VoidMall.Editor
             new("smooth.concrete", "Бетонный массив", MaterialKind.Smooth, BlockPattern.Concrete, 1200, tint: new Color(0.8f, 0.8f, 0.84f)),
             new("smooth.soil", "Грунт", MaterialKind.Smooth, BlockPattern.Soil, 300),
             new("smooth.carpet", "Ковёр (гладкий)", MaterialKind.Smooth, BlockPattern.Carpet, 300),
+            // ── Этап 4: мол ──
+            new("block.lamp_panel", "Светильник", MaterialKind.Block, BlockPattern.LampPanel, 80, tint: new Color(1f, 0.95f, 0.86f), lamp: LampKind.Lamp, emission: 2.2f),
+            new("block.emergency_lamp", "Аварийная лампа", MaterialKind.Block, BlockPattern.EmergencyLamp, 80, lamp: LampKind.Emergency, emission: 2.5f),
+            new("block.skylight", "Световой фонарь", MaterialKind.Block, BlockPattern.Skylight, 100, tint: new Color(0.86f, 0.93f, 1f), lamp: LampKind.Skylight, emission: 1.6f),
+            new("block.terrazzo", "Терраццо", MaterialKind.Block, BlockPattern.Terrazzo, 700),
+            new("block.tile_checker", "Плитка «шахматка»", MaterialKind.Block, BlockPattern.CheckerTile, 600),
+            new("block.linoleum", "Линолеум", MaterialKind.Block, BlockPattern.Linoleum, 250, tint: new Color(0.8f, 0.88f, 0.82f)),
+            new("block.tile_dark", "Тёмная плитка", MaterialKind.Block, BlockPattern.FloorTile, 600, tint: new Color(0.38f, 0.39f, 0.42f)),
+            new("block.wood_floor", "Паркет", MaterialKind.Block, BlockPattern.Wood, 400, tint: new Color(0.95f, 0.88f, 0.8f)),
+            new("block.paint_white", "Стена (белая)", MaterialKind.Block, BlockPattern.Drywall, 300, tint: new Color(0.97f, 0.97f, 0.95f)),
+            new("block.paint_mint", "Стена (мятная)", MaterialKind.Block, BlockPattern.Drywall, 300, tint: new Color(0.75f, 0.9f, 0.82f)),
+            new("block.paint_blue", "Стена (голубая)", MaterialKind.Block, BlockPattern.Drywall, 300, tint: new Color(0.68f, 0.78f, 0.92f)),
+            new("block.paint_salmon", "Стена (лососевая)", MaterialKind.Block, BlockPattern.Drywall, 300, tint: new Color(0.96f, 0.78f, 0.7f)),
+            new("block.paint_gray", "Стена (серая)", MaterialKind.Block, BlockPattern.Drywall, 300, tint: new Color(0.62f, 0.63f, 0.65f)),
+            new("block.facade_dark", "Фасадная панель (тёмная)", MaterialKind.Block, BlockPattern.FacadePanel, 1200, tint: new Color(0.25f, 0.27f, 0.3f)),
+            new("block.facade_light", "Фасадная панель (светлая)", MaterialKind.Block, BlockPattern.FacadePanel, 1200, tint: new Color(0.85f, 0.85f, 0.82f)),
+            new("block.shutter", "Рольставня", MaterialKind.Block, BlockPattern.Shutter, 1500),
+            new("block.asphalt", "Асфальт", MaterialKind.Block, BlockPattern.Asphalt, 1000),
+            new("block.parking_line_x", "Разметка (вдоль X)", MaterialKind.Block, BlockPattern.ParkingLineU, 1000),
+            new("block.parking_line_z", "Разметка (вдоль Z)", MaterialKind.Block, BlockPattern.ParkingLineV, 1000),
+            new("smooth.tile", "Плитка бассейна (гладкая)", MaterialKind.Smooth, BlockPattern.FloorTile, 600, tint: new Color(0.82f, 0.92f, 0.98f)),
+            // Гладкие двойники полов — облицовка аномалий (тот же узор и оттенок, что у блока).
+            new("smooth.floor_tile", "Плитка (гладкая)", MaterialKind.Smooth, BlockPattern.FloorTile, 600),
+            new("smooth.terrazzo", "Терраццо (гладкое)", MaterialKind.Smooth, BlockPattern.Terrazzo, 700),
+            new("smooth.tile_checker", "Плитка «шахматка» (гладкая)", MaterialKind.Smooth, BlockPattern.CheckerTile, 600),
+            new("smooth.linoleum", "Линолеум (гладкий)", MaterialKind.Smooth, BlockPattern.Linoleum, 250, tint: new Color(0.8f, 0.88f, 0.82f)),
+            new("smooth.tile_dark", "Тёмная плитка (гладкая)", MaterialKind.Smooth, BlockPattern.FloorTile, 600, tint: new Color(0.38f, 0.39f, 0.42f)),
+            new("smooth.wood_floor", "Паркет (гладкий)", MaterialKind.Smooth, BlockPattern.Wood, 400, tint: new Color(0.95f, 0.88f, 0.8f)),
+            new("smooth.asphalt", "Асфальт (гладкий)", MaterialKind.Smooth, BlockPattern.Asphalt, 1000),
+            new("smooth.concrete_floor", "Бетонный пол (гладкий)", MaterialKind.Smooth, BlockPattern.Concrete, 1200),
+        };
+
+        /// <summary>Блок пола → его гладкий двойник.</summary>
+        private static readonly (string block, string smooth)[] SmoothVariants =
+        {
+            ("block.carpet", "smooth.carpet"),
+            ("block.concrete", "smooth.concrete_floor"),
+            ("block.floor_tile", "smooth.floor_tile"),
+            ("block.terrazzo", "smooth.terrazzo"),
+            ("block.tile_checker", "smooth.tile_checker"),
+            ("block.linoleum", "smooth.linoleum"),
+            ("block.tile_dark", "smooth.tile_dark"),
+            ("block.wood_floor", "smooth.wood_floor"),
+            ("block.asphalt", "smooth.asphalt"),
+            ("block.parking_line_x", "smooth.asphalt"),
+            ("block.parking_line_z", "smooth.asphalt"),
         };
 
         public static void CreateWorldAssets()
@@ -94,8 +148,21 @@ namespace VoidMall.Editor
                 def.Unbreakable = spec.Unbreakable;
                 def.Placeable = spec.Placeable;
                 def.Tint = spec.Tint;
+                def.Lamp = spec.Lamp;
+                def.Emission = spec.Emission;
                 EditorUtility.SetDirty(def);
                 catalog.Materials.Add(def);
+            }
+            foreach (var def in catalog.Materials)
+                def.SmoothVariant = null;
+            foreach (var (block, smooth) in SmoothVariants)
+            {
+                var blockDef = FindMaterial(catalog, block);
+                if (blockDef != null)
+                {
+                    blockDef.SmoothVariant = FindMaterial(catalog, smooth);
+                    EditorUtility.SetDirty(blockDef);
+                }
             }
             EditorUtility.SetDirty(catalog);
 
@@ -137,6 +204,106 @@ namespace VoidMall.Editor
             // Небо тестовых полигонов: нижняя полусфера чёрная — в шахтах-безднах видна пустота, а не «земля» skybox.
             var sky = GetOrCreateMaterial(VoidSkyboxPath, Shader.Find("Skybox/Procedural"));
             sky.SetColor("_GroundColor", Color.black);
+
+            var props = GetOrCreateMaterial(PropsMaterialPath, Shader.Find("VoidMall/Props"));
+            props.enableInstancing = true;
+
+            CreateMallAssets(catalog);
+        }
+
+        // ───────────────────────────── Разделы и настройки мира ─────────────────────────────
+
+        private readonly struct SectionSpec
+        {
+            public readonly string Id, Name, Floor, Wall, Facade, Ceiling;
+            public readonly SectionLayout Layout;
+            public readonly float Weight;
+            public readonly int Mask;
+            public readonly bool Service;
+            public readonly Color MapColor;
+
+            public SectionSpec(string id, string name, SectionLayout layout, string floor, string wall, string facade, string ceiling,
+                float weight, int mask, Color mapColor, bool service = false)
+            {
+                Id = id;
+                Name = name;
+                Layout = layout;
+                Floor = floor;
+                Wall = wall;
+                Facade = facade;
+                Ceiling = ceiling;
+                Weight = weight;
+                Mask = mask;
+                MapColor = mapColor;
+                Service = service;
+            }
+        }
+
+        private const int AllFloors = 0b11111;
+
+        private static readonly SectionSpec[] Sections =
+        {
+            new("section.grocery", "Продукты", SectionLayout.Rows, "block.floor_tile", "block.paint_white", "block.facade_dark", "block.ceiling_tile", 3f, 0b00011, new Color(0.45f, 0.75f, 0.35f)),
+            new("section.pharmacy", "Аптека", SectionLayout.Perimeter, "block.linoleum", "block.paint_mint", "block.facade_light", "block.ceiling_tile", 2f, AllFloors, new Color(0.4f, 0.85f, 0.75f)),
+            new("section.hardware", "Строймаркет", SectionLayout.Warehouse, "block.concrete", "block.paint_gray", "block.facade_dark", "block.ceiling_tile", 2f, 0b00111, new Color(0.9f, 0.55f, 0.2f)),
+            new("section.electronics", "Электроника", SectionLayout.Islands, "block.tile_dark", "block.paint_blue", "block.facade_dark", "block.ceiling_tile", 2f, AllFloors, new Color(0.3f, 0.5f, 0.9f)),
+            new("section.clothing", "Одежда", SectionLayout.Clothing, "block.wood_floor", "block.paint_salmon", "block.facade_light", "block.ceiling_tile", 3f, AllFloors, new Color(0.9f, 0.45f, 0.6f)),
+            new("section.sports", "Спорттовары", SectionLayout.Rows, "block.linoleum", "block.paint_blue", "block.facade_dark", "block.ceiling_tile", 1.5f, AllFloors, new Color(0.95f, 0.85f, 0.3f)),
+            new("section.furniture", "Мебель", SectionLayout.Showroom, "block.carpet", "block.wallpaper", "block.facade_light", "block.ceiling_tile", 1.5f, 0b11100, new Color(0.6f, 0.4f, 0.25f)),
+            new("section.toys", "Игрушки", SectionLayout.Rows, "block.tile_checker", "block.paint_salmon", "block.facade_light", "block.ceiling_tile", 1.5f, AllFloors, new Color(0.95f, 0.4f, 0.3f)),
+            new("section.foodcourt", "Фудкорт", SectionLayout.Hall, "block.tile_checker", "block.paint_white", "block.facade_dark", "block.ceiling_tile", 1f, 0b11000, new Color(0.85f, 0.3f, 0.85f)),
+            new("section.empty", "Пустой зал", SectionLayout.Empty, "block.carpet", "block.wallpaper", "block.facade_light", "block.ceiling_tile", 0.6f, AllFloors, new Color(0.85f, 0.8f, 0.5f)),
+            new("section.storage", "Подсобка", SectionLayout.Warehouse, "block.concrete", "block.drywall", "block.facade_dark", "block.concrete", 1f, AllFloors, new Color(0.5f, 0.5f, 0.5f), service: true),
+            new("section.tech", "Техническое помещение", SectionLayout.Tech, "block.concrete", "block.concrete", "block.concrete", "block.concrete", 1f, 0, new Color(0.35f, 0.35f, 0.4f), service: true),
+        };
+
+        private static void CreateMallAssets(MaterialCatalog catalog)
+        {
+            ProjectSetup.EnsureFolder(SectionsFolder);
+            var sections = new System.Collections.Generic.List<SectionDef>();
+            foreach (var spec in Sections)
+            {
+                string path = $"{SectionsFolder}/{spec.Id.Replace("section.", "")}.asset";
+                var def = AssetDatabase.LoadAssetAtPath<SectionDef>(path);
+                if (def == null)
+                {
+                    def = ScriptableObject.CreateInstance<SectionDef>();
+                    AssetDatabase.CreateAsset(def, path);
+                }
+                var so = new SerializedObject(def);
+                so.FindProperty("_id").stringValue = spec.Id;
+                so.ApplyModifiedPropertiesWithoutUndo();
+                def.DisplayName = spec.Name;
+                def.Layout = spec.Layout;
+                def.Weight = spec.Weight;
+                def.RetailFloorMask = spec.Mask;
+                def.Service = spec.Service;
+                def.MapColor = spec.MapColor;
+                def.Floor = FindMaterial(catalog, spec.Floor);
+                def.Wall = FindMaterial(catalog, spec.Wall);
+                def.Facade = FindMaterial(catalog, spec.Facade);
+                def.Ceiling = FindMaterial(catalog, spec.Ceiling);
+                EditorUtility.SetDirty(def);
+                sections.Add(def);
+            }
+
+            var settings = AssetDatabase.LoadAssetAtPath<WorldSettings>(WorldSettingsPath);
+            if (settings == null)
+            {
+                settings = ScriptableObject.CreateInstance<WorldSettings>();
+                AssetDatabase.CreateAsset(settings, WorldSettingsPath);
+            }
+            settings.Sections = sections;
+            EditorUtility.SetDirty(settings);
+        }
+
+        private static MaterialDef FindMaterial(MaterialCatalog catalog, string id)
+        {
+            foreach (var def in catalog.Materials)
+                if (def.Id == id)
+                    return def;
+            Debug.LogError($"[Setup] Material '{id}' not found in the catalog.");
+            return null;
         }
 
         /// <summary>Прозрачный режим для стандартных URP-шейдеров (Unlit, Particles).</summary>

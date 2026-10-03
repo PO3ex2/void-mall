@@ -18,13 +18,16 @@ namespace VoidMall.World
     [DefaultExecutionOrder(-200)]
     public sealed class ChunkManager : MonoBehaviour, IWorldCollisionQuery, IVoxelAccess
     {
-        public static readonly CVar<int> ViewDistance = new("r_viewdistance", 6, "Радиус прогрузки мира в колоннах (1 колонна = 32 м).");
+        public static readonly CVar<int> ViewDistance = new("r_viewdistance", 6, "Радиус прогрузки мира в колоннах (1 колонна = 32 м).", ConsoleFlags.Archive);
         public static readonly CVar<int> GenerationBudget = new("world_gen_budget", 16, "Сколько чанков генерировать за кадр.");
         public static readonly CVar<int> MeshBudget = new("world_mesh_budget", 24, "Сколько чанков мешить за кадр.");
 
         [SerializeField] private MaterialCatalog _catalog;
         [SerializeField] private Material _opaqueMaterial;
         [SerializeField] private Material _transparentMaterial;
+        [SerializeField] private WorldSettings _settings;
+
+        [Tooltip("Сид, если настройки мира не заданы.")]
         [SerializeField] private uint _seed = 1337;
 
         public static ChunkManager Instance { get; private set; }
@@ -48,7 +51,10 @@ namespace VoidMall.World
         private Texture2DArray _textures;
         private Material _opaque;
         private Material _transparent;
-        private TestWorldMaterials _generatorMaterials;
+        private MallMaterials _generatorMaterials;
+        private SectionTable _sections;
+        private float _anomalyFrequency = 1f;
+        private readonly Dictionary<int2, MallCellInfo> _cellInfos = new();
         private ChunkData _airChunk;
         private ChunkData _bedrockChunk;
         private Transform _chunkRoot;
@@ -58,6 +64,12 @@ namespace VoidMall.World
 
         public MaterialRegistry Materials => _registry;
         public uint Seed => _seed;
+        public float AnomalyFrequency => _anomalyFrequency;
+        public WorldSettings Settings => _settings;
+        public SectionTable Sections => _sections;
+
+        /// <summary>Мир пересоздан с новым сидом (все колонны выгружены).</summary>
+        public event Action WorldReset;
         public int LoadedColumns => _columns.Count;
         public int ParkedColumns => _parked.Count;
         public int GenerationTasksInFlight => _generationTasks.Count;
@@ -81,7 +93,21 @@ namespace VoidMall.World
             _registry = new MaterialRegistry(_catalog);
             _textures = BlockTextureArrayBuilder.Build(_registry.All, out var layers);
             _registry.BuildInfos(layers);
-            _generatorMaterials = TestWorldMaterials.Resolve(_registry);
+            _generatorMaterials = MallMaterials.Resolve(_registry);
+            if (_settings != null)
+            {
+                _seed = _settings.Seed;
+                _anomalyFrequency = _settings.AnomalyFrequency;
+                _sections = new SectionTable(_settings.Sections, _settings.GetWeight, _registry);
+            }
+            else
+            {
+                Debug.LogError("[World] WorldSettings is not assigned — the mall has no sections.", this);
+                _sections = new SectionTable(new List<SectionDef> { ScriptableObject.CreateInstance<SectionDef>() }, _ => 1f, _registry);
+            }
+            Shader.SetGlobalVectorArray(LayerEmissionId, BlockTextureArrayBuilder.BuildLayerEmission(_registry.All, layers));
+            Shader.SetGlobalFloat(LayerCountId, _textures.depth);
+            RegisterConsoleCompleters();
 
             _opaque = new Material(_opaqueMaterial) { name = "Blocks (runtime)" };
             _transparent = new Material(_transparentMaterial) { name = "Blocks Transparent (runtime)" };
@@ -97,6 +123,112 @@ namespace VoidMall.World
         }
 
         private static readonly int BlockTexturesId = Shader.PropertyToID("_BlockTextures");
+        private static readonly int LayerEmissionId = Shader.PropertyToID("_VM_LayerEmission");
+        private static readonly int LayerCountId = Shader.PropertyToID("_VM_LayerCount");
+
+        /// <summary>Автодополнение аргументов консольных команд мира (материалы, виды аномалий).</summary>
+        private void RegisterConsoleCompleters()
+        {
+            var materials = new List<string>();
+            foreach (var def in _registry.All)
+                materials.Add(def.Id.StartsWith("block.") ? def.Id.Substring(6) : def.Id);
+            DevConsole.RegisterCompleter("setblock", token => token == 3 ? materials : null);
+            DevConsole.RegisterCompleter("fill", token => token == 6 ? materials : null);
+            DevConsole.RegisterCompleter("goto_anomaly", token => token == 0 ? new[] { "abyss", "pool", "cutout", "distortion", "glitch" } : null);
+            DevConsole.RegisterCompleter("time", token => token == 0 ? new[] { "6", "9", "12", "18", "22", "22.5", "23", "0" } : null);
+        }
+
+        /// <summary>Параметры макроячейки мола (кэш; одинаковы на всех уровнях).</summary>
+        public MallCellInfo GetCellInfo(int2 cell)
+        {
+            if (!_cellInfos.TryGetValue(cell, out var info))
+            {
+                if (_cellInfos.Count > 4096)
+                    _cellInfos.Clear();
+                info = MallPlanner.GetCellInfo(_seed, _anomalyFrequency, cell);
+                _cellInfos.Add(cell, info);
+            }
+            return info;
+        }
+
+        /// <summary>Пересоздать мир с другим сидом: все колонны (и несохранённые правки) выбрасываются.</summary>
+        public void ResetWorld(uint seed)
+        {
+            CompleteAllJobs();
+            foreach (var coord in new List<int2>(_columns.Keys))
+                UnloadColumn(coord);
+            foreach (var column in _parked.Values)
+                column.Dispose();
+            _parked.Clear();
+            _immediate.Clear();
+            _cellInfos.Clear();
+            _seed = seed;
+            WorldReset?.Invoke();
+        }
+
+        /// <summary>Перегенерировать одну колонну (правки в ней теряются).</summary>
+        public bool RegenerateColumn(int2 coord)
+        {
+            if (!_columns.ContainsKey(coord))
+                return false;
+            CompleteAllJobs();
+            var column = _columns[coord];
+            _columns.Remove(coord);
+            for (int i = 0; i < WorldConstants.ChunksPerColumn; i++)
+                ReleaseRenderer(column, i);
+            column.Dispose();
+            _parked.Remove(coord);
+            // Соседям нужно перестроить меши: грани на границе зависят от этой колонны.
+            for (int dz = -1; dz <= 1; dz++)
+            for (int dx = -1; dx <= 1; dx++)
+                if (_columns.TryGetValue(coord + new int2(dx, dz), out var neighbor))
+                    neighbor.MarkAllDirty();
+            return true;
+        }
+
+        /// <summary>Светящиеся блоки загруженных колонн в радиусе (по горизонтали) от точки.</summary>
+        public void CollectLamps(Vector3 center, float radius, List<int3> result)
+        {
+            int2 min = WorldConstants.CellToColumn((int3)math.floor((float3)center - radius));
+            int2 max = WorldConstants.CellToColumn((int3)math.floor((float3)center + radius));
+            float radiusSq = radius * radius;
+            for (int cz = min.y; cz <= max.y; cz++)
+            for (int cx = min.x; cx <= max.x; cx++)
+            {
+                if (!_columns.TryGetValue(new int2(cx, cz), out var column) || column.State != ColumnState.Generated)
+                    continue;
+                foreach (var list in column.Lamps)
+                {
+                    if (list == null)
+                        continue;
+                    foreach (var lamp in list)
+                    {
+                        float3 delta = (float3)lamp + 0.5f - (float3)center;
+                        if (math.lengthsq(delta) <= radiusSq)
+                            result.Add(lamp);
+                    }
+                }
+            }
+        }
+
+        private void UpdateLampList(int3 cell, Cell value)
+        {
+            if (!_columns.TryGetValue(WorldConstants.CellToColumn(cell), out var column))
+                return;
+            int index = cell.y >> WorldConstants.ChunkShift;
+            var list = column.Lamps[index];
+            bool isLamp = value.Material != 0 && _registry.Infos[value.Material].Lamp != LampKind.None;
+            if (isLamp)
+            {
+                list ??= column.Lamps[index] = new List<int3>();
+                if (!list.Contains(cell))
+                    list.Add(cell);
+            }
+            else
+            {
+                list?.Remove(cell);
+            }
+        }
 
         private void OnEnable() => Services.Register<IWorldCollisionQuery>(this);
 
@@ -118,6 +250,7 @@ namespace VoidMall.World
             _bufferPool.Clear();
             _airChunk?.Dispose();
             _bedrockChunk?.Dispose();
+            _sections?.Dispose();
             _registry?.Dispose();
             if (_textures != null)
                 Destroy(_textures);
@@ -199,6 +332,7 @@ namespace VoidMall.World
             chunk.IsModified = true;
             chunk.SetDamage(cellIndex, 0);
             MarkDirtyAround(cell);
+            UpdateLampList(cell, value);
 
             if (_batchDepth == 0)
                 RebuildDirtyNow();
@@ -404,15 +538,20 @@ namespace VoidMall.World
                     var chunk = ChunkData.CreateForGeneration(new int3(coord.x, y, coord.y));
                     column.Chunks[y] = chunk;
                     var uniform = new NativeArray<byte>(1, Allocator.TempJob);
-                    var job = new TestWorldGenerationJob
+                    var lamps = new NativeList<int3>(64, Allocator.TempJob);
+                    var job = new MallGenerationJob
                     {
                         Chunk = chunk.Coord,
                         Seed = _seed,
+                        AnomalyFrequency = _anomalyFrequency,
                         M = _generatorMaterials,
+                        Sections = _sections.Infos,
+                        Materials = _registry.Infos,
                         Cells = chunk.Cells,
                         IsUniform = uniform,
+                        Lamps = lamps,
                     };
-                    _generationTasks.Add(new GenerationTask { Column = column, Chunk = chunk, Uniform = uniform, Handle = job.Schedule() });
+                    _generationTasks.Add(new GenerationTask { Column = column, Chunk = chunk, Uniform = uniform, Lamps = lamps, Handle = job.Schedule() });
                     column.PendingGenerationJobs++;
                 }
             }
@@ -426,6 +565,9 @@ namespace VoidMall.World
                 if (task.Uniform[0] != 0)
                     task.Chunk.SetUniform(task.Chunk.Cells[0]);
                 task.Uniform.Dispose();
+                int chunkIndex = task.Chunk.Coord.y;
+                task.Column.Lamps[chunkIndex] = task.Lamps.Length > 0 ? new List<int3>(task.Lamps.AsArray().ToArray()) : null;
+                task.Lamps.Dispose();
                 if (--task.Column.PendingGenerationJobs == 0)
                     task.Column.State = ColumnState.Generated;
             }
@@ -666,6 +808,7 @@ namespace VoidMall.World
             public ChunkColumn Column;
             public ChunkData Chunk;
             public NativeArray<byte> Uniform;
+            public NativeList<int3> Lamps;
             public JobHandle Handle;
         }
 

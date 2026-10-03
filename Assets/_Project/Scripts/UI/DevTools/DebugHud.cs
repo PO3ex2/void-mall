@@ -5,6 +5,7 @@ using UnityEngine.UIElements;
 using VoidMall.Core;
 using VoidMall.Input;
 using VoidMall.Player;
+using VoidMall.World;
 
 namespace VoidMall.UI
 {
@@ -67,7 +68,7 @@ namespace VoidMall.UI
         private string BuildText()
         {
             _sb.Clear();
-            _sb.Append($"FPS {_fps:0}   [F3] HUD   [F4] Травмы/вес   [`] Консоль\n");
+            _sb.Append($"FPS {_fps:0}   [F3] HUD   [F4] Травмы/вес   [F6] Карта   [`] Консоль\n");
 
             var motor = PlayerMotor.Local;
             if (motor == null)
@@ -112,6 +113,22 @@ namespace VoidMall.UI
                 _ => string.Empty,
             };
             _sb.Append($"Последнее приземление {landing:0.0} м/с{severityText}");
+
+            var world = ChunkManager.Instance;
+            if (world != null)
+            {
+                _sb.Append('\n').Append(MallDebug.Describe(world, s.Position));
+                if (Services.TryGet(out IWorldClock clock))
+                {
+                    float hour = clock.Hour;
+                    _sb.Append($"\nДень {clock.Day}, {(int)hour:00}:{(int)(hour % 1f * 60f):00}{(clock.IsNight ? " — ночь" : "")}");
+                }
+                if (Services.TryGet(out ILightProbe probe))
+                    _sb.Append($", освещённость {probe.SampleLight(s.Position + Vector3.up):0.00}");
+                var lighting = LightingDirector.Instance;
+                if (lighting != null)
+                    _sb.Append($", ламп со светом {lighting.ActiveLights}");
+            }
             return _sb.ToString();
         }
     }

@@ -1,0 +1,37 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f98a1be1040dc3e4bb950f5c663c4c47, type: 3}
+  m_Name: WorldSettings
+  m_EditorClassIdentifier: VoidMall.World::VoidMall.World.WorldSettings
+  Seed: 1337
+  Difficulty: 1
+  LootAmount: 1
+  LootRarity: 1
+  AnomalyFrequency: 1
+  EnemyDensity: 1
+  DeathLoss: 2
+  DayLengthMinutes: 60
+  StartHour: 9
+  Sections:
+  - {fileID: 11400000, guid: 4b7547ca248e50a489a0392854fafc81, type: 2}
+  - {fileID: 11400000, guid: 21ebaa7f88997a140a676a54cced5310, type: 2}
+  - {fileID: 11400000, guid: 038666f6a64c22844acbbfab3bc5203a, type: 2}
+  - {fileID: 11400000, guid: a04f9df0562821b4480d128ed4675136, type: 2}
+  - {fileID: 11400000, guid: 7d4c07ca4ffe1d944910bfc2013e03bc, type: 2}
+  - {fileID: 11400000, guid: 7975ca406fe1dcd459fe78942fb00589, type: 2}
+  - {fileID: 11400000, guid: cdf835a09c3f24747867f5dbac327df4, type: 2}
+  - {fileID: 11400000, guid: 4346b7353bbadf047b59933bed41ee8b, type: 2}
+  - {fileID: 11400000, guid: 2ea22744e8eac5a45b176e2d5213cf52, type: 2}
+  - {fileID: 11400000, guid: e77e24e9b4942ea43aa48409fa9cd32b, type: 2}
+  - {fileID: 11400000, guid: 779612a68598fe1459005d95c86ff05b, type: 2}
+  - {fileID: 11400000, guid: 843d4d0681e05a945a051f799bbbae74, type: 2}
+  SectionWeights: []

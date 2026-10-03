@@ -34,6 +34,9 @@ namespace VoidMall.World
         /// <summary>Растёт при каждой заливке меша — отбрасываем устаревшие результаты запекания коллайдера.</summary>
         public readonly int[] MeshVersion = new int[WorldConstants.ChunksPerColumn];
 
+        /// <summary>Светящиеся блоки по чанкам (мировые координаты) — для LightingDirector.</summary>
+        public readonly System.Collections.Generic.List<int3>[] Lamps = new System.Collections.Generic.List<int3>[WorldConstants.ChunksPerColumn];
+
         public ColumnState State;
         public int PendingGenerationJobs;
 

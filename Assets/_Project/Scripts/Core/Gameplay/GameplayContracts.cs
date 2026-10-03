@@ -39,6 +39,27 @@ namespace VoidMall.Core
         bool TryGetEmbeddedEscape(Vector3 feet, float height, float radius, out Vector3 freeFeet);
     }
 
+    /// <summary>Игровые часы мира (авторитетные). Сутки — 24 игровых часа.</summary>
+    public interface IWorldClock
+    {
+        /// <summary>Время суток, часы 0…24.</summary>
+        float Hour { get; }
+
+        /// <summary>Номер суток с начала мира (с 1).</summary>
+        int Day { get; }
+
+        bool IsNight { get; }
+    }
+
+    /// <summary>
+    /// Освещённость в точке (0 — тьма, 1 — ярко) для рассудка игрока и видимости для Манекена.
+    /// Считается на CPU по лампам рядом, без чтения рендера.
+    /// </summary>
+    public interface ILightProbe
+    {
+        float SampleLight(Vector3 position);
+    }
+
     /// <summary>Упавший обломок разбился. Survival (этап 7) по этому событию нанесёт урон тем, кто под ним.</summary>
     public struct DebrisImpactEvent
     {

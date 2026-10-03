@@ -22,6 +22,10 @@ namespace VoidMall.World
         public MaterialFlags Flags;
         public ushort TextureLayer;
         public int Hardness;
+        public LampKind Lamp;
+
+        /// <summary>Гладкий двойник блока (0 — нет).</summary>
+        public ushort SmoothVariant;
 
         public bool IsSolid => (Flags & MaterialFlags.Solid) != 0;
         public bool IsOpaque => (Flags & MaterialFlags.Opaque) != 0;
@@ -72,6 +76,8 @@ namespace VoidMall.World
                     Flags = flags,
                     TextureLayer = textureLayers[i],
                     Hardness = def.Hardness,
+                    Lamp = def.Lamp,
+                    SmoothVariant = def.SmoothVariant != null && def.SmoothVariant.RuntimeIndex >= 0 ? (ushort)def.SmoothVariant.RuntimeIndex : (ushort)0,
                 };
             }
             Infos = infos;

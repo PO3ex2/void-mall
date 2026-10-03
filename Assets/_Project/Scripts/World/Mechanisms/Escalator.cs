@@ -14,6 +14,9 @@ namespace VoidMall.World
 
         public Vector3 GetVelocityAt(Vector3 worldPoint) => transform.forward * _speed;
 
+        /// <summary>Для эскалаторов, созданных генератором.</summary>
+        public void Configure(float speed) => _speed = speed;
+
 #if UNITY_EDITOR
         private void OnDrawGizmos()
         {

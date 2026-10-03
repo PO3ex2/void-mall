@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2c4dae1c006d83a4d9bf27f1c5e1d607, type: 3}
+  m_Name: furniture
+  m_EditorClassIdentifier: VoidMall.World::VoidMall.World.SectionDef
+  _id: section.furniture
+  DisplayName: "\u041C\u0435\u0431\u0435\u043B\u044C"
+  Weight: 1.5
+  MapColor: {r: 0.6, g: 0.4, b: 0.25, a: 1}
+  Layout: 7
+  Floor: {fileID: 11400000, guid: 7b8c145c8fe2ec948978e1978cec433e, type: 2}
+  Wall: {fileID: 11400000, guid: dcef336a131c20f4ba90f8c625db8868, type: 2}
+  Facade: {fileID: 11400000, guid: 906081518967af749b7ea87615b8d393, type: 2}
+  Ceiling: {fileID: 11400000, guid: e47ffbb32b390ee44b2ed3abd776323e, type: 2}
+  RetailFloorMask: 28
+  Service: 0

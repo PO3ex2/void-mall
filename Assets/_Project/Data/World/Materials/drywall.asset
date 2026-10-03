@@ -21,3 +21,6 @@ MonoBehaviour:
   Placeable: 1
   Pattern: 5
   Tint: {r: 1, g: 1, b: 1, a: 1}
+  SmoothVariant: {fileID: 0}
+  Lamp: 0
+  Emission: 0

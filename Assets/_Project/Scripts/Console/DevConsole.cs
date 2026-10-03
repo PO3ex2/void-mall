@@ -49,7 +49,7 @@ namespace VoidMall.Console
         private const string AssemblyPrefix = "VoidMall";
 
         public static readonly CVar<bool> Cheats = new("sv_cheats", Debug.isDebugBuild, "Разрешить чит-команды.");
-        public static readonly CVar<bool> MirrorUnityLog = new("con_unitylog", true, "Дублировать сообщения Unity в консоль.");
+        public static readonly CVar<bool> MirrorUnityLog = new("con_unitylog", true, "Дублировать сообщения Unity в консоль.", ConsoleFlags.Archive);
 
         private static readonly Dictionary<string, CommandInfo> _commands = new(StringComparer.OrdinalIgnoreCase);
         private static readonly Dictionary<string, CVarBase> _cvars = new(StringComparer.OrdinalIgnoreCase);
@@ -89,6 +89,11 @@ namespace VoidMall.Console
             }
 
             Application.logMessageReceived += OnUnityLog;
+            Application.quitting += ConsoleConfig.WriteConfig;
+
+            // Настройки игрока и пользовательский автозапуск (как в Source).
+            ConsoleConfig.Exec(ConsoleConfig.ConfigFile, quiet: true);
+            ConsoleConfig.Exec(ConsoleConfig.AutoexecFile, quiet: true);
         }
 
         private static void ScanType(Type type)
@@ -230,15 +235,73 @@ namespace VoidMall.Console
             Error($"Unknown command '{name}'. Type 'help' for the list.");
         }
 
-        /// <summary>Варианты автодополнения для первого слова.</summary>
-        public static List<string> GetCompletions(string prefix)
+        /// <summary>
+        /// Варианты автодополнения — целые строки. Первое слово: команды и переменные. Следующие слова — аргументы:
+        /// зарегистрированные варианты команды, 0/1 для bool, имена enum, имена команд для help/reset/find.
+        /// </summary>
+        public static List<string> GetCompletions(string line)
         {
-            prefix = (prefix ?? string.Empty).Trim();
-            return _commands.Keys
-                .Concat(_cvars.Keys)
-                .Where(n => n.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-                .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
+            line = (line ?? string.Empty).TrimStart();
+            int space = line.IndexOf(' ');
+            if (space < 0)
+            {
+                return _commands.Keys
+                    .Concat(_cvars.Keys)
+                    .Where(n => n.StartsWith(line, StringComparison.OrdinalIgnoreCase))
+                    .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+            }
+
+            string name = line.Substring(0, space);
+            int lastSpace = line.LastIndexOf(' ');
+            string head = line.Substring(0, lastSpace + 1);
+            string partial = line.Substring(lastSpace + 1);
+            int argIndex = line.Substring(space).Split(' ', StringSplitOptions.RemoveEmptyEntries).Length - (partial.Length > 0 ? 1 : 0);
+            return ArgumentCandidates(name, argIndex)
+                .Where(c => c.StartsWith(partial, StringComparison.OrdinalIgnoreCase))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(c => c, StringComparer.OrdinalIgnoreCase)
+                .Select(c => head + c)
                 .ToList();
+        }
+
+        private static readonly Dictionary<string, Func<int, IEnumerable<string>>> _completers = new(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>Варианты аргументов команды: completer(номер токена после имени) → строки.</summary>
+        public static void RegisterCompleter(string command, Func<int, IEnumerable<string>> completer) => _completers[command] = completer;
+
+        private static IEnumerable<string> ArgumentCandidates(string name, int tokenIndex)
+        {
+            if (_completers.TryGetValue(name, out var completer))
+                return completer(tokenIndex) ?? Enumerable.Empty<string>();
+            if (name.Equals("help", StringComparison.OrdinalIgnoreCase) || name.Equals("find", StringComparison.OrdinalIgnoreCase))
+                return tokenIndex == 0 ? _commands.Keys.Concat(_cvars.Keys) : Enumerable.Empty<string>();
+            if (name.Equals("reset", StringComparison.OrdinalIgnoreCase))
+                return tokenIndex == 0 ? _cvars.Keys : Enumerable.Empty<string>();
+            if (_cvars.TryGetValue(name, out var cvar))
+                return tokenIndex == 0 ? ValuesOf(cvar.ValueType) : Enumerable.Empty<string>();
+            if (_commands.TryGetValue(name, out var command))
+            {
+                // Параметр, на который попадает токен (Vector3 занимает три токена).
+                int token = 0;
+                foreach (var parameter in command.Parameters)
+                {
+                    int width = parameter.ParameterType == typeof(Vector3) ? 3 : parameter.ParameterType == typeof(Vector2) ? 2 : 1;
+                    if (tokenIndex < token + width)
+                        return ValuesOf(parameter.ParameterType);
+                    token += width;
+                }
+            }
+            return Enumerable.Empty<string>();
+        }
+
+        private static IEnumerable<string> ValuesOf(Type type)
+        {
+            if (type == typeof(bool))
+                return new[] { "0", "1" };
+            if (type.IsEnum)
+                return Enum.GetNames(type);
+            return Enumerable.Empty<string>();
         }
 
         public static string CommonPrefix(IReadOnlyList<string> values)
@@ -298,6 +361,8 @@ namespace VoidMall.Console
         private static void ResetStatics()
         {
             Application.logMessageReceived -= OnUnityLog;
+            Application.quitting -= ConsoleConfig.WriteConfig;
+            _completers.Clear();
             foreach (var cvar in _cvars.Values)
             {
                 cvar.ClearSubscribers();
