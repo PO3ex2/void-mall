@@ -6,6 +6,7 @@ using UnityEngine.UIElements;
 using VoidMall.Console;
 using VoidMall.Core;
 using VoidMall.Input;
+using VoidMall.Items;
 using VoidMall.Player;
 using VoidMall.World;
 
@@ -36,7 +37,7 @@ namespace VoidMall.Game
         private enum Mode { None, Hold, Drag }
 
         private PlayerMotor _motor;
-        private DebugBlockTool _tool;
+        private ToolController _tool;
         private Camera _camera;
         private InputAction _interact;
         private InputAction _primary;
@@ -78,7 +79,7 @@ namespace VoidMall.Game
         private void Start()
         {
             _camera = GetComponentInChildren<Camera>();
-            _tool = GetComponent<DebugBlockTool>();
+            _tool = GetComponent<ToolController>();
             if (Services.TryGet(out InputService input))
             {
                 const string map = InputService.Maps.Player;
@@ -108,6 +109,11 @@ namespace VoidMall.Game
                 Release();
 
             _target = _mode == Mode.None ? FindTarget() : null;
+            if (_mode != Mode.None)
+            {
+                _worldItemTarget = null;
+                _shelfItemTarget = -1;
+            }
 
             if (_mode != Mode.None)
                 UpdateCarrying();
@@ -122,14 +128,65 @@ namespace VoidMall.Game
         private PropBody FindTarget()
         {
             var view = _camera.transform;
-            int mask = (1 << GameLayers.World) | (1 << GameLayers.Props);
-            if (Physics.Raycast(view.position, view.forward, out var hit, Reach, mask, QueryTriggerInteraction.Ignore)
-                && PropManager.TryGetProp(hit.collider, out var body))
+            var ray = new Ray(view.position, view.forward);
+            _worldItemTarget = null;
+            _shelfItemTarget = -1;
+            int mask = (1 << GameLayers.World) | (1 << GameLayers.Props) | (1 << GameLayers.Debris);
+            if (!Physics.Raycast(ray, out var hit, Reach, mask, QueryTriggerInteraction.Ignore))
+                return null;
+            // Предмет на полу — сразу цель подбора.
+            if (WorldItems.TryGet(hit.collider, out var worldItem))
             {
-                _targetPoint = hit.point;
-                return body;
+                _worldItemTarget = worldItem;
+                return null;
             }
-            return null;
+            if (!PropManager.TryGetProp(hit.collider, out var body))
+                return null;
+            _targetPoint = hit.point;
+            // Товар на полке перед лучом важнее самой полки.
+            if (ShelfLoot.Instance != null && ShelfLoot.Instance.TryPick(body, ray, Reach, out int item, out _))
+                _shelfItemTarget = item;
+            return body;
+        }
+
+        private WorldItem _worldItemTarget;
+        private int _shelfItemTarget = -1;
+
+        /// <summary>E по предмету: с полки или с пола — в инвентарь.</summary>
+        private bool TryPickItem()
+        {
+            var inventory = PlayerInventory.Local;
+            if (inventory == null)
+                return false;
+            ItemStack stack = null;
+            Vector3 dropPoint = default;
+            if (_worldItemTarget != null)
+            {
+                dropPoint = _worldItemTarget.transform.position;
+                stack = WorldItems.Instance.Take(_worldItemTarget);
+                _worldItemTarget = null;
+            }
+            else if (_target != null && _shelfItemTarget >= 0)
+            {
+                dropPoint = _targetPoint;
+                stack = ShelfLoot.Instance.Take(_target, _shelfItemTarget);
+                _shelfItemTarget = -1;
+            }
+            if (stack == null)
+                return false;
+            var def = inventory.Items.Get(stack.Def);
+            int before = stack.Count;
+            int left = inventory.Add(stack);
+            if (left > 0)
+            {
+                WorldItems.Instance?.Spawn(stack, dropPoint + Vector3.up * 0.1f, Vector3.zero);
+                Say(left == before ? $"Некуда положить: {def.DisplayName}" : $"Взято {before - left} из {before}: {def.DisplayName} (больше не помещается)");
+            }
+            else
+            {
+                Say($"Взято: {def.DisplayName}{(before > 1 ? $" ×{before}" : "")}");
+            }
+            return true;
         }
 
         private Vector3 _targetPoint;
@@ -141,6 +198,9 @@ namespace VoidMall.Game
             {
                 _interactHeld = 0f;
                 _interactConsumed = false;
+                // Предмет под прицелом (на полу или на полке) подбирается сразу.
+                if ((_worldItemTarget != null || _shelfItemTarget >= 0) && TryPickItem())
+                    _interactConsumed = true;
             }
             if (_interact.IsPressed() && _target != null && !_interactConsumed)
             {
@@ -363,6 +423,21 @@ namespace VoidMall.Game
         /// <summary>Прибить ношу к тому, чего она касается: к клеткам мира или к другому пропу.</summary>
         private void Nail()
         {
+            var inventory = PlayerInventory.Local;
+            ushort nails = 0;
+            bool needNails = inventory != null && ItemSystem.Instance != null && ItemSystem.Instance.TryResolve("material.nails", out nails) && !ItemSystem.Creative.Value;
+            if (needNails && inventory.CountOf(nails) <= 0)
+            {
+                Say("Нет гвоздей");
+                return;
+            }
+            if (NailHeld() && needNails)
+                inventory.TryConsume(nails, 1);
+        }
+
+        /// <summary>Прибить ношу. true — прибито.</summary>
+        private bool NailHeld()
+        {
             var held = _held;
             Bounds bounds = held.GroupBounds();
             Vector3 halfExtents = bounds.extents + Vector3.one * 0.08f;
@@ -401,15 +476,18 @@ namespace VoidMall.Game
             {
                 PropManager.Instance.NailToProp(held, targetProp);
                 Say($"Прибито к: {targetProp.Def.DisplayName}");
+                return true;
             }
             else if (cells.Count > 0)
             {
                 PropManager.Instance.NailToWorld(held, cells);
                 Say("Прибито");
+                return true;
             }
             else
             {
                 Say("Не к чему прибить — поднесите проп вплотную к стене, полу или другому пропу");
+                return false;
             }
         }
 
@@ -514,9 +592,24 @@ namespace VoidMall.Game
                 text = $"Тащите: {_held.Def.DisplayName} ({_held.GroupMass:0} кг) · E — отпустить"
                        + (_tool != null && _tool.HammerActive ? " · ПКМ — прибить" : "");
             }
+            else if (!_interact.actionMap.enabled)
+            {
+                // Открыто окно или консоль — подсказки прицела не нужны.
+                text = string.Empty;
+            }
             else if (_disassembleTarget != null)
             {
                 text = $"Разбор: {_disassembleTarget.Def.DisplayName} {_disassembleProgress * 100f:0}%";
+            }
+            else if (_worldItemTarget != null && PlayerInventory.Local != null)
+            {
+                var stack = _worldItemTarget.Stack;
+                text = $"{PlayerInventory.Local.Items.Get(stack.Def).DisplayName}{(stack.Count > 1 ? $" ×{stack.Count}" : "")} · E — взять";
+            }
+            else if (_target != null && _shelfItemTarget >= 0 && ShelfLoot.Instance != null && PlayerInventory.Local != null
+                     && ShelfLoot.Instance.TryGetItem(_target, _shelfItemTarget, out var shelfItem))
+            {
+                text = $"{PlayerInventory.Local.Items.Get(shelfItem.Def).DisplayName}{(shelfItem.Count > 1 ? $" ×{shelfItem.Count}" : "")} · E — взять";
             }
             else if (_target != null)
             {

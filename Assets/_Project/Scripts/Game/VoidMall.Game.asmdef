@@ -8,6 +8,7 @@
         "VoidMall.Console",
         "VoidMall.Player",
         "VoidMall.World",
+        "VoidMall.Items",
         "VoidMall.UI",
         "Unity.Mathematics",
         "Unity.InputSystem"

@@ -73,13 +73,17 @@ namespace VoidMall.World
             MallCellInfo info = MallPlanner.GetCellInfo(Seed, AnomalyFrequency, cell);
 
             // Колонки: расстояние до оси аномалии и попадание в вырез считаем один раз на (x, z).
+            // Большая бездна соседней ячейки — вторая аномалия этой ячейки (зоны со своей не пересекаются).
+            MallCellInfo big = info.HasBigAbyss ? info.WithBigAbyss() : default;
             var radial = new NativeArray<float>(Size * Size, Allocator.Temp);
+            var radialBig = new NativeArray<float>(Size * Size, Allocator.Temp);
             var cut = new NativeArray<bool>(Size * Size, Allocator.Temp);
             for (int z = 0; z < Size; z++)
             for (int x = 0; x < Size; x++)
             {
                 float2 world = new float2(origin.x + x + 0.5f, origin.z + z + 0.5f);
                 radial[x + z * Size] = math.distance(world, info.AnomalyCenter);
+                radialBig[x + z * Size] = info.HasBigAbyss ? math.distance(world, big.AnomalyCenter) : float.MaxValue;
                 cut[x + z * Size] = info.Anomaly == AnomalyKind.Cutout
                     && world.x >= info.AnomalyCenter.x && world.x < info.AnomalyCenter.x + Size
                     && world.y >= info.AnomalyCenter.y && world.y < info.AnomalyCenter.y + Size;
@@ -87,6 +91,7 @@ namespace VoidMall.World
 
             var plan = new MallLevelPlan(Allocator.Temp);
             var lining = BuildLining(info, origin, cellOrigin, radial, ref plan);
+            var liningBig = BuildLining(big, origin, cellOrigin, radialBig, ref plan);
             int y = 0;
             while (y < Size)
             {
@@ -107,7 +112,8 @@ namespace VoidMall.World
                 {
                     int3 p = origin + new int3(x, ly, z);
                     int column = x + z * Size;
-                    Cell value = GenerateCell(p, p.xz - cellOrigin, level, hasPlan, plan, info, radial[column], cut[column], lining[column]);
+                    Cell value = GenerateCell(p, p.xz - cellOrigin, level, hasPlan, plan, info, radial[column], cut[column], lining[column],
+                        big, radialBig[column], liningBig[column]);
                     Cells[WorldConstants.CellIndex(x, ly, z)] = value;
                     if (value.Material != 0 && (value.Material == M.Lamp || value.Material == M.Emergency || value.Material == M.Skylight))
                         Lamps.Add(p);
@@ -116,6 +122,8 @@ namespace VoidMall.World
             }
             plan.Dispose();
             radial.Dispose();
+            radialBig.Dispose();
+            liningBig.Dispose();
             cut.Dispose();
             lining.Dispose();
 
@@ -126,29 +134,15 @@ namespace VoidMall.World
             IsUniform[0] = (byte)(uniform ? 1 : 0);
         }
 
-        private Cell GenerateCell(int3 p, int2 local, int level, bool hasPlan, in MallLevelPlan plan, in MallCellInfo info, float radial, bool cut, ushort lining)
+        private Cell GenerateCell(int3 p, int2 local, int level, bool hasPlan, in MallLevelPlan plan, in MallCellInfo info, float radial, bool cut, ushort lining,
+            in MallCellInfo big, float radialBig, ushort liningBig)
         {
             // Вырез: от дна мира до потолка уровня — пустота.
             if (cut && p.y <= MallLayout.CeilingRow(info.AnomalyLevel))
                 return Cell.Air;
 
-            bool inAbyss = info.Anomaly == AnomalyKind.Abyss && radial < MallAnomalies.AbyssZoneRadius(info.AnomalyRadius);
-            bool inPool = info.Anomaly == AnomalyKind.Pool && radial < MallAnomalies.PoolZoneRadius(info.AnomalyRadius);
-            if ((inAbyss || inPool) && p.y < MallLayout.CeilingRow(info.AnomalyLevel))
-            {
-                // Поле расстояния аномалии: над полом — воздух с плотностью (плавный край), в оболочке — гладкий материал,
-                // за оболочкой — обычный мол (потолок и комнаты уровня ниже).
-                float floorTop = MallLayout.FloorTop(info.AnomalyLevel);
-                float s = inAbyss
-                    ? MallAnomalies.ShaftSolidDistance(radial, p.y + 0.5f, info.AnomalyRadius, floorTop)
-                    : MallAnomalies.PoolSolidDistance(radial, p.y + 0.5f, info.AnomalyRadius, info.AnomalyDepth, floorTop);
-                if (s <= MallAnomalies.ShellThickness)
-                {
-                    // Облицовка — пол раздела (гладкий двойник); стенки шахты глубже кромки — бетон.
-                    bool lined = inPool || p.y + 0.5f > floorTop - MallAnomalies.LipRadius - 1.5f;
-                    return ShellCell(s, lined ? lining : M.ConcreteMass);
-                }
-            }
+            if (TryShell(p, info, radial, lining, out Cell shell) || TryShell(p, big, radialBig, liningBig, out shell))
+                return shell;
 
             if (p.y == 0)
                 return new Cell(M.Bedrock);
@@ -158,14 +152,40 @@ namespace VoidMall.World
                 return p.y == MallLayout.RoofY ? new Cell(M.Concrete) : Cell.Air;
             Cell cell = GenerateLevelCell(p, local, level, plan, info);
             // Лампы за оболочкой аномалии торчали бы в стенках шахты или чаши — там просто потолок.
-            if ((cell.Material == M.Lamp || cell.Material == M.Emergency) && p.y < MallLayout.FloorTop(info.AnomalyLevel))
-            {
-                bool nearAbyss = info.Anomaly == AnomalyKind.Abyss && radial < MallAnomalies.AbyssZoneRadius(info.AnomalyRadius) + 1f;
-                bool nearPool = info.Anomaly == AnomalyKind.Pool && radial < MallAnomalies.PoolZoneRadius(info.AnomalyRadius) + 1f;
-                if (nearAbyss || nearPool)
-                    return new Cell(M.Concrete);
-            }
+            if ((cell.Material == M.Lamp || cell.Material == M.Emergency) && (NearShell(p, info, radial) || NearShell(p, big, radialBig)))
+                return new Cell(M.Concrete);
             return cell;
+        }
+
+        /// <summary>
+        /// Клетка в оболочке бездны или котлована: над полом — воздух с плотностью (плавный край), в оболочке — гладкий
+        /// материал. За оболочкой (ложь) — обычный мол: потолок и комнаты уровня ниже.
+        /// </summary>
+        private bool TryShell(int3 p, in MallCellInfo anomaly, float radial, ushort lining, out Cell cell)
+        {
+            cell = default;
+            bool inAbyss = anomaly.Anomaly == AnomalyKind.Abyss && radial < MallAnomalies.AbyssZoneRadius(anomaly.AnomalyRadius);
+            bool inPool = anomaly.Anomaly == AnomalyKind.Pool && radial < MallAnomalies.PoolZoneRadius(anomaly.AnomalyRadius);
+            if ((!inAbyss && !inPool) || p.y >= MallLayout.CeilingRow(anomaly.AnomalyLevel))
+                return false;
+            float floorTop = MallLayout.FloorTop(anomaly.AnomalyLevel);
+            float s = inAbyss
+                ? MallAnomalies.ShaftSolidDistance(radial, p.y + 0.5f, anomaly.AnomalyRadius, floorTop)
+                : MallAnomalies.PoolSolidDistance(radial, p.y + 0.5f, anomaly.AnomalyRadius, anomaly.AnomalyDepth, floorTop);
+            if (s > MallAnomalies.ShellThickness)
+                return false;
+            // Облицовка — пол раздела (гладкий двойник); стенки шахты глубже кромки — бетон.
+            bool lined = inPool || p.y + 0.5f > floorTop - MallAnomalies.LipRadius - 1.5f;
+            cell = ShellCell(s, lined ? lining : M.ConcreteMass);
+            return true;
+        }
+
+        private static bool NearShell(int3 p, in MallCellInfo anomaly, float radial)
+        {
+            if (p.y >= MallLayout.FloorTop(anomaly.AnomalyLevel))
+                return false;
+            return (anomaly.Anomaly == AnomalyKind.Abyss && radial < MallAnomalies.AbyssZoneRadius(anomaly.AnomalyRadius) + 1f)
+                || (anomaly.Anomaly == AnomalyKind.Pool && radial < MallAnomalies.PoolZoneRadius(anomaly.AnomalyRadius) + 1f);
         }
 
         /// <summary>

@@ -1,0 +1,33 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9d82c1d3ec8293645bea9e08775ed601, type: 3}
+  m_Name: furniture
+  m_EditorClassIdentifier: VoidMall.Items::VoidMall.Items.LootTable
+  Section: section.furniture
+  Fill: 0.2
+  Entries:
+  - Item: {fileID: 11400000, guid: 71199ea977a4b4a4f912836631e799cc, type: 2}
+    Weight: 5
+    Min: 1
+    Max: 3
+  - Item: {fileID: 11400000, guid: ceb82ee6607d4d041bbc3de6c6ed5350, type: 2}
+    Weight: 5
+    Min: 1
+    Max: 3
+  - Item: {fileID: 11400000, guid: d88f6e21eb26ab54e9ea2b49d496671e, type: 2}
+    Weight: 3
+    Min: 1
+    Max: 2
+  - Item: {fileID: 11400000, guid: 7abc83b8fa88c1e4ca6d2e6e7ae94cd7, type: 2}
+    Weight: 3
+    Min: 5
+    Max: 20

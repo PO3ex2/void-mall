@@ -98,6 +98,9 @@ namespace VoidMall.Editor
             world.AddComponent<LightingDirector>();
             world.AddComponent<AnomalyFxDirector>();
             var props = world.AddComponent<PropManager>();
+            var itemSystem = world.AddComponent<VoidMall.Items.ItemSystem>();
+            world.AddComponent<VoidMall.Items.WorldItems>();
+            world.AddComponent<VoidMall.Items.ShelfLoot>();
             ProjectSetup.SetReference(debris, "_dustMaterial", AssetDatabase.LoadAssetAtPath<Material>(WorldAssetsSetup.DustMaterialPath));
             ProjectSetup.SetReference(chunkManager, "_catalog", AssetDatabase.LoadAssetAtPath<MaterialCatalog>(WorldAssetsSetup.CatalogPath));
             ProjectSetup.SetReference(chunkManager, "_opaqueMaterial", AssetDatabase.LoadAssetAtPath<Material>(WorldAssetsSetup.BlockOpaqueMaterialPath));
@@ -108,6 +111,9 @@ namespace VoidMall.Editor
             ProjectSetup.SetReference(props, "_set", AssetDatabase.LoadAssetAtPath<PropSet>(PropAssetsSetup.PropSetPath));
             ProjectSetup.SetReference(props, "_material", AssetDatabase.LoadAssetAtPath<Material>(WorldAssetsSetup.PropsMaterialPath));
             ProjectSetup.SetReference(props, "_dustMaterial", AssetDatabase.LoadAssetAtPath<Material>(WorldAssetsSetup.DustMaterialPath));
+            ProjectSetup.SetReference(itemSystem, "_items", AssetDatabase.LoadAssetAtPath<VoidMall.Items.ItemSet>(ItemAssetsSetup.ItemSetPath));
+            ProjectSetup.SetReference(itemSystem, "_loot", AssetDatabase.LoadAssetAtPath<VoidMall.Items.LootTableSet>(ItemAssetsSetup.LootSetPath));
+            ProjectSetup.SetReference(itemSystem, "_material", AssetDatabase.LoadAssetAtPath<Material>(WorldAssetsSetup.PropsMaterialPath));
 
             var playerPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(ProjectSetup.PlayerPrefabPath);
             if (playerPrefab != null)
@@ -117,7 +123,8 @@ namespace VoidMall.Editor
                 float frequency = settings != null ? settings.AnomalyFrequency : 1f;
                 player.transform.position = MallPlanner.FindSpawn(seed, frequency);
                 player.AddComponent<WorldViewer>();
-                var tool = player.AddComponent<VoidMall.Game.DebugBlockTool>();
+                player.AddComponent<VoidMall.Items.PlayerInventory>();
+                var tool = player.AddComponent<VoidMall.Game.ToolController>();
                 player.AddComponent<VoidMall.Game.PropInteractor>();
                 ProjectSetup.SetReference(tool, "_outlineMaterial", AssetDatabase.LoadAssetAtPath<Material>(WorldAssetsSetup.OutlineMaterialPath));
                 ProjectSetup.SetReference(tool, "_crackMaterial", AssetDatabase.LoadAssetAtPath<Material>(WorldAssetsSetup.CracksMaterialPath));

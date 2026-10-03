@@ -35,6 +35,18 @@ namespace VoidMall.World
         public int LoadedBuckets => _buckets.Count;
         public int StateCount => _states.Count;
 
+        /// <summary>Проп появился в мире (из корзины или свободный).</summary>
+        public event System.Action<PropBody> PropSpawned;
+
+        /// <summary>Проп сейчас уйдёт в пул (выгрузка).</summary>
+        public event System.Action<PropBody> PropDespawning;
+
+        /// <summary>Проп проснулся (его взяли, толкнули, выбили опору).</summary>
+        public event System.Action<PropBody> PropWoken;
+
+        /// <summary>Проп уничтожен (сломан, разобран, упал в пустоту) — до ухода в пул.</summary>
+        public event System.Action<PropBody, PropRemoveReason> PropRemoved;
+
         /// <summary>Изменённое за сессию состояние пропа.</summary>
         private sealed class PropState
         {
@@ -366,17 +378,39 @@ namespace VoidMall.World
             var renderer = body.GetComponent<MeshRenderer>();
             renderer.sharedMaterial = def.Material != null ? def.Material : _material;
             renderer.enabled = Visible.Value;
-            var box = body.GetComponent<BoxCollider>();
-            box.size = def.Size;
-            box.center = new Vector3(0f, def.Size.y * 0.5f, 0f);
-            box.enabled = Visible.Value;
+            SetupColliders(body, def);
             body.Initialize(this, id, defIndex, def);
+            PropSpawned?.Invoke(body);
             _live[id] = body;
             return body;
         }
 
+        private readonly List<Bounds> _parts = new();
+
+        /// <summary>Коллайдер по форме: одна коробка или несколько частей (стеллажи), лишние компоненты из пула выключаются.</summary>
+        private void SetupColliders(PropBody body, PropDef def)
+        {
+            PropMeshes.GetColliderParts(def.Shape, def.Size, _parts);
+            if (_parts.Count == 0)
+                _parts.Add(new Bounds(new Vector3(0f, def.Size.y * 0.5f, 0f), def.Size));
+            body.GetComponents(body.Colliders);
+            while (body.Colliders.Count < _parts.Count)
+                body.Colliders.Add(body.gameObject.AddComponent<BoxCollider>());
+            for (int i = 0; i < body.Colliders.Count; i++)
+            {
+                var box = body.Colliders[i];
+                box.enabled = i < _parts.Count && Visible.Value;
+                if (i >= _parts.Count)
+                    continue;
+                box.center = _parts[i].center;
+                box.size = _parts[i].size;
+            }
+            body.Colliders.RemoveRange(_parts.Count, body.Colliders.Count - _parts.Count);
+        }
+
         private void Despawn(PropBody body)
         {
+            PropDespawning?.Invoke(body);
             if (body.Parent != null)
                 body.Detach(_root);
             if (body.Body != null)
@@ -404,7 +438,8 @@ namespace VoidMall.World
             foreach (var body in _live.Values)
             {
                 body.GetComponent<MeshRenderer>().enabled = Visible.Value;
-                body.Collider.enabled = Visible.Value;
+                foreach (var part in body.Colliders)
+                    part.enabled = Visible.Value;
             }
         }
 
@@ -424,6 +459,7 @@ namespace VoidMall.World
         internal void OnWoken(PropBody body)
         {
             MarkLoose(body);
+            PropWoken?.Invoke(body);
         }
 
         /// <summary>Проп успокоился: запоминаем новое положение (вместе с детьми).</summary>
@@ -629,13 +665,14 @@ namespace VoidMall.World
             if (body.Anchors.Count > 0)
                 ClearAnchors(body);
 
-            var bounds = body.Collider.bounds;
+            var bounds = body.Bounds;
             if (reason != PropRemoveReason.Void)
             {
                 EventBus<PropSalvagedEvent>.Publish(new PropSalvagedEvent { Def = body.Def, Disassembled = reason == PropRemoveReason.Disassembled, Position = bounds.center });
                 if (reason == PropRemoveReason.Broken)
                     SpawnBreakFx(body.Def, bounds, body.transform.rotation);
             }
+            PropRemoved?.Invoke(body, reason);
             GetState(body).Removed = true;
             Despawn(body);
         }

@@ -210,6 +210,7 @@ namespace VoidMall.Editor
 
             CreateMallAssets(catalog);
             PropAssetsSetup.CreatePropAssets();
+            ItemAssetsSetup.CreateItemAssets();
         }
 
         // ───────────────────────────── Разделы и настройки мира ─────────────────────────────

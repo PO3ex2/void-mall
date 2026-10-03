@@ -102,6 +102,6 @@ namespace VoidMall.World
         }
 
         private static bool InAnomaly(in MallCellInfo info, int level, float2 world) =>
-            info.Anomaly != AnomalyKind.None && PropPlacer.InAnomaly(info, level, world, 0f);
+            PropPlacer.InAnomaly(info, level, world, 0f);
     }
 }

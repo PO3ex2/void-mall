@@ -1,0 +1,45 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9d82c1d3ec8293645bea9e08775ed601, type: 3}
+  m_Name: sports
+  m_EditorClassIdentifier: VoidMall.Items::VoidMall.Items.LootTable
+  Section: section.sports
+  Fill: 0.3
+  Entries:
+  - Item: {fileID: 11400000, guid: 998eebf67a87d584d9dcffea95073789, type: 2}
+    Weight: 4
+    Min: 1
+    Max: 1
+  - Item: {fileID: 11400000, guid: 86ffc21aa8108f845918a5835fa7538f, type: 2}
+    Weight: 2
+    Min: 1
+    Max: 1
+  - Item: {fileID: 11400000, guid: 80385318226618d4995b14ea8e082fa5, type: 2}
+    Weight: 4
+    Min: 1
+    Max: 1
+  - Item: {fileID: 11400000, guid: 37f70e74f8fff1340abfc56d33411be9, type: 2}
+    Weight: 3
+    Min: 1
+    Max: 1
+  - Item: {fileID: 11400000, guid: 3084555744b3b5c458dcaf003d0a439e, type: 2}
+    Weight: 4
+    Min: 1
+    Max: 1
+  - Item: {fileID: 11400000, guid: 5d84514f17339d041ae45ba5ee4d3134, type: 2}
+    Weight: 5
+    Min: 1
+    Max: 2
+  - Item: {fileID: 11400000, guid: c8903ebacc459e247a7480c8d87ca6bc, type: 2}
+    Weight: 3
+    Min: 1
+    Max: 1

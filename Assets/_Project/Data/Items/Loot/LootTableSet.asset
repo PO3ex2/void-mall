@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b759b9e2a7df958488b038910f5c508c, type: 3}
+  m_Name: LootTableSet
+  m_EditorClassIdentifier: VoidMall.Items::VoidMall.Items.LootTableSet
+  Default: {fileID: 11400000, guid: 1c5f0573c526e3643be4c0e58691c35a, type: 2}
+  Tables:
+  - {fileID: 11400000, guid: 19e897a9068d1c14abb371c840f0ca63, type: 2}
+  - {fileID: 11400000, guid: 4bb9661b01da8ca49ad41e40475e3716, type: 2}
+  - {fileID: 11400000, guid: a3a58cd3c1645054f9ea2c24b5ca1f77, type: 2}
+  - {fileID: 11400000, guid: fcb4bb597db7fb64a9bb27cd9dd900f0, type: 2}
+  - {fileID: 11400000, guid: 64fcc2968afbf8a4cbd54616492aaeb7, type: 2}
+  - {fileID: 11400000, guid: f4e445f9b7d3386439c153473aae40d5, type: 2}
+  - {fileID: 11400000, guid: a15853292b49ff64c95f70a15bbd2dfc, type: 2}
+  - {fileID: 11400000, guid: fce28299b3a4d164fab45181096da243, type: 2}
+  - {fileID: 11400000, guid: b5ccc2e580454214eac15ecff229f0ad, type: 2}
+  - {fileID: 11400000, guid: d7c88744a75dcaa4590e112288c46fb6, type: 2}
+  - {fileID: 11400000, guid: 3e6387a126a3f6a4fa83a8bd428dc35e, type: 2}
+  - {fileID: 11400000, guid: e01bc65fd0b62924a9b1963dcda89643, type: 2}

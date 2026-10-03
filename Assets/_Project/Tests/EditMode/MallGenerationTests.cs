@@ -124,6 +124,59 @@ namespace VoidMall.Tests
         }
 
         [Test]
+        public void Anomalies_VaryInSize_AndBigAbyssesSpareCoresAndReachNeighbours()
+        {
+            float abyssMin = float.MaxValue, abyssMax = 0f, poolMin = float.MaxValue, poolMax = 0f;
+            int foreign = 0;
+            for (int z = -30; z < 30; z++)
+            for (int x = -30; x < 30; x++)
+            {
+                var info = MallPlanner.GetCellInfo(77, 1f, new int2(x, z));
+                if (info.HasBigAbyss)
+                {
+                    foreign++;
+                    // Своя аномалия ячейки и пришедшая бездна соседа не пересекаются.
+                    float bigZone = MallAnomalies.AbyssZoneRadius(info.BigAbyssRadius);
+                    if (info.Anomaly == AnomalyKind.Abyss || info.Anomaly == AnomalyKind.Pool)
+                    {
+                        float own = info.Anomaly == AnomalyKind.Abyss ? MallAnomalies.AbyssZoneRadius(info.AnomalyRadius) : MallAnomalies.PoolZoneRadius(info.AnomalyRadius);
+                        Assert.That(math.distance(info.AnomalyCenter, info.BigAbyssCenter), Is.GreaterThan(own + bigZone), $"Аномалии ячейки {x},{z} пересекаются");
+                    }
+                }
+                float zone;
+                if (info.Anomaly == AnomalyKind.Pool)
+                {
+                    zone = MallAnomalies.PoolZoneRadius(info.AnomalyRadius);
+                    poolMin = math.min(poolMin, zone * 2f);
+                    poolMax = math.max(poolMax, zone * 2f);
+                }
+                else if (info.Anomaly == AnomalyKind.Abyss)
+                {
+                    zone = MallAnomalies.AbyssZoneRadius(info.AnomalyRadius);
+                    abyssMin = math.min(abyssMin, zone * 2f);
+                    abyssMax = math.max(abyssMax, zone * 2f);
+                }
+                else
+                    continue;
+                // Ни одно ядро (лестница, лифт) в окне 3×3 не попадает в зону аномалии.
+                for (int dz = -1; dz <= 1; dz++)
+                for (int dx = -1; dx <= 1; dx++)
+                {
+                    int2 cell = new(x + dx, z + dz);
+                    var other = MallPlanner.GetCellInfo(77, 1f, cell);
+                    float2 origin = MallLayout.CellOrigin(cell);
+                    float2 nearest = math.clamp(info.AnomalyCenter, origin + (float2)other.CoreRect.xy, origin + (float2)other.CoreRect.zw);
+                    Assert.That(math.distance(nearest, info.AnomalyCenter), Is.GreaterThanOrEqualTo(zone), $"{info.Anomaly} ячейки {x},{z} задевает ядро {cell}");
+                }
+            }
+            Assert.That(poolMin, Is.GreaterThanOrEqualTo(13f - 0.01f), "Котлован от 13 м");
+            Assert.That(poolMax, Is.LessThanOrEqualTo(30f + 0.01f), "Котлован до 30 м");
+            Assert.That(abyssMin, Is.LessThan(16f), "Есть бездны меньше прежних (~16 м)");
+            Assert.That(abyssMax, Is.GreaterThan(45f), "Есть огромные бездны");
+            Assert.That(foreign, Is.GreaterThan(0), "Большие бездны дотягиваются до соседних ячеек");
+        }
+
+        [Test]
         public void PoolLining_UsesSmoothVariantOfSectionFloor()
         {
             // Гладкие двойники полов разделов: 20 → 30, 24 → 31, 2 → 32.

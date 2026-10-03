@@ -33,10 +33,12 @@ git clone https://github.com/PO3ex2/void-mall.git
 
 | Действие | Клавиши |
 |---|---|
-| Инструмент: молоток / бур | 1 / 2 |
-| Молоток: ломать (удержание) / поставить блок | ЛКМ / ПКМ |
-| Бур: срезать / нарастить гладкий массив | ЛКМ / ПКМ (удержание) |
-| Выбрать блок или материал / взять под прицелом | Колесо / СКМ |
+| Слот хотбара | 1–9 / колесо |
+| Действие предмета в руке: ударить, есть, надеть, включить фонарик | ЛКМ |
+| Поставить блок (блок в руке) / нарастить массив (перфоратор, тратит грунт или крошку) | ПКМ |
+| Перфоратор: срезать гладкий массив | ЛКМ (удержание) |
+| Инвентарь и экипировка (перетаскивание, R — повернуть, ПКМ — использовать, Shift+клик — переложить, за окно — выбросить) | Tab |
+| Взять предмет с полки или с пола | E (прицелом) |
 | HUD (позиция, этаж, раздел, время, освещённость) | F3 |
 | Карта этажа | F6 |
 | Проп: взять (до 20 кг) или тащить (до 300 кг) / отпустить | E |
@@ -49,7 +51,9 @@ git clone https://github.com/PO3ex2/void-mall.git
 
 Команды мола: `where` (где я), `anomalies` (ближайшие аномалии), `goto_anomaly abyss|pool|cutout|distortion|glitch`, `time 22.5` (время суток, ночью свет гаснет), `time_daylength 60`, `time_frozen 1`, `seed 42` (пересоздать мир), `regen_chunk`, `world_props 0`, `world_prop_radius 80`, `r_lamplights 40`, `r_lampshadows 2`, `fx_anomaly_strength 1`.
 
-Команды мира: `blocks`, `setblock x y z материал`, `fill x1 y1 z1 x2 y2 z2 материал`, `world_info`, `r_viewdistance 8`, `tool_damage 1000`, `drill_radius 2`, `drill_strength 1`, `debug_mining_log 0`.
+Команды мира: `blocks`, `setblock x y z материал`, `fill x1 y1 z1 x2 y2 z2 материал`, `world_info`, `r_viewdistance 8`, `tool_hand_damage 15`, `drill_radius 2`, `debug_mining_log 0`.
+
+Команды предметов: `give hammer` / `give nails 50` / `give block.concrete 32` (Tab дополняет ID), `items_list [фильтр]`, `inventory`, `clear_inventory`, `loot_info`, `sv_creative 1` (блоки и гвозди не тратятся), `sv_carry_capacity 30`, `sv_loot_scale 1` (заполненность полок), `r_itemdistance 35`. Игрок начинает с пустыми руками: всё нужное находится на полках или добывается. Иконки после замены моделей: **Void Mall → Setup → Render Item Icons**.
 
 Консоль: Tab дополняет команды и аргументы (материалы, виды аномалий, 0/1). Настройки (чувствительность, FOV, графика) сохраняются в `config.cfg` в папке данных игры, свои команды при старте — в `autoexec.cfg`; `exec файл`, `host_writeconfig`.
 

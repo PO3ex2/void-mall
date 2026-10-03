@@ -135,6 +135,28 @@ namespace VoidMall.World
         /// <summary>Котлован — глубина чаши.</summary>
         public float AnomalyDepth;
 
+        /// <summary>
+        /// Большая бездна соседней ячейки, дотянувшаяся сюда (у ячейки может быть и своя аномалия — их зоны не
+        /// пересекаются). Генерация, пропы и структуры учитывают её наравне со своей, в списки аномалий она не входит.
+        /// </summary>
+        public bool HasBigAbyss;
+        public float2 BigAbyssCenter;
+        public float BigAbyssRadius;
+        public int BigAbyssLevel;
+
+        /// <summary>Эта же ячейка, но с большой бездной соседа на месте своей аномалии (для общих проверок).</summary>
+        public MallCellInfo WithBigAbyss()
+        {
+            var copy = this;
+            copy.Anomaly = AnomalyKind.Abyss;
+            copy.AnomalyCenter = BigAbyssCenter;
+            copy.AnomalyRadius = BigAbyssRadius;
+            copy.AnomalyLevel = BigAbyssLevel;
+            copy.AnomalyDepth = 0f;
+            copy.HasBigAbyss = false;
+            return copy;
+        }
+
         public int MarkerCount;
         public AnomalyMarker Marker0, Marker1;
 

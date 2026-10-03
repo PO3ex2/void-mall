@@ -21,6 +21,9 @@ namespace VoidMall.World
         public PropDef Def { get; private set; }
         public PropManager Manager { get; private set; }
         public BoxCollider Collider { get; private set; }
+
+        /// <summary>Все части коллайдера (у стеллажей — стенки и полки, у остальных — одна коробка).</summary>
+        public readonly List<BoxCollider> Colliders = new();
         public Rigidbody Body { get; private set; }
 
         public PropBody Parent { get; private set; }
@@ -199,10 +202,23 @@ namespace VoidMall.World
                 child.SetLayer(layer);
         }
 
+        /// <summary>Мировые габариты самого пропа (по всем частям коллайдера).</summary>
+        public Bounds Bounds
+        {
+            get
+            {
+                var bounds = Collider.bounds;
+                foreach (var part in Colliders)
+                    if (part.enabled)
+                        bounds.Encapsulate(part.bounds);
+                return bounds;
+            }
+        }
+
         /// <summary>Мировые габариты группы.</summary>
         public Bounds GroupBounds()
         {
-            var bounds = Collider.bounds;
+            var bounds = Bounds;
             foreach (var child in Children)
                 bounds.Encapsulate(child.GroupBounds());
             return bounds;

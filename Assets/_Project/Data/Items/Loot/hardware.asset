@@ -1,0 +1,73 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9d82c1d3ec8293645bea9e08775ed601, type: 3}
+  m_Name: hardware
+  m_EditorClassIdentifier: VoidMall.Items::VoidMall.Items.LootTable
+  Section: section.hardware
+  Fill: 0.3
+  Entries:
+  - Item: {fileID: 11400000, guid: f0a2e60a1f53bc849a79ea182f2ed795, type: 2}
+    Weight: 10
+    Min: 10
+    Max: 40
+  - Item: {fileID: 11400000, guid: 7abc83b8fa88c1e4ca6d2e6e7ae94cd7, type: 2}
+    Weight: 8
+    Min: 10
+    Max: 40
+  - Item: {fileID: 11400000, guid: 50e2e49f1a3082748ac847e26f681254, type: 2}
+    Weight: 3
+    Min: 1
+    Max: 1
+  - Item: {fileID: 11400000, guid: e68cfd8d7d150f746b5e12cbfe3cea7c, type: 2}
+    Weight: 2
+    Min: 1
+    Max: 1
+  - Item: {fileID: 11400000, guid: 883095e4eff236b4eb96e544b63f3a0e, type: 2}
+    Weight: 1
+    Min: 1
+    Max: 1
+  - Item: {fileID: 11400000, guid: 248d77018e4990b48be0b490b5e7bd06, type: 2}
+    Weight: 1
+    Min: 1
+    Max: 1
+  - Item: {fileID: 11400000, guid: 1e8d2de46f48e4b44a1061cc5d4189e6, type: 2}
+    Weight: 0.3
+    Min: 1
+    Max: 1
+  - Item: {fileID: 11400000, guid: d23f8c0193ec8074ca6fd47bad705f5e, type: 2}
+    Weight: 3
+    Min: 1
+    Max: 1
+  - Item: {fileID: 11400000, guid: d88f6e21eb26ab54e9ea2b49d496671e, type: 2}
+    Weight: 6
+    Min: 1
+    Max: 4
+  - Item: {fileID: 11400000, guid: 72b45c45b372d90479d7b8d45216caac, type: 2}
+    Weight: 5
+    Min: 1
+    Max: 3
+  - Item: {fileID: 11400000, guid: 8add64b0aa81824449a2d88ee0a8810d, type: 2}
+    Weight: 3
+    Min: 1
+    Max: 2
+  - Item: {fileID: 11400000, guid: 7c298b85f5879af4b941639271cad9d9, type: 2}
+    Weight: 3
+    Min: 1
+    Max: 1
+  - Item: {fileID: 11400000, guid: 9c6ae7bfb63926141985762b3228040b, type: 2}
+    Weight: 2
+    Min: 1
+    Max: 1
+  - Item: {fileID: 11400000, guid: 6e2b6f23ab43b404eab10913ff25276e, type: 2}
+    Weight: 1
+    Min: 1
+    Max: 1

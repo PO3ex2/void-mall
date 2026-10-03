@@ -10,6 +10,7 @@
         "VoidMall.World",
         "VoidMall.UI",
         "VoidMall.Game",
+        "VoidMall.Items",
         "Unity.InputSystem",
         "UnityEditor.TestRunner",
         "UnityEngine.TestRunner"

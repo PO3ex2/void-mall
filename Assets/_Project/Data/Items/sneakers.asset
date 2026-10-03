@@ -1,0 +1,44 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9f0051f3e8b3438408ddcd1c06a3bc12, type: 3}
+  m_Name: sneakers
+  m_EditorClassIdentifier: VoidMall.Items::VoidMall.Items.ItemDef
+  _id: item.sneakers
+  DisplayName: "\u041A\u0440\u043E\u0441\u0441\u043E\u0432\u043A\u0438"
+  Description: 
+  Category: 6
+  Shape: 14
+  Tint: {r: 0.9, g: 0.9, b: 0.88, a: 1}
+  ModelSize: {x: 0.25, y: 0.12, z: 0.3}
+  Mesh: {fileID: 0}
+  Material: {fileID: 0}
+  Icon: {fileID: 2800000, guid: e8049ec1d313e0d45a4eae85504b1088, type: 3}
+  GridSize: {x: 2, y: 1}
+  Weight: 0.8
+  MaxStack: 1
+  Tool: 0
+  ToolTier: 0
+  BlockDamage: 0
+  PropDamage: 0
+  SwingInterval: 0.35
+  DrillStrength: 0
+  Calories: 0
+  Fat: 0
+  Protein: 0
+  Carbs: 0
+  Water: 0
+  Slot: 5
+  Layer: 1
+  Armor: 0
+  ContainerGrid: {x: 0, y: 0}
+  PlacesBlock: {fileID: 0}
+  SmoothMaterial: {fileID: 0}

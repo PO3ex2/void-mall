@@ -1,0 +1,21 @@
+{
+    "name": "VoidMall.Items",
+    "rootNamespace": "VoidMall.Items",
+    "references": [
+        "VoidMall.Core",
+        "VoidMall.Net",
+        "VoidMall.Console",
+        "VoidMall.World",
+        "Unity.Mathematics",
+        "Unity.Collections"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

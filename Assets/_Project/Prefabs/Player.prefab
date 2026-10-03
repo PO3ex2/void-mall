@@ -275,7 +275,6 @@ MonoBehaviour:
   _look: {fileID: 8881423734965401061}
   _camera: {fileID: 5219348740121968094}
   _eyeHeightSharpness: 12
-  _stepSharpness: 14
   _bobAmplitude: 0.035
   _bobSideAmplitude: 0.02
   _bobStride: 1.2

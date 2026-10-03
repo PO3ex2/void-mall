@@ -1,0 +1,44 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9f0051f3e8b3438408ddcd1c06a3bc12, type: 3}
+  m_Name: drywall
+  m_EditorClassIdentifier: VoidMall.Items::VoidMall.Items.ItemDef
+  _id: item.block.drywall
+  DisplayName: "\u0413\u0438\u043F\u0441\u043E\u043A\u0430\u0440\u0442\u043E\u043D"
+  Description: "\u0421\u0442\u0440\u043E\u0438\u0442\u0435\u043B\u044C\u043D\u044B\u0439 \u0431\u043B\u043E\u043A: \u041F\u041A\u041C \u2014 \u043F\u043E\u0441\u0442\u0430\u0432\u0438\u0442\u044C."
+  Category: 1
+  Shape: 6
+  Tint: {r: 0.88, g: 0.88, b: 0.86, a: 1}
+  ModelSize: {x: 0.25, y: 0.25, z: 0.25}
+  Mesh: {fileID: 0}
+  Material: {fileID: 0}
+  Icon: {fileID: 2800000, guid: c1cd36f342d3c384aba64c99d787bc92, type: 3}
+  GridSize: {x: 1, y: 1}
+  Weight: 0.3
+  MaxStack: 32
+  Tool: 0
+  ToolTier: 0
+  BlockDamage: 0
+  PropDamage: 0
+  SwingInterval: 0.35
+  DrillStrength: 0
+  Calories: 0
+  Fat: 0
+  Protein: 0
+  Carbs: 0
+  Water: 0
+  Slot: 0
+  Layer: 0
+  Armor: 0
+  ContainerGrid: {x: 0, y: 0}
+  PlacesBlock: {fileID: 11400000, guid: fcd5878b0bdb45b45b0a2e7942b19843, type: 2}
+  SmoothMaterial: {fileID: 0}

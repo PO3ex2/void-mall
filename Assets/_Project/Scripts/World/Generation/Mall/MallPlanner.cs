@@ -42,10 +42,7 @@ namespace VoidMall.World
         public static MallCellInfo GetCellInfo(uint seed, float anomalyFrequency, int2 cell)
         {
             var info = new MallCellInfo { Cell = cell };
-            uint h = Hash.Get(seed, cell.x, cell.y, SaltCell);
-            info.Rotation = (int)(h & 3);
-            info.CoreOffset = 8 + (int)((h >> 2) % 24);
-            info.CoreRect = RotateRect(new int4(info.CoreOffset, 0, info.CoreOffset + CoreWidth, CoreDepth), info.Rotation);
+            CoreOf(seed, cell, out info.Rotation, out info.CoreOffset, out info.CoreRect);
             info.AtriumX = Hash.Get(seed, cell.x, cell.y, SaltCell + 1) % 100 < 45;
             info.AtriumZ = Hash.Get(seed, cell.x, cell.y, SaltCell + 2) % 100 < 45;
 
@@ -64,6 +61,7 @@ namespace VoidMall.World
             }
 
             PlaceAnomaly(seed, anomalyFrequency, ref info);
+            AdoptBigAbyss(seed, anomalyFrequency, ref info);
             PlaceMarkers(seed, anomalyFrequency, ref info);
             return info;
         }
@@ -71,39 +69,42 @@ namespace VoidMall.World
         private static void PlaceAnomaly(uint seed, float frequency, ref MallCellInfo info)
         {
             int2 cell = info.Cell;
-            float roll = Hash.ToFloat01(Hash.Get(seed, cell.x, cell.y, SaltCell + 20));
             uint h = Hash.Get(seed, cell.x, cell.y, SaltCell + 21);
             uint h2 = Hash.Get(seed, cell.x, cell.y, SaltCell + 22);
-            float pAbyss = 0.1f * frequency, pPool = 0.08f * frequency, pCutout = 0.05f * frequency;
+            float size = Hash.ToFloat01(h);
 
             float zone;
-            if (roll < pAbyss)
+            switch (RollAnomaly(seed, frequency, cell))
             {
-                info.Anomaly = AnomalyKind.Abyss;
-                info.AnomalyRadius = 4f + h % 500 / 100f;
-                info.AnomalyLevel = 1 + (int)(h2 % 6);
-                zone = MallAnomalies.AbyssZoneRadius(info.AnomalyRadius);
-            }
-            else if (roll < pAbyss + pPool)
-            {
-                info.Anomaly = AnomalyKind.Pool;
-                info.AnomalyRadius = 5f + h % 300 / 100f;
-                info.AnomalyDepth = 2.5f + (h >> 12) % 150 / 100f;
-                info.AnomalyLevel = MallLayout.FirstRetailLevel + (int)(h2 % MallLayout.RetailFloors);
-                zone = MallAnomalies.PoolZoneRadius(info.AnomalyRadius);
-            }
-            else if (roll < pAbyss + pPool + pCutout)
-            {
-                info.Anomaly = AnomalyKind.Cutout;
-                int quadrant = (int)(h % 4);
-                info.AnomalyLevel = MallLayout.FirstRetailLevel + (int)(h2 % MallLayout.RetailFloors);
-                info.AnomalyCenter = MallLayout.CellOrigin(cell) + new float2(quadrant & 1, quadrant >> 1) * WorldConstants.ChunkSize;
-                info.AnomalyRadius = WorldConstants.ChunkSize;
-                return;
-            }
-            else
-            {
-                return;
+                case AnomalyKind.Abyss:
+                    info.Anomaly = AnomalyKind.Abyss;
+                    info.AnomalyLevel = 1 + (int)(h2 % 6);
+                    // Размер: чаще небольшие, изредка огромные (шире квартала — только в узлах решётки, см. PlaceBigAbyss).
+                    bool node = IsBigAnomalyNode(cell);
+                    if (!node)
+                        size *= size;
+                    if (node && PlaceBigAbyss(seed, frequency, ref info, size))
+                        return;
+                    info.AnomalyRadius = math.lerp(AbyssRadiusMin, AbyssRadiusBlockMax, size);
+                    zone = MallAnomalies.AbyssZoneRadius(info.AnomalyRadius);
+                    break;
+                case AnomalyKind.Pool:
+                    info.Anomaly = AnomalyKind.Pool;
+                    info.AnomalyLevel = MallLayout.FirstRetailLevel + (int)(h2 % MallLayout.RetailFloors);
+                    size *= size;
+                    info.AnomalyRadius = math.lerp(PoolRadiusMin, PoolRadiusMax, size);
+                    info.AnomalyDepth = 2.5f + (h >> 12) % 100 / 100f + size;
+                    zone = MallAnomalies.PoolZoneRadius(info.AnomalyRadius);
+                    break;
+                case AnomalyKind.Cutout:
+                    info.Anomaly = AnomalyKind.Cutout;
+                    int quadrant = (int)(h % 4);
+                    info.AnomalyLevel = MallLayout.FirstRetailLevel + (int)(h2 % MallLayout.RetailFloors);
+                    info.AnomalyCenter = MallLayout.CellOrigin(cell) + new float2(quadrant & 1, quadrant >> 1) * WorldConstants.ChunkSize;
+                    info.AnomalyRadius = WorldConstants.ChunkSize;
+                    return;
+                default:
+                    return;
             }
 
             // Бездна и котлован — внутри квартала, на стороне, противоположной ядру.
@@ -112,6 +113,145 @@ namespace VoidMall.World
             float vMin = CoreDepth + margin, vMax = Block - margin;
             float v = vMax > vMin ? math.lerp(vMin, vMax, Hash.ToFloat01(Hash.Get(seed, cell.x, cell.y, SaltCell + 24))) : (vMin + vMax) * 0.5f;
             info.AnomalyCenter = MallLayout.CellOrigin(cell) + BlockToCell(new float2(u, v), info.Rotation);
+        }
+
+        // ───────────────────────────── Размеры бездн и котлованов ─────────────────────────────
+
+        /// <summary>Радиус чаши котлована: зона (с кромкой) от 13 до 30 м в поперечнике, всегда внутри квартала.</summary>
+        public const float PoolRadiusMin = 4f, PoolRadiusMax = 12.5f;
+
+        /// <summary>
+        /// Радиус шахты бездны: самый маленький, самый большой внутри квартала и самый большой вообще.
+        /// Зона (шахта + кромка) — от ~15 до ~73 м в поперечнике.
+        /// </summary>
+        public const float AbyssRadiusMin = 3.5f, AbyssRadiusBlockMax = 13f, AbyssRadiusBigMax = 32.5f;
+
+        /// <summary>Шаг решётки узлов, где может родиться большая бездна.</summary>
+        public const int BigAnomalySpacing = 3;
+
+        /// <summary>Своя аномалия ячейки — только по броску, без учёта соседей.</summary>
+        private static AnomalyKind RollAnomaly(uint seed, float frequency, int2 cell)
+        {
+            float roll = Hash.ToFloat01(Hash.Get(seed, cell.x, cell.y, SaltCell + 20));
+            // В узлах решётки бездна чаще — только там она бывает огромной.
+            float pAbyss = (IsBigAnomalyNode(cell) ? 0.25f : 0.1f) * frequency, pPool = 0.08f * frequency, pCutout = 0.05f * frequency;
+            return roll < pAbyss ? AnomalyKind.Abyss
+                : roll < pAbyss + pPool ? AnomalyKind.Pool
+                : roll < pAbyss + pPool + pCutout ? AnomalyKind.Cutout
+                : AnomalyKind.None;
+        }
+
+        /// <summary>
+        /// Узел решётки 3×3 ячеек. Большая бездна (шире квартала) рождается только здесь: в любом окне 3×3 ровно
+        /// один узел, поэтому две большие бездны не пересекаются, а соседняя ячейка знает, где искать чужую.
+        /// </summary>
+        public static bool IsBigAnomalyNode(int2 cell) => Mod(cell.x, BigAnomalySpacing) == 0 && Mod(cell.y, BigAnomalySpacing) == 0;
+
+        private static int Mod(int a, int m) => (a % m + m) % m;
+
+        /// <summary>
+        /// Большая бездна: центр в своей ячейке (квартал или галерея), провал может выходить в соседние кварталы.
+        /// Радиус урезается так, чтобы зона не задела ядра (лестницы, лифты) этой и соседних ячеек и аномалии
+        /// соседей; из нескольких точек-кандидатов берётся самая просторная. Ложь — бездна умещается в квартале,
+        /// хватит обычной расстановки.
+        /// </summary>
+        private static bool PlaceBigAbyss(uint seed, float frequency, ref MallCellInfo info, float size)
+        {
+            float wanted = math.lerp(AbyssRadiusMin, AbyssRadiusBigMax, size);
+            if (wanted <= AbyssRadiusBlockMax)
+                return false;
+            int2 cell = info.Cell;
+            float2 cellOrigin = MallLayout.CellOrigin(cell);
+            float best = 0f;
+            float2 bestCenter = default;
+            for (int attempt = 0; attempt < 12; attempt++)
+            {
+                // Кандидаты по всей ячейке, включая галерею: на перекрёстке галерей бездне просторнее.
+                uint hc = Hash.Get(seed, cell.x, cell.y, SaltCell + 50 + attempt);
+                float2 center = cellOrigin + new float2(Hash.ToFloat01(hc), Hash.ToFloat01(Hash.Get(hc, 1))) * MallLayout.CellSize;
+                float room = FreeRadius(seed, frequency, cell, center);
+                if (room > best)
+                {
+                    best = room;
+                    bestCenter = center;
+                }
+            }
+            // Зона = шахта + кромка, от препятствий ещё 2 м.
+            float radius = math.min(wanted, best - (MallAnomalies.AbyssZoneRadius(0f) + 2f));
+            if (radius <= AbyssRadiusBlockMax)
+                return false;
+            info.AnomalyRadius = radius;
+            info.AnomalyCenter = bestCenter;
+            return true;
+        }
+
+        /// <summary>Свободное место вокруг точки: до ближайшего ядра в окне 3×3 или зоны аномалии соседней ячейки.</summary>
+        private static float FreeRadius(uint seed, float frequency, int2 cell, float2 center)
+        {
+            float free = float.MaxValue;
+            for (int dz = -1; dz <= 1; dz++)
+            for (int dx = -1; dx <= 1; dx++)
+            {
+                int2 other = cell + new int2(dx, dz);
+                float2 origin = MallLayout.CellOrigin(other);
+                if ((dx != 0 || dz != 0) && RollAnomaly(seed, frequency, other) != AnomalyKind.None)
+                    free = math.min(free, DistanceToAnomaly(seed, frequency, other, center));
+                CoreOf(seed, other, out _, out _, out int4 core);
+                free = math.min(free, DistanceToRect(center, new float4(origin + (float2)core.xy, origin + (float2)core.zw)));
+            }
+            return free;
+        }
+
+        /// <summary>Расстояние от точки до зоны своей аномалии соседней ячейки (соседи узла сами не узлы — без рекурсии).</summary>
+        private static float DistanceToAnomaly(uint seed, float frequency, int2 cell, float2 p)
+        {
+            var other = new MallCellInfo { Cell = cell };
+            CoreOf(seed, cell, out other.Rotation, out other.CoreOffset, out other.CoreRect);
+            PlaceAnomaly(seed, frequency, ref other);
+            return other.Anomaly switch
+            {
+                AnomalyKind.Abyss => math.distance(p, other.AnomalyCenter) - MallAnomalies.AbyssZoneRadius(other.AnomalyRadius),
+                AnomalyKind.Pool => math.distance(p, other.AnomalyCenter) - MallAnomalies.PoolZoneRadius(other.AnomalyRadius),
+                AnomalyKind.Cutout => DistanceToRect(p, new float4(other.AnomalyCenter, other.AnomalyCenter + WorldConstants.ChunkSize)),
+                _ => float.MaxValue,
+            };
+        }
+
+        private static float DistanceToRect(float2 p, float4 rect) => math.length(math.max(math.max(rect.xy - p, p - rect.zw), 0f));
+
+        /// <summary>
+        /// Ячейка, до которой дотягивается большая бездна из узла её окна 3×3, получает её параметры в слот
+        /// BigAbyss (своя аномалия остаётся): генерация, пропы и структуры обрабатывают её как свою.
+        /// </summary>
+        private static void AdoptBigAbyss(uint seed, float frequency, ref MallCellInfo info)
+        {
+            int2 cell = info.Cell;
+            int2 node = new(cell.x - Mod(cell.x + 1, BigAnomalySpacing) + 1, cell.y - Mod(cell.y + 1, BigAnomalySpacing) + 1);
+            if (node.Equals(cell) || RollAnomaly(seed, frequency, node) != AnomalyKind.Abyss)
+                return;
+            var host = new MallCellInfo { Cell = node };
+            CoreOf(seed, node, out host.Rotation, out host.CoreOffset, out host.CoreRect);
+            PlaceAnomaly(seed, frequency, ref host);
+            if (host.Anomaly != AnomalyKind.Abyss || host.AnomalyRadius <= AbyssRadiusBlockMax)
+                return;
+            float2 origin = MallLayout.CellOrigin(cell);
+            // С запасом: лампы и пропы проверяют чуть шире зоны.
+            float reach = MallAnomalies.AbyssZoneRadius(host.AnomalyRadius) + 4f;
+            if (DistanceToRect(host.AnomalyCenter, new float4(origin, origin + MallLayout.CellSize)) >= reach)
+                return;
+            info.HasBigAbyss = true;
+            info.BigAbyssLevel = host.AnomalyLevel;
+            info.BigAbyssCenter = host.AnomalyCenter;
+            info.BigAbyssRadius = host.AnomalyRadius;
+        }
+
+        /// <summary>Поворот квартала, смещение ядра и его прямоугольник (координаты ячейки).</summary>
+        private static void CoreOf(uint seed, int2 cell, out int rotation, out int coreOffset, out int4 coreRect)
+        {
+            uint h = Hash.Get(seed, cell.x, cell.y, SaltCell);
+            rotation = (int)(h & 3);
+            coreOffset = 8 + (int)((h >> 2) % 24);
+            coreRect = RotateRect(new int4(coreOffset, 0, coreOffset + CoreWidth, CoreDepth), rotation);
         }
 
         private static void PlaceMarkers(uint seed, float frequency, ref MallCellInfo info)

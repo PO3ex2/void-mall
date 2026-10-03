@@ -319,7 +319,11 @@ namespace VoidMall.World
             return true;
         }
 
-        public static bool InAnomaly(in MallCellInfo info, int level, float2 world, float radius)
+        /// <summary>Точка в зоне своей аномалии ячейки или большой бездны соседа.</summary>
+        public static bool InAnomaly(in MallCellInfo info, int level, float2 world, float radius) =>
+            InOwnAnomaly(info, level, world, radius) || (info.HasBigAbyss && InOwnAnomaly(info.WithBigAbyss(), level, world, radius));
+
+        private static bool InOwnAnomaly(in MallCellInfo info, int level, float2 world, float radius)
         {
             float distance = math.distance(world, info.AnomalyCenter);
             switch (info.Anomaly)

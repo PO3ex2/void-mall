@@ -54,6 +54,111 @@ namespace VoidMall.World
             _ => Vector3.one,
         };
 
+        /// <summary>
+        /// Точки спавна товаров на пропе (в локальных координатах): центр низа места и свободный габарит над ним.
+        /// Пусто — у пропа нет полок. Появится ли предмет в точке и какой — решает лут (ShelfLoot).
+        /// </summary>
+        public static void GetItemSlots(PropShape shape, Vector3 s, List<PropItemSlot> slots)
+        {
+            slots.Clear();
+            float w = s.x, h = s.y, d = s.z;
+            switch (shape)
+            {
+                case PropShape.Shelf:
+                    // 4 полки (нижние) по 4 места; над верхней полкой — тоже место.
+                    for (int level = 0; level < 5; level++)
+                    {
+                        float y = 0.1f + level * 0.43f + 0.04f;
+                        float free = level < 4 ? 0.37f : h - y;
+                        for (int k = 0; k < 4; k++)
+                            slots.Add(new PropItemSlot { Position = new Vector3(-w / 2 + w * (k + 0.5f) / 4f, y, -0.02f), Size = new Vector3(w / 4f - 0.06f, free, d - 0.12f) });
+                    }
+                    break;
+                case PropShape.Fridge:
+                    for (int level = 0; level < 4; level++)
+                    {
+                        float y = 0.15f + level * 0.45f;
+                        for (int k = 0; k < 3; k++)
+                            slots.Add(new PropItemSlot { Position = new Vector3(-w / 2 + 0.05f + (w - 0.1f) * (k + 0.5f) / 3f, y, -0.05f), Size = new Vector3((w - 0.1f) / 3f - 0.04f, 0.4f, d - 0.15f) });
+                    }
+                    break;
+                case PropShape.PalletRack:
+                    for (int level = 0; level < 3; level++)
+                    {
+                        float y = 0.15f + level * 1.15f + 0.1f;
+                        for (int k = 0; k < 2; k++)
+                            slots.Add(new PropItemSlot { Position = new Vector3(-w / 2 + w * (k + 0.5f) / 2f, y, 0f), Size = new Vector3(w / 2f - 0.2f, 0.95f, d - 0.2f) });
+                    }
+                    break;
+                case PropShape.DisplayTable:
+                    for (int k = 0; k < 3; k++)
+                        slots.Add(new PropItemSlot { Position = new Vector3(-w / 2 + w * (k + 0.5f) / 3f, h, 0f), Size = new Vector3(w / 3f - 0.06f, 0.4f, d - 0.1f) });
+                    break;
+                case PropShape.ClothesRack:
+                    // Одежда «висит» на перекладине: места на уровне низа ткани.
+                    for (int k = 0; k < 3; k++)
+                        slots.Add(new PropItemSlot { Position = new Vector3(-w / 2 + 0.1f + (w - 0.2f) * (k + 0.5f) / 3f, 0.55f, 0f), Size = new Vector3((w - 0.2f) / 3f - 0.04f, 0.8f, d) });
+                    break;
+                case PropShape.Checkout:
+                    slots.Add(new PropItemSlot { Position = new Vector3(-w / 4f, h, 0f), Size = new Vector3(w / 2f - 0.1f, 0.3f, d - 0.1f) });
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// Коллайдер формы из нескольких коробок (локальные габариты). Пусто — одна коробка на весь размер.
+        /// Нужен тем, у кого внутри лежат товары: сдвинутая полка роняет их как настоящие предметы,
+        /// и они должны стоять на досках, а не оказаться внутри сплошного куба.
+        /// </summary>
+        public static void GetColliderParts(PropShape shape, Vector3 s, List<Bounds> parts)
+        {
+            parts.Clear();
+            float w = s.x, h = s.y, d = s.z;
+            void Add(Vector3 min, Vector3 max) => parts.Add(new Bounds((min + max) * 0.5f, max - min));
+            switch (shape)
+            {
+                case PropShape.Shelf:
+                    Add(new Vector3(-w / 2, 0, d / 2 - 0.04f), new Vector3(w / 2, h, d / 2));
+                    Add(new Vector3(-w / 2, 0, -d / 2), new Vector3(-w / 2 + 0.04f, h, d / 2));
+                    Add(new Vector3(w / 2 - 0.04f, 0, -d / 2), new Vector3(w / 2, h, d / 2));
+                    Add(new Vector3(-w / 2, 0, -d / 2), new Vector3(w / 2, 0.14f, d / 2)); // нижняя полка с цоколем
+                    for (int i = 1; i < 5; i++)
+                    {
+                        float y = 0.1f + i * 0.43f;
+                        Add(new Vector3(-w / 2, y, -d / 2), new Vector3(w / 2, y + 0.04f, d / 2));
+                    }
+                    break;
+                case PropShape.Fridge:
+                    Add(new Vector3(-w / 2, 0, d / 2 - 0.05f), new Vector3(w / 2, h, d / 2));
+                    Add(new Vector3(-w / 2, 0, -d / 2), new Vector3(-w / 2 + 0.05f, h, d / 2));
+                    Add(new Vector3(w / 2 - 0.05f, 0, -d / 2), new Vector3(w / 2, h, d / 2));
+                    Add(new Vector3(-w / 2, h - 0.15f, -d / 2), new Vector3(w / 2, h, d / 2));
+                    Add(new Vector3(-w / 2, 0, -d / 2), new Vector3(w / 2, 0.15f, d / 2));
+                    for (int i = 1; i < 4; i++)
+                        Add(new Vector3(-w / 2, 0.15f + i * 0.45f - 0.02f, -d / 2 + 0.05f), new Vector3(w / 2, 0.15f + i * 0.45f, d / 2));
+                    break;
+                case PropShape.PalletRack:
+                    for (int i = 0; i < 4; i++)
+                    {
+                        float x = (i & 1) == 0 ? -w / 2 : w / 2 - 0.08f;
+                        float z = (i & 2) == 0 ? -d / 2 : d / 2 - 0.08f;
+                        Add(new Vector3(x, 0, z), new Vector3(x + 0.08f, h, z + 0.08f));
+                    }
+                    for (int level = 0; level < 3; level++)
+                    {
+                        float y = 0.15f + level * 1.15f;
+                        Add(new Vector3(-w / 2, y, -d / 2), new Vector3(w / 2, y + 0.1f, d / 2));
+                    }
+                    break;
+                case PropShape.ClothesRack:
+                    // Ткань не держит: со сдвинутой вешалки одежда падает на пол.
+                    Add(new Vector3(-w / 2, 0, -0.04f), new Vector3(-w / 2 + 0.05f, h, 0.04f));
+                    Add(new Vector3(w / 2 - 0.05f, 0, -0.04f), new Vector3(w / 2, h, 0.04f));
+                    Add(new Vector3(-w / 2, h - 0.05f, -0.03f), new Vector3(w / 2, h, 0.03f));
+                    break;
+            }
+        }
+
         private static readonly Color Metal = new(0.55f, 0.57f, 0.6f, 0.55f);
         private static readonly Color DarkMetal = new(0.22f, 0.23f, 0.25f, 0.45f);
         private static readonly Color White = new(0.86f, 0.86f, 0.84f, 0.35f);
@@ -78,21 +183,17 @@ namespace VoidMall.World
                     {
                         float y = 0.1f + i * 0.43f;
                         b.BoxMinMax(new Vector3(-w / 2, y, -d / 2), new Vector3(w / 2, y + 0.04f, d / 2), Metal);
-                        // Товары-«коробочки» на полке.
-                        for (int k = 0; k < 4; k++)
-                        {
-                            float x = -w / 2 + 0.15f + k * 0.45f;
-                            float tall = 0.18f + (k * 7 + i * 3) % 5 * 0.04f;
-                            var color = Color.HSVToRGB(((k * 37 + i * 61) % 100) / 100f, 0.45f, 0.7f);
-                            color.a = 0.2f;
-                            if (i < 4)
-                                b.BoxMinMax(new Vector3(x, y + 0.04f, -d / 2 + 0.06f), new Vector3(x + 0.32f, y + 0.04f + tall, d / 2 - 0.08f), color);
-                        }
                     }
                     break;
                 case PropShape.Fridge:
-                    b.BoxMinMax(new Vector3(-w / 2, 0, -d / 2 + 0.05f), new Vector3(w / 2, h, d / 2), White);
-                    b.BoxMinMax(new Vector3(-w / 2 + 0.06f, 0.15f, -d / 2), new Vector3(w / 2 - 0.06f, h - 0.15f, -d / 2 + 0.05f), Glass);
+                    // Открытая холодильная витрина: корпус и полки, товары — настоящие предметы на полках.
+                    b.BoxMinMax(new Vector3(-w / 2, 0, d / 2 - 0.05f), new Vector3(w / 2, h, d / 2), White);
+                    b.BoxMinMax(new Vector3(-w / 2, 0, -d / 2), new Vector3(-w / 2 + 0.05f, h, d / 2), White);
+                    b.BoxMinMax(new Vector3(w / 2 - 0.05f, 0, -d / 2), new Vector3(w / 2, h, d / 2), White);
+                    b.BoxMinMax(new Vector3(-w / 2, h - 0.15f, -d / 2), new Vector3(w / 2, h, d / 2), White);
+                    b.BoxMinMax(new Vector3(-w / 2, 0, -d / 2), new Vector3(w / 2, 0.15f, d / 2), DarkMetal);
+                    for (int i = 1; i < 4; i++)
+                        b.BoxMinMax(new Vector3(-w / 2, 0.15f + i * 0.45f - 0.02f, -d / 2 + 0.05f), new Vector3(w / 2, 0.15f + i * 0.45f, d / 2), Metal);
                     break;
                 case PropShape.Checkout:
                     b.BoxMinMax(new Vector3(-w / 2, 0, -d / 2), new Vector3(w / 2, h - 0.05f, d / 2), White);
@@ -137,9 +238,6 @@ namespace VoidMall.World
                     {
                         float y = 0.15f + level * 1.15f;
                         b.BoxMinMax(new Vector3(-w / 2, y, -d / 2), new Vector3(w / 2, y + 0.1f, d / 2), orange);
-                        b.BoxMinMax(new Vector3(-w / 2 + 0.15f, y + 0.1f, -d / 2 + 0.1f), new Vector3(-0.1f, y + 0.85f, d / 2 - 0.1f), Cardboard);
-                        if (level != 1)
-                            b.BoxMinMax(new Vector3(0.1f, y + 0.1f, -d / 2 + 0.1f), new Vector3(w / 2 - 0.15f, y + 0.7f, d / 2 - 0.1f), Cardboard);
                     }
                     break;
                 case PropShape.BoxStack:
@@ -215,5 +313,12 @@ namespace VoidMall.World
         public Vector3 Position;
         public float Yaw;
         public ulong Id;
+    }
+
+    /// <summary>Место для товара на полке: центр низа (локально) и свободный габарит.</summary>
+    public struct PropItemSlot
+    {
+        public Vector3 Position;
+        public Vector3 Size;
     }
 }

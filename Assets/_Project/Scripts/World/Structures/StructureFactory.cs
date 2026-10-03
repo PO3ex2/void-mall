@@ -30,7 +30,7 @@ namespace VoidMall.World
                 BuildEscalators(info, parent, material, alongX: true);
             if (info.AtriumZ)
                 BuildEscalators(info, parent, material, alongX: false);
-            if (info.HasRamp && !Blocked(info, CellRect(info, new float4(info.RampMin.x, info.RampMin.y, info.RampMin.x + MallPlanner.RampLength, info.RampMin.y + MallPlanner.RampWidth)), 0))
+            if (info.HasRamp && !Blocked(info, CellRect(info, new float4(info.RampMin.x, info.RampMin.y, info.RampMin.x + MallPlanner.RampLength, info.RampMin.y + MallPlanner.RampWidth)), 0, 1))
                 BuildRamp(info, parent, material);
         }
 
@@ -51,14 +51,14 @@ namespace VoidMall.World
             var colliders = NewChild(core, "Stair Colliders");
             for (int level = 0; level < MallLayout.LevelCount - 1; level++)
             {
-                if (Blocked(info, CellRect(info, coreRect), level))
+                if (Blocked(info, CellRect(info, coreRect), level, level + 1))
                     continue;
                 BuildStairs(mesh, colliders.transform, c, level, level == MallLayout.LevelCount - 2);
             }
             if (mesh.VertexCount > 0)
                 AddRenderer(NewChild(core, "Stairs"), mesh.ToMesh("Stairs"), material);
 
-            if (!Blocked(info, CellRect(info, coreRect), 0))
+            if (!Blocked(info, CellRect(info, coreRect), 0, MallLayout.LevelCount - 1))
                 BuildElevator(seed, info, core, c, material);
         }
 
@@ -174,7 +174,7 @@ namespace VoidMall.World
                 float2 bottom = alongX ? new float2(bottomAlong, across) : new float2(across, bottomAlong);
                 float2 top = alongX ? new float2(topAlong, across) : new float2(across, topAlong);
                 float4 rect = new(math.min(bottom, top) - 1f, math.max(bottom, top) + 1f);
-                if (Blocked(info, CellRect(info, rect), floorLevel))
+                if (Blocked(info, CellRect(info, rect), floorLevel, floorLevel + 1))
                     continue;
 
                 Vector3 start = new(cellOrigin.x + bottom.x, y0, cellOrigin.y + bottom.y);
@@ -252,8 +252,28 @@ namespace VoidMall.World
         /// <summary>
         /// Структура пересекает «вырез», а её нижний уровень не выше уровня выреза (там пустота до дна мира)?
         /// </summary>
-        private static bool Blocked(in MallCellInfo info, float4 worldRect, int lowestLevel)
+        private static bool Blocked(in MallCellInfo info, float4 worldRect, int lowestLevel, int highestLevel) =>
+            BlockedBy(info, worldRect, lowestLevel, highestLevel)
+            || (info.HasBigAbyss && BlockedBy(info.WithBigAbyss(), worldRect, lowestLevel, highestLevel));
+
+        private static bool BlockedBy(in MallCellInfo info, float4 worldRect, int lowestLevel, int highestLevel)
         {
+            if (info.Anomaly == AnomalyKind.Pool)
+            {
+                // Котлован: чаша на своём уровне и выпуклость в потолке уровня ниже — там структуре не на чем стоять.
+                if (highestLevel < info.AnomalyLevel - 1 || lowestLevel > info.AnomalyLevel)
+                    return false;
+                float2 nearest = math.clamp(info.AnomalyCenter, worldRect.xy, worldRect.zw);
+                return math.distance(nearest, info.AnomalyCenter) < MallAnomalies.PoolZoneRadius(info.AnomalyRadius) + 1f;
+            }
+            if (info.Anomaly == AnomalyKind.Abyss)
+            {
+                // Бездна: от своего уровня вниз до пустоты.
+                if (lowestLevel > info.AnomalyLevel)
+                    return false;
+                float2 nearest = math.clamp(info.AnomalyCenter, worldRect.xy, worldRect.zw);
+                return math.distance(nearest, info.AnomalyCenter) < MallAnomalies.AbyssZoneRadius(info.AnomalyRadius) + 1f;
+            }
             if (info.Anomaly != AnomalyKind.Cutout)
                 return false;
             float2 c = info.AnomalyCenter;

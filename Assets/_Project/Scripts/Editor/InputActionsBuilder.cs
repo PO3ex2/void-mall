@@ -79,6 +79,7 @@ namespace VoidMall.Editor
             Button(map, "ToggleDebugHud", ("<Keyboard>/f3", Kbm));
             Button(map, "ToggleDebugPanel", ("<Keyboard>/f4", Kbm));
             Button(map, "ToggleMap", ("<Keyboard>/f6", Kbm));
+            Button(map, "ToggleInventory", ("<Keyboard>/tab", Kbm), ("<Gamepad>/select", Pad));
         }
 
         private static void BuildTerminal(InputActionMap map)
