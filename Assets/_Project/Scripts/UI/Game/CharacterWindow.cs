@@ -79,7 +79,8 @@ namespace VoidMall.UI
             if (!_open || _inventory == null)
                 return;
 
-            if (_dragging != null && Keyboard.current != null && Keyboard.current.rKey.wasPressedThisFrame)
+            // Поворот имеет смысл только у неквадратных предметов (1×1, 2×2 повернуть — то же самое).
+            if (_dragging != null && Keyboard.current != null && Keyboard.current.rKey.wasPressedThisFrame && IsRotatable(_dragging))
             {
                 _dragRotated = !_dragRotated;
                 UpdateGhost();
@@ -494,6 +495,12 @@ namespace VoidMall.UI
             UpdateGhost();
             ShowInfo(stack);
             _dirty = true;
+        }
+
+        private bool IsRotatable(ItemStack stack)
+        {
+            var (w, h) = _inventory.Items.GridSize(stack.Def);
+            return w != h;
         }
 
         private void UpdateGhost()
