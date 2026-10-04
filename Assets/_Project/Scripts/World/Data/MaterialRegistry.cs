@@ -27,6 +27,10 @@ namespace VoidMall.World
         /// <summary>Гладкий двойник блока (0 — нет).</summary>
         public ushort SmoothVariant;
 
+        /// <summary>Функциональный блок: что делает и размер в клетках (без поворота).</summary>
+        public FunctionalKind Function;
+        public Unity.Mathematics.int3 FunctionalSize;
+
         public bool IsSolid => (Flags & MaterialFlags.Solid) != 0;
         public bool IsOpaque => (Flags & MaterialFlags.Opaque) != 0;
         public bool IsTransparent => (Flags & MaterialFlags.Transparent) != 0;
@@ -64,7 +68,8 @@ namespace VoidMall.World
                 var flags = MaterialFlags.None;
                 if (def.Kind != MaterialKind.Air)
                     flags |= MaterialFlags.Solid;
-                if (def.Kind != MaterialKind.Air && !def.Transparent)
+                // Функциональные клетки (двери) не закрывают грани соседей: модель тоньше клетки.
+                if (def.Kind is MaterialKind.Block or MaterialKind.Smooth && !def.Transparent)
                     flags |= MaterialFlags.Opaque;
                 if (def.Transparent)
                     flags |= MaterialFlags.Transparent;
@@ -78,6 +83,8 @@ namespace VoidMall.World
                     Hardness = def.Hardness,
                     Lamp = def.Lamp,
                     SmoothVariant = def.SmoothVariant != null && def.SmoothVariant.RuntimeIndex >= 0 ? (ushort)def.SmoothVariant.RuntimeIndex : (ushort)0,
+                    Function = def.Function,
+                    FunctionalSize = new Unity.Mathematics.int3(Math.Max(1, def.FunctionalSize.x), Math.Max(1, def.FunctionalSize.y), Math.Max(1, def.FunctionalSize.z)),
                 };
             }
             Infos = infos;

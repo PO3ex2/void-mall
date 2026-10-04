@@ -42,7 +42,7 @@ namespace VoidMall.UI
         private PlayerInventory _inventory;
         private CraftQueue _boundQueue;
 
-        private static readonly string[] StationChoices = { "Руки", "Все", "Верстак", "Швейный стол", "Химстол", "Плита или горелка" };
+        private static readonly string[] StationChoices = { "Руки", "Все", "Верстак", "Швейный стол", "Химстол", "Плита или горелка", "Дробилка" };
 
         public CraftPanel()
         {
@@ -239,7 +239,8 @@ namespace VoidMall.UI
                 2 => recipe.Station == CraftStation.Workbench,
                 3 => recipe.Station == CraftStation.Sewing,
                 4 => recipe.Station == CraftStation.Chemistry,
-                _ => recipe.Station == CraftStation.Cooking,
+                5 => recipe.Station == CraftStation.Cooking,
+                _ => recipe.Station == CraftStation.Crusher,
             };
         }
 

@@ -34,6 +34,10 @@ namespace VoidMall.World
 
         [ReadOnly] public NativeArray<MaterialInfo> Materials;
 
+        /// <summary>Геометрия форм блоков (BlockShapes): вершины подряд и диапазоны по shape·24 + ориентация.</summary>
+        [ReadOnly] public NativeArray<ShapeVertex> ShapeVertices;
+        [ReadOnly] public NativeArray<int2> ShapeRanges;
+
         /// <summary>27 соседей: индекс (dx+1) + (dy+1)*3 + (dz+1)*9.</summary>
         [ReadOnly] public NativeArray<ChunkView> Views;
 
@@ -80,6 +84,12 @@ namespace VoidMall.World
                 MaterialInfo info = Materials[cell.Material];
                 if (info.Kind != MaterialKind.Block)
                     continue;
+                // Блок с формой (полублок, скос…) — геометрия из таблицы форм.
+                if (cell.Value != 0)
+                {
+                    EmitShape(new int3(x, y, z), cell, info);
+                    continue;
+                }
 
                 for (int face = 0; face < 6; face++)
                 {
@@ -316,6 +326,9 @@ namespace VoidMall.World
             if (neighbor.Material == 0)
                 return true;
             MaterialInfo neighborInfo = Materials[neighbor.Material];
+            // Сосед-форма (полублок, скос) закрывает грань не целиком — рисуем.
+            if (neighborInfo.Kind == MaterialKind.Block && neighbor.Value != 0)
+                return true;
             // Твёрдая гладкая клетка закрывает грань блока: стык с гладкой поверхностью
             // обеспечивает прижатие вершин Surface Nets к углам блоков (см. BuildSmoothSurface).
             if (neighborInfo.IsOpaque)
@@ -387,10 +400,53 @@ namespace VoidMall.World
             }
         }
 
+        /// <summary>Блок с формой: треугольники формы в его ориентации; грани на границе клетки у сплошного соседа пропускаем.</summary>
+        private void EmitShape(int3 position, Cell cell, MaterialInfo info)
+        {
+            int shape = cell.Value;
+            if (shape >= ShapeRanges.Length / BlockShapes.Orientations)
+                return;
+            int2 range = ShapeRanges[shape * BlockShapes.Orientations + math.min(cell.Meta & 31, BlockShapes.Orientations - 1)];
+            var indices = info.IsTransparent ? TransparentIndices : OpaqueIndices;
+            for (int i = 0; i < range.y; i += 3)
+            {
+                ShapeVertex a = ShapeVertices[range.x + i];
+                if (a.Cull >= 0)
+                {
+                    int3 normal = new(FaceNormals[a.Cull * 3], FaceNormals[a.Cull * 3 + 1], FaceNormals[a.Cull * 3 + 2]);
+                    if (ChunkOrigin.y + position.y + normal.y < 0)
+                        continue;
+                    Cell neighbor = Sample(position + normal);
+                    if (neighbor.Material != 0)
+                    {
+                        MaterialInfo neighborInfo = Materials[neighbor.Material];
+                        bool solidFull = neighborInfo.IsOpaque && (neighborInfo.Kind != MaterialKind.Block || neighbor.Value == 0);
+                        bool sameGlass = info.IsTransparent && neighbor.Material == cell.Material && neighbor.Value == 0;
+                        if (solidFull || sameGlass)
+                            continue;
+                    }
+                }
+                int baseVertex = Vertices.Length;
+                for (int k = 0; k < 3; k++)
+                {
+                    ShapeVertex v = ShapeVertices[range.x + i + k];
+                    float3 local = position + v.Position;
+                    float3 world = ChunkOrigin + local;
+                    float3 n = math.abs(v.Normal);
+                    int axis = n.x >= n.y && n.x >= n.z ? 0 : n.y >= n.z ? 1 : 2;
+                    float2 uv = axis == 0 ? world.zy : axis == 1 ? world.xz : world.xy;
+                    Vertices.Add(new ChunkVertex { Position = local, Normal = v.Normal, Uv = new float4(uv, info.TextureLayer, 1f) });
+                }
+                indices.Add(baseVertex);
+                indices.Add(baseVertex + 1);
+                indices.Add(baseVertex + 2);
+            }
+        }
+
         private bool IsOccluder(int3 local)
         {
             Cell cell = Sample(local);
-            return cell.Material != 0 && Materials[cell.Material].IsOpaque;
+            return cell.Material != 0 && Materials[cell.Material].IsOpaque && (cell.Value == 0 || Materials[cell.Material].Kind != MaterialKind.Block);
         }
 
         /// <summary>Клетка по локальным координатам центрального чанка, допустимы −1…32 (соседи).</summary>

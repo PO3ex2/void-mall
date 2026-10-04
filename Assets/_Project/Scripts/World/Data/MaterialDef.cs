@@ -12,6 +12,9 @@ namespace VoidMall.World
 
         /// <summary>Гладкий воксель (Surface Nets) — этап 3.</summary>
         Smooth,
+
+        /// <summary>Функциональный блок (дверь, ворота): занимает клетки, рисуется своей моделью, сетка его не рисует.</summary>
+        Functional,
     }
 
     /// <summary>Процедурные текстуры-заглушки. Настоящие PBR-текстуры заменят их на этапе генерации мола.</summary>
@@ -40,6 +43,15 @@ namespace VoidMall.World
         ParkingLineU,
         ParkingLineV,
         FacadePanel,
+    }
+
+    /// <summary>Что делает функциональный блок.</summary>
+    public enum FunctionalKind : byte
+    {
+        None,
+        Door,
+        Gate,
+        SlidingDoor,
     }
 
     /// <summary>Светящийся материал: как им управляет LightingDirector (см. LampRules).</summary>
@@ -88,5 +100,11 @@ namespace VoidMall.World
 
         [Tooltip("Яркость эмиссии (цвет — Tint).")]
         [Min(0)] public float Emission;
+
+        [Header("Функциональный блок")]
+        public FunctionalKind Function;
+
+        [Tooltip("Размер в клетках без поворота: ширина (X), высота (Y), глубина (Z).")]
+        public Vector3Int FunctionalSize = Vector3Int.one;
     }
 }

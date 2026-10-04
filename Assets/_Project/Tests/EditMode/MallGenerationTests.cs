@@ -448,6 +448,7 @@ namespace VoidMall.Tests
             var cells = new NativeArray<Cell>(WorldConstants.ChunkVolume, Allocator.TempJob);
             var flag = new NativeArray<byte>(1, Allocator.TempJob);
             var lampList = new NativeList<int3>(64, Allocator.TempJob);
+            var anchorList = new NativeList<int3>(16, Allocator.TempJob);
             new MallGenerationJob
             {
                 Chunk = chunk,
@@ -459,11 +460,13 @@ namespace VoidMall.Tests
                 Cells = cells,
                 IsUniform = flag,
                 Lamps = lampList,
+                Anchors = anchorList,
             }.Run();
             uniform = flag[0] != 0;
             lamps = new List<int3>(lampList.AsArray().ToArray());
             flag.Dispose();
             lampList.Dispose();
+            anchorList.Dispose();
             return cells;
         }
     }

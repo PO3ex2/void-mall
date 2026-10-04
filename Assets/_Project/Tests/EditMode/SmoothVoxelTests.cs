@@ -142,6 +142,7 @@ namespace VoidMall.Tests
             var vertices = new NativeList<ChunkVertex>(Allocator.TempJob);
             var opaque = new NativeList<int>(Allocator.TempJob);
             var transparent = new NativeList<int>(Allocator.TempJob);
+            BlockShapes.BuildNative(out var shapeVertices, out var shapeRanges, Allocator.TempJob);
             try
             {
                 new ChunkMeshJob
@@ -152,6 +153,8 @@ namespace VoidMall.Tests
                     Vertices = vertices,
                     OpaqueIndices = opaque,
                     TransparentIndices = transparent,
+                    ShapeVertices = shapeVertices,
+                    ShapeRanges = shapeRanges,
                 }.Run();
 
                 var result = new MeshResult { Triangles = new List<(float3, float3, float3)>(), AllSmooth = true };
@@ -173,6 +176,8 @@ namespace VoidMall.Tests
                 vertices.Dispose();
                 opaque.Dispose();
                 transparent.Dispose();
+                shapeVertices.Dispose();
+                shapeRanges.Dispose();
             }
         }
 

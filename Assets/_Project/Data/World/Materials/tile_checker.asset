@@ -24,3 +24,5 @@ MonoBehaviour:
   SmoothVariant: {fileID: 11400000, guid: a26e6b9b446a54c4997144167bf0d117, type: 2}
   Lamp: 0
   Emission: 0
+  Function: 0
+  FunctionalSize: {x: 1, y: 1, z: 1}

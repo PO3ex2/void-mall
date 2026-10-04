@@ -8,6 +8,7 @@ using VoidMall.Crafting;
 using VoidMall.Core;
 using VoidMall.Input;
 using VoidMall.Items;
+using VoidMall.Net;
 using VoidMall.Player;
 using VoidMall.Skills;
 using VoidMall.Survival;
@@ -88,7 +89,7 @@ namespace VoidMall.Game
         /// <summary>Короткое E делает что-то своё (спать, открыть станцию), а взять — удержанием.</summary>
         private static bool HasTapAction(PropBody body) => body.Def.Sleepable || body.Def.Station != CraftStation.None;
 
-        public bool IsBusy => _mode != Mode.None || _waitRelease || _disassembleTarget != null || (_interactHeld > 0.15f && _target != null && _target.IsNailed);
+        public bool IsBusy => _prying || _mode != Mode.None || _waitRelease || _disassembleTarget != null || (_interactHeld > 0.15f && _target != null && _target.IsNailed);
 
         private void Awake() => _motor = GetComponent<PlayerMotor>();
 
@@ -144,15 +145,84 @@ namespace VoidMall.Game
             UpdateHud();
         }
 
+        private FunctionalBlockView _fblockTarget;
+        private bool _prying;
+        private float _pryProgress;
+        private const float PryTime = 2.5f;
+
+        /// <summary>E по двери или воротам. false — запертые ворота и лом в руках: начинаем поддевать (удержание E).</summary>
+        private bool UseFunctional(FunctionalBlockView view)
+        {
+            var world = ChunkManager.Instance;
+            Cell anchor = world.GetCell(view.Anchor);
+            if (anchor.Material != view.Material)
+                return true;
+            if (view.Kind == FunctionalKind.SlidingDoor)
+            {
+                Say("Автоматическая дверь: открывается сама, когда подходишь");
+                return true;
+            }
+            bool open = FunctionalCells.IsOpen(anchor.Meta);
+            if (view.Kind == FunctionalKind.Gate && FunctionalCells.IsLocked(anchor.Meta))
+            {
+                var item = PlayerInventory.Local?.ActiveItem;
+                if (item != null && item.Tool == ToolKind.Crowbar)
+                    return false;
+                Say("Заперто. Подденьте ломом: удерживайте E с ломом в руках");
+                return true;
+            }
+            // Дверь открывается от игрока.
+            Vector3 toPlayer = transform.position - view.transform.position;
+            bool side = Vector3.Dot(toPlayer, view.transform.forward) > 0f;
+            SendState(view.Anchor, !open, false, open ? FunctionalCells.OpenSide(anchor.Meta) : side);
+            return true;
+        }
+
+        private void UpdatePrying()
+        {
+            if (!_prying)
+                return;
+            var item = PlayerInventory.Local?.ActiveItem;
+            if (!_interact.IsPressed() || _fblockTarget == null || item == null || item.Tool != ToolKind.Crowbar)
+            {
+                _prying = false;
+                return;
+            }
+            _pryProgress += Time.deltaTime / PryTime;
+            if (_pryProgress < 1f)
+                return;
+            _prying = false;
+            SendState(_fblockTarget.Anchor, true, false, false);
+            var inventory = PlayerInventory.Local;
+            if (inventory.Wear(inventory.ActiveStack, 5f))
+                Say("Лом сломался");
+            else
+                Say("Замок сорван");
+            PlayerSkills.AwardLocal(Aspect.Construction, 0.5f);
+        }
+
+        private static void SendState(Unity.Mathematics.int3 anchor, bool open, bool locked, bool side)
+        {
+            if (Services.TryGet(out INetSession session))
+                session.SendToAuthority(new SetFunctionalStateCommand { Anchor = anchor, Open = open, Locked = locked, Side = side });
+        }
+
         private PropBody FindTarget()
         {
             var view = _camera.transform;
             var ray = new Ray(view.position, view.forward);
+            _fblockTarget = null;
             _worldItemTarget = null;
             _shelfItemTarget = -1;
             int mask = (1 << GameLayers.World) | (1 << GameLayers.Props) | (1 << GameLayers.Debris);
             if (!Physics.Raycast(ray, out var hit, Reach, mask, QueryTriggerInteraction.Ignore))
                 return null;
+            // Дверь или ворота — функциональный блок мира.
+            if (FunctionalBlocks.TryGetView(hit.collider, out var functional))
+            {
+                _fblockTarget = functional;
+                return null;
+            }
             // Предмет на полу — сразу цель подбора.
             if (WorldItems.TryGet(hit.collider, out var worldItem))
             {
@@ -212,6 +282,7 @@ namespace VoidMall.Game
 
         private void UpdateFreeHands()
         {
+            UpdatePrying();
             // E: короткое нажатие — взять; удержание на прибитом — вытащить гвозди.
             if (_interact.WasPressedThisFrame())
             {
@@ -220,6 +291,12 @@ namespace VoidMall.Game
                 // Предмет под прицелом (на полу или на полке) подбирается сразу.
                 if ((_worldItemTarget != null || _shelfItemTarget >= 0) && TryPickItem())
                     _interactConsumed = true;
+                else if (_fblockTarget != null)
+                {
+                    _interactConsumed = true;
+                    _prying = !UseFunctional(_fblockTarget);
+                    _pryProgress = 0f;
+                }
             }
             if (_interact.IsPressed() && _target != null && !_interactConsumed)
             {
@@ -610,6 +687,19 @@ namespace VoidMall.Game
 
         // ───────────────────────────── Подсказки ─────────────────────────────
 
+        private string FunctionalHint(FunctionalBlockView view)
+        {
+            var world = ChunkManager.Instance;
+            Cell anchor = world.GetCell(view.Anchor);
+            string name = world.Materials.Get(view.Material).DisplayName;
+            if (view.Kind == FunctionalKind.SlidingDoor)
+                return $"{name} · открывается сама";
+            bool open = FunctionalCells.IsOpen(anchor.Meta);
+            if (view.Kind == FunctionalKind.Gate && FunctionalCells.IsLocked(anchor.Meta))
+                return _prying ? $"Поддеваем ломом… {_pryProgress * 100f:0}%" : $"{name} · заперто · удерживайте E с ломом в руках";
+            return $"{name} · E — {(open ? "закрыть" : "открыть")}";
+        }
+
         private void Say(string message)
         {
             _message = message;
@@ -668,6 +758,10 @@ namespace VoidMall.Game
             {
                 // Открыто окно или консоль — подсказки прицела не нужны.
                 text = string.Empty;
+            }
+            else if (_fblockTarget != null)
+            {
+                text = FunctionalHint(_fblockTarget);
             }
             else if (_disassembleTarget != null)
             {

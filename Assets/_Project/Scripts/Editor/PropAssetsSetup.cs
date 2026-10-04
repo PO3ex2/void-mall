@@ -72,6 +72,7 @@ namespace VoidMall.Editor
             new("prop.stove", "Кухонная плита", PropShape.Stove, 90f, 700, 10f, WhiteDust, ("material.scrap_metal", 6, 3), ("material.wire", 2, 1), ("material.pipe", 1, 0)),
             new("prop.burner", "Туристическая горелка", PropShape.Burner, 3f, 80, 2f, MetalDust, ("item.burner", 1, 0), ("material.scrap_metal", 0, 1)),
             new("prop.barricade", "Баррикада", PropShape.Barricade, 25f, 400, 5f, WoodDust, ("material.plank", 3, 2), ("material.nails", 3, 0)),
+            new("prop.crusher", "Дробилка", PropShape.Crusher, 150f, 900, 10f, MetalDust, ("material.scrap_metal", 6, 3), ("material.pipe", 2, 1), ("material.wire", 2, 1)),
         };
 
         /// <summary>На чём можно спать (E): сон сохраняет точку возрождения. Диван — хуже кровати.</summary>
@@ -118,6 +119,7 @@ namespace VoidMall.Editor
                     "prop.chem_table" => (CraftStation.Chemistry, 1f, false),
                     "prop.stove" => (CraftStation.Cooking, 1f, true),
                     "prop.burner" => (CraftStation.Cooking, 0.7f, true),
+                    "prop.crusher" => (CraftStation.Crusher, 1f, false),
                     _ => (CraftStation.None, 1f, false),
                 };
                 def.SleepQuality = spec.Id == "prop.sofa" ? 0.7f : 1f;

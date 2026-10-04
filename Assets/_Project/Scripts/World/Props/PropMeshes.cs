@@ -35,6 +35,7 @@ namespace VoidMall.World
         Stove,
         Burner,
         Barricade,
+        Crusher,
         Count,
     }
 
@@ -73,6 +74,7 @@ namespace VoidMall.World
             PropShape.Stove => new Vector3(0.8f, 0.9f, 0.65f),
             PropShape.Burner => new Vector3(0.3f, 0.22f, 0.3f),
             PropShape.Barricade => new Vector3(1.6f, 1.2f, 0.25f),
+            PropShape.Crusher => new Vector3(1.2f, 1.4f, 1f),
             _ => Vector3.one,
         };
 
@@ -486,6 +488,18 @@ namespace VoidMall.World
                     b.BoxMinMax(new Vector3(-w / 2 + 0.1f, 0, -d / 2 + 0.04f), new Vector3(-w / 2 + 0.18f, h, d / 2), Wood);
                     b.BoxMinMax(new Vector3(w / 2 - 0.18f, 0, -d / 2 + 0.04f), new Vector3(w / 2 - 0.1f, h, d / 2), Wood);
                     b.Box(new Vector3(0, h * 0.5f, -d / 2 - 0.02f), new Vector3(w * 1.05f, 0.14f, 0.04f), Wood, Quaternion.Euler(0, 0, 30f));
+                    break;
+                }
+                case PropShape.Crusher:
+                {
+                    // Дробилка-компрессор: станина, корпус с валками, бункер сверху, лоток выдачи спереди, мотор сбоку.
+                    var crusherPaint = new Color(0.85f, 0.6f, 0.15f, 0.4f);
+                    b.BoxMinMax(new Vector3(-w / 2, 0, -d / 2), new Vector3(w / 2, 0.15f, d / 2), DarkMetal);
+                    b.BoxMinMax(new Vector3(-w / 2 + 0.1f, 0.15f, -d / 2 + 0.1f), new Vector3(w / 2 - 0.25f, h * 0.65f, d / 2 - 0.1f), crusherPaint);
+                    b.BoxMinMax(new Vector3(-w / 2 + 0.05f, h * 0.65f, -d / 2 + 0.05f), new Vector3(w / 2 - 0.2f, h * 0.72f, d / 2 - 0.05f), DarkMetal);
+                    b.BoxMinMax(new Vector3(-w / 2, h * 0.72f, -d / 2), new Vector3(w / 2 - 0.15f, h, d / 2), Metal); // бункер
+                    b.BoxMinMax(new Vector3(-0.25f, 0.2f, -d / 2 - 0.15f), new Vector3(0.15f, 0.3f, -d / 2 + 0.1f), DarkMetal); // лоток
+                    b.BoxMinMax(new Vector3(w / 2 - 0.25f, 0.15f, -0.2f), new Vector3(w / 2, 0.55f, 0.2f), new Color(0.2f, 0.35f, 0.25f, 0.5f)); // мотор
                     break;
                 }
             }

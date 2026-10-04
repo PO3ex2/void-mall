@@ -14,6 +14,7 @@ namespace VoidMall.World
         public ushort Asphalt, LineX, LineZ;
         public ushort Lamp, Emergency, Skylight;
         public ushort Duct, CableTray;
+        public ushort Door, Gate, Sliding1, Sliding2, Sliding4;
 
         public static MallMaterials Resolve(MaterialRegistry registry) => new()
         {
@@ -36,6 +37,11 @@ namespace VoidMall.World
             Skylight = registry.IndexOf("block.skylight"),
             Duct = registry.IndexOf("block.duct"),
             CableTray = registry.IndexOf("block.cable_tray"),
+            Door = registry.TryGetIndex("fblock.door", out ushort door) ? door : (ushort)0,
+            Gate = registry.TryGetIndex("fblock.gate", out ushort gate) ? gate : (ushort)0,
+            Sliding1 = registry.TryGetIndex("fblock.sliding_door_1", out ushort sliding1) ? sliding1 : (ushort)0,
+            Sliding2 = registry.TryGetIndex("fblock.sliding_door_2", out ushort sliding2) ? sliding2 : (ushort)0,
+            Sliding4 = registry.TryGetIndex("fblock.sliding_door_4", out ushort sliding4) ? sliding4 : (ushort)0,
         };
     }
 
@@ -65,11 +71,15 @@ namespace VoidMall.World
         /// <summary>Мировые координаты всех светящихся блоков чанка (для LightingDirector).</summary>
         public NativeList<int3> Lamps;
 
+        /// <summary>Мировые координаты якорей функциональных блоков (двери, ворота) — для их моделей.</summary>
+        public NativeList<int3> Anchors;
+
         private const int Size = WorldConstants.ChunkSize;
 
         public void Execute()
         {
             Lamps.Clear();
+            Anchors.Clear();
             int3 origin = Chunk * Size;
             int2 cell = MallLayout.CellOf(origin.x, origin.z);
             int2 cellOrigin = MallLayout.CellOrigin(cell);
@@ -120,6 +130,9 @@ namespace VoidMall.World
                     Cells[WorldConstants.CellIndex(x, ly, z)] = value;
                     if (value.Material != 0 && (value.Material == M.Lamp || value.Material == M.Emergency || value.Material == M.Skylight))
                         Lamps.Add(p);
+                    else if (value.Material != 0 && value.Value == 0 && (value.Material == M.Door || value.Material == M.Gate
+                             || value.Material == M.Sliding1 || value.Material == M.Sliding2 || value.Material == M.Sliding4))
+                        Anchors.Add(p);
                 }
                 y = end;
             }
@@ -338,14 +351,14 @@ namespace VoidMall.World
             switch (tile)
             {
                 case Tile.Wall: return new Cell(wallMat);
-                case Tile.Door: return rel <= doorHeight ? Cell.Air : new Cell(wallMat);
+                case Tile.Door: return rel <= doorHeight ? DoorCell(local, rel, level, plan, info, Tile.Door, 0.55f, wallMat) : new Cell(wallMat);
                 case Tile.FacadeWall: return new Cell(facadeMat);
                 case Tile.FacadeGlass: return rel < free ? new Cell(M.Glass) : new Cell(facadeMat);
-                case Tile.FacadeDoor: return rel <= doorHeight ? Cell.Air : new Cell(facadeMat);
-                case Tile.Shutter: return rel <= doorHeight ? new Cell(M.Shutter) : new Cell(facadeMat);
+                case Tile.FacadeDoor: return rel <= doorHeight ? SlidingDoorCell(local, rel, level, plan, info, doorHeight) : new Cell(facadeMat);
+                case Tile.Shutter: return rel <= doorHeight ? GateCell(local, rel, level, plan, info, doorHeight) : new Cell(facadeMat);
                 case Tile.Pillar: return new Cell(pillarMat);
                 case Tile.CoreWall: return new Cell(M.Concrete);
-                case Tile.CoreDoor: return rel <= doorHeight ? Cell.Air : new Cell(M.Concrete);
+                case Tile.CoreDoor: return rel <= doorHeight ? DoorCell(local, rel, level, plan, info, Tile.CoreDoor, 0.8f, M.Concrete) : new Cell(M.Concrete);
                 case Tile.Railing: return rel == 1 ? new Cell(M.Glass) : Cell.Air;
                 case Tile.Barrier: return rel == 1 ? new Cell(M.Concrete) : Cell.Air;
                 default:
@@ -355,6 +368,99 @@ namespace VoidMall.World
                 }
             }
         }
+
+        /// <summary>
+        /// Дверь в проходе (функциональный блок 1×2): проход из двух клеток — двойная дверь (петли по краям), из
+        /// одной — одиночная. Есть дверь или нет — решает хеш прохода; над дверью (торговые этажи) — перемычка.
+        /// </summary>
+        private Cell DoorCell(int2 local, int rel, int level, in MallLevelPlan plan, in MallCellInfo info, Tile doorTile, float chance, ushort aboveMat)
+        {
+            if (M.Door == 0)
+                return Cell.Air;
+            bool alongX = IsWallLike(plan, local + new int2(1, 0)) || IsWallLike(plan, local + new int2(-1, 0));
+            int2 axis = alongX ? new int2(1, 0) : new int2(0, 1);
+            bool hasLower = TileAt(plan, local - axis) == doorTile;
+            bool hasUpper = TileAt(plan, local + axis) == doorTile;
+            int2 key = hasLower ? local - axis : local;
+            uint h = Hash.Get(Seed, info.Cell.x * 131 + key.x, info.Cell.y * 131 + key.y, level * 7 + 5111);
+            if (Hash.ToFloat01(h) >= chance)
+                return Cell.Air;
+            // Над дверью высотой 2 в проёме высотой 3 — перемычка из стены, без щели.
+            if (rel > 2)
+                return new Cell(aboveMat);
+            // Петля — на внешнем крае створки (у двойной — по краям прохода).
+            bool second = hasLower && !hasUpper;
+            int yaw = alongX ? (second ? 2 : 0) : (second ? 1 : 3);
+            return FunctionalCells.Part(M.Door, new int3(0, rel - 1, 0), FunctionalCells.Meta(yaw));
+        }
+
+        /// <summary>
+        /// Большие ворота на месте рольставни (сегменты 1×3 по линии фасада). Половина магазинов заперта:
+        /// решает хеш начала проёма, поэтому весь проём заперт одинаково.
+        /// </summary>
+        private Cell GateCell(int2 local, int rel, int level, in MallLevelPlan plan, in MallCellInfo info, int doorHeight)
+        {
+            if (M.Gate == 0 || doorHeight != 3)
+                return new Cell(M.Shutter);
+            bool alongX = TileAt(plan, local + new int2(1, 0)) is Tile.Shutter or Tile.FacadeWall or Tile.FacadeGlass or Tile.FacadeDoor
+                          || TileAt(plan, local + new int2(-1, 0)) is Tile.Shutter or Tile.FacadeWall or Tile.FacadeGlass or Tile.FacadeDoor;
+            int2 axis = alongX ? new int2(1, 0) : new int2(0, 1);
+            int2 start = local;
+            for (int i = 0; i < 16 && TileAt(plan, start - axis) == Tile.Shutter; i++)
+                start -= axis;
+            uint h = Hash.Get(Seed, info.Cell.x * 131 + start.x, info.Cell.y * 131 + start.y, level * 7 + 6007);
+            bool locked = Hash.ToFloat01(h) < 0.5f;
+            return FunctionalCells.Part(M.Gate, new int3(0, rel - 1, 0), FunctionalCells.Meta(alongX ? 0 : 1, locked: locked));
+        }
+
+        /// <summary>
+        /// Автоматическая стеклянная дверь во входе магазина — цельный блок на кусок проёма (4×3, 2×3 или 1×3),
+        /// чтобы створки открывались вместе. Проём 4 — одна дверь 4×3 или две 2×3 (по хешу), остальное — жадно 4, 2, 1.
+        /// Есть ли в проёме двери — по хешу начала проёма (иначе открытый проход).
+        /// </summary>
+        private Cell SlidingDoorCell(int2 local, int rel, int level, in MallLevelPlan plan, in MallCellInfo info, int doorHeight)
+        {
+            if (M.Sliding1 == 0 || doorHeight != 3)
+                return Cell.Air;
+            bool alongX = TileAt(plan, local + new int2(1, 0)) is Tile.FacadeDoor or Tile.FacadeWall or Tile.FacadeGlass or Tile.Shutter
+                          || TileAt(plan, local + new int2(-1, 0)) is Tile.FacadeDoor or Tile.FacadeWall or Tile.FacadeGlass or Tile.Shutter;
+            int2 axis = alongX ? new int2(1, 0) : new int2(0, 1);
+            int2 start = local, end = local;
+            for (int i = 0; i < 16 && TileAt(plan, start - axis) == Tile.FacadeDoor; i++)
+                start -= axis;
+            for (int i = 0; i < 16 && TileAt(plan, end + axis) == Tile.FacadeDoor; i++)
+                end += axis;
+            uint h = Hash.Get(Seed, info.Cell.x * 131 + start.x, info.Cell.y * 131 + start.y, level * 7 + 7019);
+            if (Hash.ToFloat01(h) >= 0.6f)
+                return Cell.Air;
+            int along = alongX ? local.x - start.x : local.y - start.y;
+            int length = (alongX ? end.x - start.x : end.y - start.y) + 1;
+            bool wide = M.Sliding4 != 0 && Hash.ToFloat01(Hash.Get(Seed, info.Cell.x * 131 + start.x, info.Cell.y * 131 + start.y, level * 7 + 7027)) < 0.65f;
+            // Куски проёма от начала: локальная +X блока смотрит вдоль проёма (поворот 0 по X, 3 по Z).
+            int pieceStart = 0, width = 1;
+            for (int s = 0; s < length; s += width)
+            {
+                int rest = length - s;
+                width = wide && rest >= 4 ? 4 : M.Sliding2 != 0 && rest >= 2 ? 2 : 1;
+                if (along < s + width)
+                {
+                    pieceStart = s;
+                    break;
+                }
+            }
+            ushort material = width == 4 ? M.Sliding4 : width == 2 ? M.Sliding2 : M.Sliding1;
+            return FunctionalCells.Part(material, new int3(along - pieceStart, rel - 1, 0), FunctionalCells.Meta(alongX ? 0 : 3));
+        }
+
+        private static Tile TileAt(in MallLevelPlan plan, int2 local)
+        {
+            if (local.x < 0 || local.y < 0 || local.x >= MallLayout.CellSize || local.y >= MallLayout.CellSize)
+                return Tile.Open;
+            return (Tile)plan.Tiles[MallLevelPlan.Index(local.x, local.y)];
+        }
+
+        private static bool IsWallLike(in MallLevelPlan plan, int2 local) =>
+            TileAt(plan, local) is Tile.Wall or Tile.Door or Tile.CoreWall or Tile.CoreDoor or Tile.FacadeWall or Tile.Pillar;
 
         /// <summary>
         /// Под потолком (верхний ряд свободной высоты): воздуховоды и кабельные лотки в служебных коридорах

@@ -46,10 +46,12 @@ namespace VoidMall.Editor
             public bool Electric, Cooked;
             public float Fuel;
             public string Teaches;
+            public string Block;
         }
 
         private static readonly Color Steel = new(0.62f, 0.64f, 0.68f);
         private static readonly Color WoodColor = new(0.6f, 0.45f, 0.3f);
+        private static readonly Color GlassDoorColor = new(0.7f, 0.85f, 0.9f);
         private static readonly Color Blueprint = new(0.3f, 0.5f, 0.85f);
 
         private static readonly Spec[] Specs =
@@ -77,8 +79,8 @@ namespace VoidMall.Editor
             new() { Id = "material.rubber", Name = "Резина", Category = ItemCategory.Material, Shape = ItemShape.Pile, Size = new(0.2f, 0.08f, 0.15f), Weight = 0.3f, Stack = 20, Tint = new(0.12f, 0.12f, 0.12f) },
             new() { Id = "material.foam", Name = "Поролон", Category = ItemCategory.Material, Shape = ItemShape.Pack, Size = new(0.3f, 0.08f, 0.25f), Weight = 0.05f, Stack = 20, Tint = new(0.95f, 0.88f, 0.5f) },
             new() { Id = "material.pipe", Name = "Труба", Category = ItemCategory.Material, Shape = ItemShape.Pipe, Size = new(0.8f, 0.05f, 0.05f), Grid = new(3, 1), Weight = 1.2f, Stack = 10, Tint = Steel },
-            new() { Id = "material.concrete_rubble", Name = "Бетонная крошка", Description = "Из копания массивов. Перфоратор наращивает ею бетон.", Category = ItemCategory.Material, Shape = ItemShape.Pile, Size = new(0.25f, 0.12f, 0.2f), Weight = 1.5f, Stack = 20, Tint = new(0.6f, 0.6f, 0.62f), Smooth = "smooth.concrete" },
-            new() { Id = "material.soil", Name = "Грунт", Description = "Перфоратор наращивает им грунт.", Category = ItemCategory.Material, Shape = ItemShape.Bag, Size = new(0.25f, 0.2f, 0.15f), Weight = 1.2f, Stack = 20, Tint = new(0.45f, 0.34f, 0.22f), Smooth = "smooth.soil" },
+            new() { Id = "material.concrete_rubble", Name = "Бетонная крошка", Description = "Из копания массивов. Перфоратор наращивает ею бетон.", Category = ItemCategory.Material, Shape = ItemShape.Pile, Size = new(0.25f, 0.12f, 0.2f), Weight = 0.3f, Stack = 50, Tint = new(0.6f, 0.6f, 0.62f), Smooth = "smooth.concrete" },
+            new() { Id = "material.soil", Name = "Грунт", Description = "Перфоратор наращивает им грунт.", Category = ItemCategory.Material, Shape = ItemShape.Bag, Size = new(0.25f, 0.2f, 0.15f), Weight = 0.3f, Stack = 50, Tint = new(0.45f, 0.34f, 0.22f), Smooth = "smooth.soil" },
 
             // ── Еда и напитки ──
             new() { Id = "item.canned_beans", Name = "Банка фасоли", Category = ItemCategory.Food, Shape = ItemShape.Can, Size = new(0.08f, 0.11f, 0.08f), Weight = 0.45f, Stack = 5, Tint = new(0.75f, 0.35f, 0.2f), Calories = 350, Fat = 2, Protein = 20, Carbs = 60, Water = 50 },
@@ -137,6 +139,15 @@ namespace VoidMall.Editor
             new() { Id = "item.blueprint_drill_pro", Name = "Чертёж: мощный перфоратор", Category = ItemCategory.Blueprint, Shape = ItemShape.Box, Size = new(0.21f, 0.01f, 0.3f), Weight = 0.05f, Tint = Blueprint, Teaches = "recipe.drill_pro" },
             new() { Id = "item.blueprint_padded_vest", Name = "Чертёж: утеплённый жилет", Category = ItemCategory.Blueprint, Shape = ItemShape.Box, Size = new(0.21f, 0.01f, 0.3f), Weight = 0.05f, Tint = Blueprint, Teaches = "recipe.padded_vest" },
             new() { Id = "item.blueprint_hiking_backpack", Name = "Чертёж: туристический рюкзак", Category = ItemCategory.Blueprint, Shape = ItemShape.Box, Size = new(0.21f, 0.01f, 0.3f), Weight = 0.05f, Tint = Blueprint, Teaches = "recipe.hiking_backpack" },
+
+            // ── Функциональные блоки и формы (этап 8А) ──
+            new() { Id = "item.door", Name = "Дверь", Description = "ПКМ — поставить в проём (R — повернуть). E — открыть или закрыть.", Category = ItemCategory.Block, Shape = ItemShape.Plank, Size = new(0.5f, 0.05f, 0.9f), Grid = new(2, 2), Weight = 6f, Tint = WoodColor, Block = "fblock.door" },
+            new() { Id = "item.gate", Name = "Ворота (рольставня)", Description = "ПКМ — поставить (R — повернуть). Ворота в ряд открываются вместе.", Category = ItemCategory.Block, Shape = ItemShape.Plank, Size = new(0.6f, 0.08f, 0.9f), Grid = new(3, 2), Weight = 15f, Tint = Steel, Block = "fblock.gate" },
+            new() { Id = "item.sliding_door_1", Name = "Автоматическая дверь 1×3", Description = "Одна створка. ПКМ — поставить (R — повернуть). Отъезжает вбок, когда подходишь, и закрывается за тобой.", Category = ItemCategory.Block, Shape = ItemShape.Plank, Size = new(0.4f, 0.05f, 0.9f), Grid = new(3, 2), Weight = 8f, Tint = GlassDoorColor, Block = "fblock.sliding_door_1" },
+            new() { Id = "item.sliding_door_2", Name = "Автоматическая дверь 2×3", Description = "Две створки разъезжаются в стороны. ПКМ — поставить (R — повернуть), открывается сама, когда подходишь.", Category = ItemCategory.Block, Shape = ItemShape.Plank, Size = new(0.7f, 0.05f, 0.9f), Grid = new(4, 2), Weight = 14f, Tint = GlassDoorColor, Block = "fblock.sliding_door_2" },
+            new() { Id = "item.sliding_door_4", Name = "Автоматическая дверь 4×3", Description = "Широкий вход: четыре створки уезжают в стороны парами. ПКМ — поставить (R — повернуть), открывается сама, когда подходишь.", Category = ItemCategory.Block, Shape = ItemShape.Plank, Size = new(1.2f, 0.05f, 0.9f), Grid = new(4, 3), Weight = 26f, Tint = GlassDoorColor, Block = "fblock.sliding_door_4" },
+            new() { Id = "item.shape_template", Name = "Набор шаблонов", Description = "Формы блоков: ПКМ — поставить призрак формы, Shift+колесо — сменить форму, R — повернуть, Shift+R — наклонить (верх в любую сторону), ЛКМ — убрать призрак. Призрак заполняется любым блоком (ПКМ блоком по нему). Не тратится.", Category = ItemCategory.Tool, Shape = ItemShape.Box, Size = new(0.3f, 0.05f, 0.25f), Grid = new(2, 1), Weight = 0.6f, Tint = new(0.45f, 0.75f, 1f), Tool = ToolKind.Template },
+            new() { Id = "item.crusher", Name = "Дробилка", Description = "ПКМ — поставить. Блоки в бетонную крошку и обратно.", Category = ItemCategory.Misc, Shape = ItemShape.Box, Size = new(0.5f, 0.35f, 0.4f), Grid = new(3, 2), Weight = 20f, Tint = new(0.85f, 0.6f, 0.15f), PlacesProp = "prop.crusher" },
         };
 
         /// <summary>Таблицы лута: раздел → (предмет, вес, мин, макс). Fill — доля мест на полках, где вообще что-то лежит.</summary>
@@ -266,6 +277,10 @@ namespace VoidMall.Editor
                 foreach (var material in catalog.Materials)
                     if (material.Id == spec.Smooth)
                         def.SmoothMaterial = material;
+            if (!string.IsNullOrEmpty(spec.Block))
+                foreach (var material in catalog.Materials)
+                    if (material.Id == spec.Block)
+                        def.PlacesBlock = material;
             EditorUtility.SetDirty(def);
         }
 

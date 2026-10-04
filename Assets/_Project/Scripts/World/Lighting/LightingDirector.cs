@@ -41,6 +41,9 @@ namespace VoidMall.World
         [SerializeField, Range(0f, 1f)] private float _eveningFogDarkness = 0.8f;
 
         private Camera _camera;
+        private Material _sky, _sourceSky;
+        private Color _appliedSky = new(-1f, -1f, -1f, -1f);
+        private static readonly int TopColorId = Shader.PropertyToID("_TopColor");
         private float _fogStart, _fogEnd;
 
         private Color _appliedAmbient = new(-1f, -1f, -1f, -1f);
@@ -93,18 +96,44 @@ namespace VoidMall.World
         private void OnDisable() => Services.Unregister<ILightProbe>(this);
 
         /// <summary>
-        /// Небо камера не рисует: фон — цвет тумана. Даль за прогруженными чанками и проёмы растворяются в дымке
-        /// (скайбокс туман не берёт и выбивался жёлтым пятном), ночью — в темноте.
+        /// Небо — градиент (VoidMall/FogSky): выше горизонта цвет тумана, поэтому даль за прогруженными чанками и проёмы
+        /// растворяются в дымке, а внизу чёрная пустота — в бездну и вырезы смотреть темно. Подкрашиваем копию материала
+        /// сцены (сам ассет не трогаем), только при изменении цвета.
         /// </summary>
-        private void UpdateBackground(Color fog)
+        private void UpdateSky(Color fog)
         {
             if (_camera == null || !_camera.isActiveAndEnabled)
                 _camera = Camera.main;
-            if (_camera == null)
+            if (_camera != null && _camera.clearFlags != CameraClearFlags.Skybox)
+                _camera.clearFlags = CameraClearFlags.Skybox;
+            var current = RenderSettings.skybox;
+            if (current == null)
                 return;
-            if (_camera.clearFlags != CameraClearFlags.SolidColor)
-                _camera.clearFlags = CameraClearFlags.SolidColor;
-            _camera.backgroundColor = fog;
+            if (current != _sky)
+            {
+                if (!current.HasProperty(TopColorId))
+                    return;
+                if (_sky != null)
+                    Destroy(_sky);
+                _sourceSky = current;
+                _sky = new Material(current) { name = current.name + " (runtime)", hideFlags = HideFlags.DontSave };
+                _appliedSky = new Color(-1f, -1f, -1f, -1f);
+                RenderSettings.skybox = _sky;
+            }
+            if (fog != _appliedSky)
+            {
+                _appliedSky = fog;
+                _sky.SetColor(TopColorId, fog);
+            }
+        }
+
+        private void OnDestroy()
+        {
+            if (_sky == null)
+                return;
+            if (RenderSettings.skybox == _sky)
+                RenderSettings.skybox = _sourceSky;
+            Destroy(_sky);
         }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
@@ -156,7 +185,7 @@ namespace VoidMall.World
             float edge = ChunkManager.ViewDistance.Value * WorldConstants.ChunkSize - WorldConstants.ChunkSize * 0.75f;
             RenderSettings.fogEndDistance = Mathf.Max(24f, Mathf.Min(_fogEnd, edge));
             RenderSettings.fogStartDistance = Mathf.Min(_fogStart, RenderSettings.fogEndDistance * 0.3f);
-            UpdateBackground(fog);
+            UpdateSky(fog);
 
             Vector3 center = ViewerPosition();
             if (Time.unscaledTime >= _nextRefresh)

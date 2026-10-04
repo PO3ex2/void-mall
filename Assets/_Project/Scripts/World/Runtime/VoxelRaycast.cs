@@ -41,7 +41,7 @@ namespace VoidMall.World
             while (t <= maxDistance)
             {
                 Cell value = world.GetCell(cell);
-                if (!value.IsAir)
+                if (!value.IsAir && !IsOpenFunctional(world, cell, value))
                 {
                     hit = new VoxelHit { Cell = cell, Normal = normal, Distance = t, Value = value };
                     return true;
@@ -70,6 +70,20 @@ namespace VoidMall.World
                 }
             }
             return false;
+        }
+
+        /// <summary>Клетка открытой двери или ворот — луч проходит насквозь (в проём можно целиться).</summary>
+        private static bool IsOpenFunctional(ChunkManager world, int3 cell, Cell value)
+        {
+            var info = world.GetInfo(value.Material);
+            if (info.Kind != MaterialKind.Functional)
+                return false;
+            int3 anchorCell = FunctionalCells.AnchorOf(cell, value);
+            // Автоматическая дверь открыта по близости игрока — у каждого клиента своё.
+            if (info.Function == FunctionalKind.SlidingDoor)
+                return FunctionalBlocks.Instance != null && FunctionalBlocks.Instance.IsOpenLocally(anchorCell);
+            Cell anchor = world.GetCell(anchorCell);
+            return anchor.Material == value.Material && FunctionalCells.IsOpen(anchor.Meta);
         }
 
         private static float Boundary(float origin, int cell, float direction)

@@ -42,6 +42,8 @@ namespace VoidMall.World
             _session.RegisterCommandHandler<SetBlockCommand>(OnSet);
             _session.RegisterCommandHandler<FillBlocksCommand>(OnFill);
             _session.RegisterCommandHandler<SmoothBrushCommand>(OnBrush);
+            _session.RegisterCommandHandler<PlaceFunctionalCommand>(OnPlaceFunctional);
+            _session.RegisterCommandHandler<SetFunctionalStateCommand>(OnSetFunctionalState);
             _session.RegisterEventHandler<BlockChangedEvent>(OnBlockChanged);
         }
 
@@ -54,6 +56,8 @@ namespace VoidMall.World
             _session.UnregisterCommandHandler<SetBlockCommand>(OnSet);
             _session.UnregisterCommandHandler<FillBlocksCommand>(OnFill);
             _session.UnregisterCommandHandler<SmoothBrushCommand>(OnBrush);
+            _session.UnregisterCommandHandler<PlaceFunctionalCommand>(OnPlaceFunctional);
+            _session.UnregisterCommandHandler<SetFunctionalStateCommand>(OnSetFunctionalState);
             _session.UnregisterEventHandler<BlockChangedEvent>(OnBlockChanged);
             _session = null;
         }
@@ -66,7 +70,14 @@ namespace VoidMall.World
             if (cell.IsAir || !_world.IsLoaded(command.Position))
                 return;
             var info = _world.Materials.Infos[cell.Material];
-            if ((info.Flags & MaterialFlags.Unbreakable) != 0 || info.Kind != MaterialKind.Block)
+            if ((info.Flags & MaterialFlags.Unbreakable) != 0)
+                return;
+            if (info.Kind == MaterialKind.Functional)
+            {
+                DamageFunctional(command.Position, cell, info, command.Amount);
+                return;
+            }
+            if (info.Kind != MaterialKind.Block)
                 return; // гладкие массивы — только буром
 
             int damage = _world.GetDamage(command.Position) + command.Amount;
@@ -90,7 +101,8 @@ namespace VoidMall.World
         {
             if (!_session.IsAuthority || !CanPlaceBlock(_world, command.Position, command.Material))
                 return;
-            var cell = new Cell(command.Material);
+            byte shape = command.Shape < (byte)BlockShape.Count ? command.Shape : (byte)0;
+            var cell = new Cell(command.Material, shape, shape != 0 ? (byte)BlockShapes.Orientation(command.Meta) : (byte)0);
             if (_world.SetCell(command.Position, cell))
                 Broadcast(command.Position, cell, 0);
         }
@@ -110,6 +122,152 @@ namespace VoidMall.World
                 return false;
             Vector3 center = new Vector3(position.x, position.y, position.z) + Vector3.one * 0.5f;
             return !Physics.CheckBox(center, Vector3.one * 0.49f, Quaternion.identity, EntityMask, QueryTriggerInteraction.Ignore);
+        }
+
+        // ───────────────────────────── Функциональные блоки ─────────────────────────────
+
+        private readonly List<int3> _footprint = new();
+
+        /// <summary>Удар по любой клетке функционального блока: урон копится в якоре, на прочности ломается весь блок.</summary>
+        private void DamageFunctional(int3 position, Cell cell, MaterialInfo info, int amount)
+        {
+            int3 anchor = FunctionalCells.AnchorOf(position, cell);
+            Cell anchorCell = _world.GetCell(anchor);
+            if (anchorCell.Material != cell.Material)
+                return;
+            int damage = _world.GetDamage(anchor) + amount;
+            if (damage < info.Hardness)
+            {
+                _world.SetDamage(anchor, damage);
+                Broadcast(anchor, anchorCell, damage);
+                return;
+            }
+            FunctionalCells.Footprint(anchor, info.FunctionalSize, FunctionalCells.Yaw(anchorCell.Meta), _footprint);
+            _removed.Clear();
+            using (_world.BeginBatch())
+            {
+                foreach (var part in _footprint)
+                {
+                    Cell value = _world.GetCell(part);
+                    if (value.Material != cell.Material || !math.all(FunctionalCells.AnchorOf(part, value) == anchor))
+                        continue;
+                    _world.SetCell(part, Cell.Air);
+                    Broadcast(part, Cell.Air, 0);
+                    _removed.Add(part);
+                }
+            }
+            PublishMined(cell.Material, 1f, anchor);
+            CheckIntegrity(_removed);
+        }
+
+        /// <summary>
+        /// Можно ли поставить функциональный блок: материал функциональный, весь объём загружен и пуст, внутри никого.
+        /// Инструмент проверяет то же самое до того, как списать предмет.
+        /// </summary>
+        public static bool CanPlaceFunctional(ChunkManager world, int3 anchor, ushort material, int yaw)
+        {
+            if (world == null || material == 0 || material >= world.Materials.Count)
+                return false;
+            var info = world.GetInfo(material);
+            if (info.Kind != MaterialKind.Functional)
+                return false;
+            var cells = new List<int3>();
+            FunctionalCells.Footprint(anchor, info.FunctionalSize, yaw, cells);
+            foreach (var cell in cells)
+            {
+                if (!WorldConstants.IsInsideWorldHeight(cell.y) || !world.IsLoaded(cell) || !world.GetCell(cell).IsAir)
+                    return false;
+                Vector3 center = new Vector3(cell.x, cell.y, cell.z) + Vector3.one * 0.5f;
+                if (Physics.CheckBox(center, Vector3.one * 0.45f, Quaternion.identity, EntityMask, QueryTriggerInteraction.Ignore))
+                    return false;
+            }
+            return true;
+        }
+
+        private void OnPlaceFunctional(PlayerId sender, in PlaceFunctionalCommand command)
+        {
+            if (!_session.IsAuthority || !CanPlaceFunctional(_world, command.Anchor, command.Material, command.Yaw))
+                return;
+            var info = _world.GetInfo(command.Material);
+            byte meta = FunctionalCells.Meta(command.Yaw);
+            using (_world.BeginBatch())
+            {
+                for (int y = 0; y < info.FunctionalSize.y; y++)
+                for (int z = 0; z < info.FunctionalSize.z; z++)
+                for (int x = 0; x < info.FunctionalSize.x; x++)
+                {
+                    var local = new int3(x, y, z);
+                    var cell = FunctionalCells.Part(command.Material, local, meta);
+                    int3 position = FunctionalCells.CellOf(command.Anchor, local, command.Yaw);
+                    if (_world.SetCell(position, cell))
+                        Broadcast(position, cell, 0);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Открыть или закрыть: дверь — одна, ворота — весь проём (соседние сегменты в линию). Закрыть нельзя,
+        /// если в проёме кто-то стоит.
+        /// </summary>
+        private void OnSetFunctionalState(PlayerId sender, in SetFunctionalStateCommand command)
+        {
+            if (!_session.IsAuthority)
+                return;
+            Cell anchor = _world.GetCell(command.Anchor);
+            if (anchor.IsAir || anchor.Value != 0)
+                return;
+            var info = _world.GetInfo(anchor.Material);
+            if (info.Kind != MaterialKind.Functional || info.Function == FunctionalKind.SlidingDoor)
+                return; // автоматическая дверь открывается сама, по близости игрока
+            int yaw = FunctionalCells.Yaw(anchor.Meta);
+            _footprint.Clear();
+            _footprint.Add(command.Anchor);
+            if (info.Function == FunctionalKind.Gate)
+            {
+                int3 step = FunctionalCells.Rotate(new int3(info.FunctionalSize.x, 0, 0), yaw);
+                foreach (int dir in new[] { 1, -1 })
+                {
+                    int3 next = command.Anchor + step * dir;
+                    for (int i = 0; i < 16; i++, next += step * dir)
+                    {
+                        Cell value = _world.GetCell(next);
+                        if (value.Material != anchor.Material || value.Value != 0 || FunctionalCells.Yaw(value.Meta) != yaw)
+                            break;
+                        _footprint.Add(next);
+                    }
+                }
+            }
+            if (!command.Open)
+                foreach (var a in _footprint)
+                    if (IsOccupied(a, info, yaw))
+                        return;
+            using (_world.BeginBatch())
+            {
+                foreach (var a in _footprint)
+                {
+                    var cell = new Cell(anchor.Material, 0, FunctionalCells.Meta(yaw, command.Open, command.Locked, command.Side));
+                    int damage = _world.GetDamage(a);
+                    if (_world.SetCell(a, cell))
+                    {
+                        _world.SetDamage(a, damage);
+                        Broadcast(a, cell, damage);
+                    }
+                }
+            }
+        }
+
+        /// <summary>В объёме блока стоит игрок, проп или враг.</summary>
+        private bool IsOccupied(int3 anchor, MaterialInfo info, int yaw)
+        {
+            var cells = new List<int3>();
+            FunctionalCells.Footprint(anchor, info.FunctionalSize, yaw, cells);
+            foreach (var cell in cells)
+            {
+                Vector3 center = new Vector3(cell.x, cell.y, cell.z) + Vector3.one * 0.5f;
+                if (Physics.CheckBox(center, new Vector3(0.45f, 0.49f, 0.45f), Quaternion.identity, EntityMask, QueryTriggerInteraction.Ignore))
+                    return true;
+            }
+            return false;
         }
 
         private void OnSet(PlayerId sender, in SetBlockCommand command)

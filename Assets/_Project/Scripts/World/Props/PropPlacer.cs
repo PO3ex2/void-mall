@@ -12,7 +12,7 @@ namespace VoidMall.World
         public ushort Shelf, Fridge, Checkout, DisplayTable, ClothesRack, Table, Chair, PalletRack, BoxStack, Car;
         public ushort Cabinet, Boiler, Bench, Planter, Sofa, CardboardBox, PlasticCrate, TrashBin;
         public ushort Switchboard, CableReel, VentUnit, Bed;
-        public ushort Workbench, SewingTable, ChemTable, Stove;
+        public ushort Workbench, SewingTable, ChemTable, Stove, Crusher;
 
         public ushort StationProp(CraftStation station) => station switch
         {
@@ -20,6 +20,7 @@ namespace VoidMall.World
             CraftStation.Sewing => SewingTable,
             CraftStation.Chemistry => ChemTable,
             CraftStation.Cooking => Stove,
+            CraftStation.Crusher => Crusher,
             _ => ushort.MaxValue,
         };
 
@@ -51,6 +52,7 @@ namespace VoidMall.World
             SewingTable = props.IndexOf("prop.sewing_table"),
             ChemTable = props.IndexOf("prop.chem_table"),
             Stove = props.IndexOf("prop.stove"),
+            Crusher = props.IndexOf("prop.crusher"),
         };
     }
 

@@ -23,7 +23,7 @@ namespace VoidMall.Game
     /// Голыми руками по стеклу и острому металлу можно порезаться (перчатки защищают), сломанная рука бьёт медленнее.
     /// Все правки мира — командами через сессию (готово к коопу). В творческом режиме блоки и материалы не тратятся.
     /// </summary>
-    public sealed class ToolController : MonoBehaviour
+    public sealed partial class ToolController : MonoBehaviour
     {
         public static readonly CVar<int> HandDamage = new("tool_hand_damage", 15, "Урон голыми руками.", ConsoleFlags.Cheat);
         public static readonly CVar<float> DrillRadius = new("drill_radius", 1.4f, "Радиус кисти бура, м.");
@@ -108,6 +108,7 @@ namespace VoidMall.Game
             CreateTorch();
             if (_brushMaterial != null)
                 _ghostMaterial = new Material(_brushMaterial) { name = "BuildGhost" };
+            CreateBuildMaterials();
             CreateHud();
         }
 
@@ -120,6 +121,7 @@ namespace VoidMall.Game
             if (_torch != null)
                 LightingDirector.DynamicLights.Remove(_torch);
             if (_ghostMaterial != null) Destroy(_ghostMaterial);
+            DestroyBuildMaterials();
             if (_flashlight != null)
                 LightingDirector.DynamicLights.Remove(_flashlight);
         }
@@ -145,6 +147,8 @@ namespace VoidMall.Game
             }
 
             _ghostVisible = false;
+            _fblockVisible = false;
+            FindGhostTarget();
             if (!InputBlocked)
             {
                 HandleSelection();
@@ -153,6 +157,7 @@ namespace VoidMall.Game
             UpdateFlashlight();
             UpdateTorch();
             DrawGhost();
+            DrawBuildGhosts();
             UpdateVisuals();
             UpdateHud();
         }
@@ -163,7 +168,7 @@ namespace VoidMall.Game
             for (int i = 0; i < Hotbar.Size; i++)
                 if (_slots[i] != null && _slots[i].WasPressedThisFrame())
                     hotbar.Select(i);
-            if (_scroll != null && _scroll.WasPressedThisFrame())
+            if (_scroll != null && _scroll.WasPressedThisFrame() && !TemplateScrollActive())
                 hotbar.Select(hotbar.Selected + (_scroll.ReadValue<float>() > 0 ? -1 : 1));
         }
 
@@ -175,7 +180,9 @@ namespace VoidMall.Game
                 HandleDrilling(item);
                 return;
             }
-            if (item != null && item.PlacesBlock != null)
+            if (HandleTemplate(item))
+                return;
+            if (item != null && item.PlacesBlock != null && !HandleBlockItem(item))
                 HandlePlacing(item);
             if (item != null && !string.IsNullOrEmpty(item.PlacesProp))
                 HandleBuilding(item);
@@ -646,7 +653,8 @@ namespace VoidMall.Game
             var activeStack = Inventory.ActiveStack;
             string wear = item != null && item.HasWear && activeStack != null ? $" ({activeStack.Durability * 100f:0}%)" : "";
             string hand = item == null ? "Руки" : $"{item.DisplayName}{(total > 1 ? $" ×{total}" : "")}{wear}";
-            string action = item == null ? "ЛКМ — ударить"
+            string action = item != null && BuildHint(item) is { } build ? build
+                : item == null ? "ЛКМ — ударить"
                 : item.Tool == ToolKind.Drill ? "ЛКМ — срезать, ПКМ — нарастить"
                 : item.Tool == ToolKind.Flashlight ? $"ЛКМ — {(_flashlightOn ? "выключить" : "включить")}"
                 : item.Tool == ToolKind.Torch ? $"ЛКМ — {(_torchOn ? "потушить" : "зажечь")}"

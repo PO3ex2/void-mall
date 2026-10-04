@@ -112,7 +112,11 @@ namespace VoidMall.World
             Cell value = world.GetCell(cell);
             if (value.IsAir)
                 return math.min((int)value.Value, Density.Iso - 1);
-            return world.GetInfo(value.Material).Kind == MaterialKind.Smooth ? value.Value : 255f;
+            var kind = world.GetInfo(value.Material).Kind;
+            // Двери и формы (полублок, скос) — не массив: игрок стоит в проёме или на ступеньке, выталкивать не надо.
+            if (kind == MaterialKind.Functional || (kind == MaterialKind.Block && value.Value != 0))
+                return 0f;
+            return kind == MaterialKind.Smooth ? value.Value : 255f;
         }
     }
 }

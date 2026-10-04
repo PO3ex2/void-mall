@@ -23,8 +23,8 @@ MonoBehaviour:
   Material: {fileID: 0}
   Icon: {fileID: 2800000, guid: 572d3ae60b2b9674d89caedd7ae23d8f, type: 3}
   GridSize: {x: 1, y: 1}
-  Weight: 1.5
-  MaxStack: 20
+  Weight: 0.3
+  MaxStack: 50
   Tool: 0
   ToolTier: 0
   BlockDamage: 0

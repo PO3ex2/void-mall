@@ -68,6 +68,7 @@ namespace VoidMall.Items
         Drill,
         Flashlight,
         Torch,
+        Template,
     }
 
     /// <summary>Слот экипировки (GDD §5.1): у каждого — слой брони и слой одежды.</summary>

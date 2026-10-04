@@ -114,6 +114,9 @@ namespace VoidMall.Editor
             ProjectSetup.SetReference(itemSystem, "_items", AssetDatabase.LoadAssetAtPath<VoidMall.Items.ItemSet>(ItemAssetsSetup.ItemSetPath));
             ProjectSetup.SetReference(itemSystem, "_loot", AssetDatabase.LoadAssetAtPath<VoidMall.Items.LootTableSet>(ItemAssetsSetup.LootSetPath));
             ProjectSetup.SetReference(itemSystem, "_material", AssetDatabase.LoadAssetAtPath<Material>(WorldAssetsSetup.PropsMaterialPath));
+            var functional = world.AddComponent<FunctionalBlocks>();
+            ProjectSetup.SetReference(functional, "_material", AssetDatabase.LoadAssetAtPath<Material>(WorldAssetsSetup.PropsMaterialPath));
+            ProjectSetup.SetReference(functional, "_glassMaterial", AssetDatabase.LoadAssetAtPath<Material>(WorldAssetsSetup.FBlockGlassMaterialPath));
             var crafting = world.AddComponent<VoidMall.Crafting.CraftingSystem>();
             ProjectSetup.SetReference(crafting, "_recipes", AssetDatabase.LoadAssetAtPath<VoidMall.Crafting.RecipeSet>(RecipeAssetsSetup.RecipeSetPath));
 

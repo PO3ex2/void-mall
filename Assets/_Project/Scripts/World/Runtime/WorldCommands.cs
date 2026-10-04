@@ -10,11 +10,30 @@ namespace VoidMall.World
         public int Amount;
     }
 
-    /// <summary>Поставить блок игроком: только в воздух и не внутрь игрока/пропа.</summary>
+    /// <summary>Поставить блок игроком: только в воздух и не внутрь игрока/пропа. Shape и Meta — форма и её ориентация (0 — куб).</summary>
     public struct PlaceBlockCommand : INetCommand
     {
         public int3 Position;
         public ushort Material;
+        public byte Shape;
+        public byte Meta;
+    }
+
+    /// <summary>Поставить функциональный блок (дверь, ворота): весь объём должен быть свободен.</summary>
+    public struct PlaceFunctionalCommand : INetCommand
+    {
+        public int3 Anchor;
+        public ushort Material;
+        public byte Yaw;
+    }
+
+    /// <summary>Открыть или закрыть, запереть или отпереть функциональный блок. Ворота меняются всем проёмом.</summary>
+    public struct SetFunctionalStateCommand : INetCommand
+    {
+        public int3 Anchor;
+        public bool Open;
+        public bool Locked;
+        public bool Side;
     }
 
     /// <summary>Задать клетку без проверок (консоль, читы, отладка).</summary>

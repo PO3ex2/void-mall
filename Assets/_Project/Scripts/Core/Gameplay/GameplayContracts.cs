@@ -82,6 +82,7 @@ namespace VoidMall.Core
         Sewing,
         Chemistry,
         Cooking,
+        Crusher,
     }
 
     public enum DeathCause

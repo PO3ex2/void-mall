@@ -37,6 +37,9 @@ namespace VoidMall.World
         /// <summary>Светящиеся блоки по чанкам (мировые координаты) — для LightingDirector.</summary>
         public readonly System.Collections.Generic.List<int3>[] Lamps = new System.Collections.Generic.List<int3>[WorldConstants.ChunksPerColumn];
 
+        /// <summary>Якоря функциональных блоков (двери, ворота) по чанкам — для их моделей рядом с игроком.</summary>
+        public readonly System.Collections.Generic.List<int3>[] Anchors = new System.Collections.Generic.List<int3>[WorldConstants.ChunksPerColumn];
+
         public ColumnState State;
         public int PendingGenerationJobs;
 

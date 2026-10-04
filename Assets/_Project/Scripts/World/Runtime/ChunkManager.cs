@@ -58,6 +58,8 @@ namespace VoidMall.World
         private Material _opaque;
         private Material _transparent;
         private MallMaterials _generatorMaterials;
+        private NativeArray<ShapeVertex> _shapeVertices;
+        private NativeArray<int2> _shapeRanges;
         private SectionTable _sections;
         private float _anomalyFrequency = 1f;
         private readonly Dictionary<int2, MallCellInfo> _cellInfos = new();
@@ -102,6 +104,7 @@ namespace VoidMall.World
             _textures = BlockTextureArrayBuilder.Build(_registry.All, out var layers);
             _registry.BuildInfos(layers);
             _generatorMaterials = MallMaterials.Resolve(_registry);
+            BlockShapes.BuildNative(out _shapeVertices, out _shapeRanges, Allocator.Persistent);
             if (_settings != null)
             {
                 _seed = _settings.Seed;
@@ -219,6 +222,50 @@ namespace VoidMall.World
             }
         }
 
+        /// <summary>Якоря функциональных блоков (двери, ворота) загруженных колонн в радиусе (по горизонтали) от точки.</summary>
+        public void CollectAnchors(Vector3 center, float radius, List<int3> result)
+        {
+            int2 min = WorldConstants.CellToColumn((int3)math.floor((float3)center - radius));
+            int2 max = WorldConstants.CellToColumn((int3)math.floor((float3)center + radius));
+            float radiusSq = radius * radius;
+            for (int cz = min.y; cz <= max.y; cz++)
+            for (int cx = min.x; cx <= max.x; cx++)
+            {
+                if (!_columns.TryGetValue(new int2(cx, cz), out var column) || column.State != ColumnState.Generated)
+                    continue;
+                foreach (var list in column.Anchors)
+                {
+                    if (list == null)
+                        continue;
+                    foreach (var anchor in list)
+                    {
+                        float3 delta = (float3)anchor + 0.5f - (float3)center;
+                        if (math.lengthsq(delta) <= radiusSq)
+                            result.Add(anchor);
+                    }
+                }
+            }
+        }
+
+        private void UpdateAnchorList(int3 cell, Cell value)
+        {
+            if (!_columns.TryGetValue(WorldConstants.CellToColumn(cell), out var column))
+                return;
+            int index = cell.y >> WorldConstants.ChunkShift;
+            var list = column.Anchors[index];
+            bool isAnchor = value.Material != 0 && _registry.Infos[value.Material].Kind == MaterialKind.Functional && value.Value == 0;
+            if (isAnchor)
+            {
+                list ??= column.Anchors[index] = new List<int3>();
+                if (!list.Contains(cell))
+                    list.Add(cell);
+            }
+            else
+            {
+                list?.Remove(cell);
+            }
+        }
+
         private void UpdateLampList(int3 cell, Cell value)
         {
             if (!_columns.TryGetValue(WorldConstants.CellToColumn(cell), out var column))
@@ -260,6 +307,10 @@ namespace VoidMall.World
             _bedrockChunk?.Dispose();
             _sections?.Dispose();
             _registry?.Dispose();
+            if (_shapeVertices.IsCreated)
+                _shapeVertices.Dispose();
+            if (_shapeRanges.IsCreated)
+                _shapeRanges.Dispose();
             if (_textures != null)
                 Destroy(_textures);
             Destroy(_opaque);
@@ -354,6 +405,7 @@ namespace VoidMall.World
             chunk.SetDamage(cellIndex, 0);
             MarkDirtyAround(cell);
             UpdateLampList(cell, value);
+            UpdateAnchorList(cell, value);
 
             if (_batchDepth == 0)
                 RebuildDirtyNow();
@@ -573,6 +625,7 @@ namespace VoidMall.World
                     column.Chunks[y] = chunk;
                     var uniform = new NativeArray<byte>(1, Allocator.TempJob);
                     var lamps = new NativeList<int3>(64, Allocator.TempJob);
+                    var anchors = new NativeList<int3>(16, Allocator.TempJob);
                     var job = new MallGenerationJob
                     {
                         Chunk = chunk.Coord,
@@ -584,8 +637,9 @@ namespace VoidMall.World
                         Cells = chunk.Cells,
                         IsUniform = uniform,
                         Lamps = lamps,
+                        Anchors = anchors,
                     };
-                    _generationTasks.Add(new GenerationTask { Column = column, Chunk = chunk, Uniform = uniform, Lamps = lamps, Handle = job.Schedule(), Frame = Time.frameCount });
+                    _generationTasks.Add(new GenerationTask { Column = column, Chunk = chunk, Uniform = uniform, Lamps = lamps, Anchors = anchors, Handle = job.Schedule(), Frame = Time.frameCount });
                     column.PendingGenerationJobs++;
                 }
             }
@@ -609,6 +663,8 @@ namespace VoidMall.World
                 int chunkIndex = task.Chunk.Coord.y;
                 task.Column.Lamps[chunkIndex] = task.Lamps.Length > 0 ? new List<int3>(task.Lamps.AsArray().ToArray()) : null;
                 task.Lamps.Dispose();
+                task.Column.Anchors[chunkIndex] = task.Anchors.Length > 0 ? new List<int3>(task.Anchors.AsArray().ToArray()) : null;
+                task.Anchors.Dispose();
                 if (--task.Column.PendingGenerationJobs == 0)
                     task.Column.State = ColumnState.Generated;
             }
@@ -695,6 +751,8 @@ namespace VoidMall.World
         {
             Materials = _registry.Infos,
             Views = views,
+            ShapeVertices = _shapeVertices,
+            ShapeRanges = _shapeRanges,
             ChunkOrigin = new int3(coord.x, y, coord.y) * WorldConstants.ChunkSize,
             Vertices = buffers.Vertices,
             OpaqueIndices = buffers.Opaque,
@@ -891,6 +949,7 @@ namespace VoidMall.World
             public ChunkData Chunk;
             public NativeArray<byte> Uniform;
             public NativeList<int3> Lamps;
+            public NativeList<int3> Anchors;
             public JobHandle Handle;
             public int Frame;
         }

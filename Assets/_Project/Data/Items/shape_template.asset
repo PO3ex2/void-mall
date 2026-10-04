@@ -1,0 +1,55 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9f0051f3e8b3438408ddcd1c06a3bc12, type: 3}
+  m_Name: shape_template
+  m_EditorClassIdentifier: VoidMall.Items::VoidMall.Items.ItemDef
+  _id: item.shape_template
+  DisplayName: "\u041D\u0430\u0431\u043E\u0440 \u0448\u0430\u0431\u043B\u043E\u043D\u043E\u0432"
+  Description: "\u0424\u043E\u0440\u043C\u044B \u0431\u043B\u043E\u043A\u043E\u0432: \u041F\u041A\u041C \u2014 \u043F\u043E\u0441\u0442\u0430\u0432\u0438\u0442\u044C \u043F\u0440\u0438\u0437\u0440\u0430\u043A \u0444\u043E\u0440\u043C\u044B, Shift+\u043A\u043E\u043B\u0435\u0441\u043E \u2014 \u0441\u043C\u0435\u043D\u0438\u0442\u044C \u0444\u043E\u0440\u043C\u0443, R \u2014 \u043F\u043E\u0432\u0435\u0440\u043D\u0443\u0442\u044C, Shift+R \u2014 \u043D\u0430\u043A\u043B\u043E\u043D\u0438\u0442\u044C (\u0432\u0435\u0440\u0445 \u0432 \u043B\u044E\u0431\u0443\u044E \u0441\u0442\u043E\u0440\u043E\u043D\u0443), \u041B\u041A\u041C \u2014 \u0443\u0431\u0440\u0430\u0442\u044C \u043F\u0440\u0438\u0437\u0440\u0430\u043A. \u041F\u0440\u0438\u0437\u0440\u0430\u043A \u0437\u0430\u043F\u043E\u043B\u043D\u044F\u0435\u0442\u0441\u044F \u043B\u044E\u0431\u044B\u043C \u0431\u043B\u043E\u043A\u043E\u043C (\u041F\u041A\u041C \u0431\u043B\u043E\u043A\u043E\u043C \u043F\u043E \u043D\u0435\u043C\u0443). \u041D\u0435 \u0442\u0440\u0430\u0442\u0438\u0442\u0441\u044F."
+  Category: 2
+  Shape: 0
+  Tint: {r: 0.45, g: 0.75, b: 1, a: 1}
+  ModelSize: {x: 0.3, y: 0.05, z: 0.25}
+  Mesh: {fileID: 0}
+  Material: {fileID: 0}
+  Icon: {fileID: 2800000, guid: 08386ff236ae1724c932f9d6350e98b8, type: 3}
+  GridSize: {x: 2, y: 1}
+  Weight: 0.6
+  MaxStack: 1
+  Tool: 7
+  ToolTier: 0
+  BlockDamage: 0
+  PropDamage: 0
+  SwingInterval: 0.35
+  DrillStrength: 0
+  Uses: 0
+  RepairCost: []
+  Electric: 0
+  Calories: 0
+  Fat: 0
+  Protein: 0
+  Carbs: 0
+  Water: 0
+  Cooked: 0
+  FuelSeconds: 0
+  Treats: 0
+  Heal: 0
+  Slot: 0
+  Layer: 0
+  Armor: 0
+  Warmth: 0
+  ContainerGrid: {x: 0, y: 0}
+  PlacesBlock: {fileID: 0}
+  SmoothMaterial: {fileID: 0}
+  PlacesProp: 
+  UnpackOnPickup: 0
+  TeachesRecipe: 

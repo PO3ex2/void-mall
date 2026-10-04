@@ -11,6 +11,9 @@ namespace VoidMall.World
         /// <summary>Первый активный наблюдатель (локальный игрок) — для отладочных команд и освещения.</summary>
         public static WorldViewer Primary => Active.Count > 0 ? Active[0] : null;
 
+        /// <summary>Все активные наблюдатели (игроки) — автоматические двери открываются перед любым из них.</summary>
+        public static IReadOnlyList<WorldViewer> All => Active;
+
         private void OnEnable()
         {
             Active.Add(this);

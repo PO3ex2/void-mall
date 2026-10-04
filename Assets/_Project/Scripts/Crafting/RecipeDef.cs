@@ -55,6 +55,7 @@ namespace VoidMall.Crafting
             CraftStation.Sewing => "Швейный стол",
             CraftStation.Chemistry => "Химстол",
             CraftStation.Cooking => "Плита или горелка",
+            CraftStation.Crusher => "Дробилка",
             _ => "Руки",
         };
 

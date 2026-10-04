@@ -19,8 +19,9 @@ namespace VoidMall.Editor
         public const string CracksMaterialPath = Root + "/Art/Materials/Tool_BlockCracks.mat";
         public const string BrushMaterialPath = Root + "/Art/Materials/Tool_DrillBrush.mat";
         public const string DustMaterialPath = Root + "/Art/Materials/Fx_Dust.mat";
-        public const string VoidSkyboxPath = Root + "/Art/Materials/Sky_VoidBelow.mat";
+        public const string VoidSkyboxPath = Root + "/Art/Materials/Sky_Fog.mat";
         public const string PropsMaterialPath = Root + "/Art/Materials/Props.mat";
+        public const string FBlockGlassMaterialPath = Root + "/Art/Materials/FBlock_Glass.mat";
         public const string SectionsFolder = Root + "/Data/World/Sections";
         public const string WorldSettingsPath = Root + "/Data/World/WorldSettings.asset";
 
@@ -34,11 +35,15 @@ namespace VoidMall.Editor
             public readonly Color Tint;
             public readonly LampKind Lamp;
             public readonly float Emission;
+            public readonly FunctionalKind Function;
+            public readonly Vector3Int Size;
 
             public Spec(string id, string name, MaterialKind kind, BlockPattern pattern, int hardness,
                 bool transparent = false, bool unbreakable = false, bool placeable = true, Color? tint = null,
-                LampKind lamp = LampKind.None, float emission = 0f)
+                LampKind lamp = LampKind.None, float emission = 0f, FunctionalKind function = FunctionalKind.None, Vector3Int? size = null)
             {
+                Function = function;
+                Size = size ?? Vector3Int.one;
                 Id = id;
                 Name = name;
                 Kind = kind;
@@ -102,6 +107,12 @@ namespace VoidMall.Editor
             new("smooth.wood_floor", "Паркет (гладкий)", MaterialKind.Smooth, BlockPattern.Wood, 400, tint: new Color(0.95f, 0.88f, 0.8f)),
             new("smooth.asphalt", "Асфальт (гладкий)", MaterialKind.Smooth, BlockPattern.Asphalt, 1000),
             new("smooth.concrete_floor", "Бетонный пол (гладкий)", MaterialKind.Smooth, BlockPattern.Concrete, 1200),
+            // Функциональные блоки (этап 8А): занимают клетки, рисуются своей моделью (FunctionalBlocks).
+            new("fblock.door", "Дверь", MaterialKind.Functional, BlockPattern.Wood, 250, placeable: false, function: FunctionalKind.Door, size: new Vector3Int(1, 2, 1)),
+            new("fblock.gate", "Ворота", MaterialKind.Functional, BlockPattern.Shutter, 1200, placeable: false, function: FunctionalKind.Gate, size: new Vector3Int(1, 3, 1)),
+            new("fblock.sliding_door_1", "Автоматическая дверь 1×3", MaterialKind.Functional, BlockPattern.Glass, 300, placeable: false, function: FunctionalKind.SlidingDoor, size: new Vector3Int(1, 3, 1)),
+            new("fblock.sliding_door_2", "Автоматическая дверь 2×3", MaterialKind.Functional, BlockPattern.Glass, 500, placeable: false, function: FunctionalKind.SlidingDoor, size: new Vector3Int(2, 3, 1)),
+            new("fblock.sliding_door_4", "Автоматическая дверь 4×3", MaterialKind.Functional, BlockPattern.Glass, 900, placeable: false, function: FunctionalKind.SlidingDoor, size: new Vector3Int(4, 3, 1)),
         };
 
         /// <summary>Блок пола → его гладкий двойник.</summary>
@@ -153,6 +164,8 @@ namespace VoidMall.Editor
                 def.Tint = spec.Tint;
                 def.Lamp = spec.Lamp;
                 def.Emission = spec.Emission;
+                def.Function = spec.Function;
+                def.FunctionalSize = spec.Size;
                 EditorUtility.SetDirty(def);
                 catalog.Materials.Add(def);
             }
@@ -197,6 +210,12 @@ namespace VoidMall.Editor
             MakeTransparent(brush);
             brush.SetColor("_BaseColor", new Color(0.45f, 0.8f, 1f, 0.18f));
 
+            // Стекло автоматических дверей: прозрачный Lit с бликом.
+            var glass = GetOrCreateMaterial(FBlockGlassMaterialPath, Shader.Find("Universal Render Pipeline/Lit"));
+            MakeTransparent(glass);
+            glass.SetColor("_BaseColor", new Color(0.7f, 0.85f, 0.9f, 0.22f));
+            glass.SetFloat("_Smoothness", 0.9f);
+
             var dust = GetOrCreateMaterial(DustMaterialPath, Shader.Find("Universal Render Pipeline/Particles/Unlit"));
             MakeTransparent(dust);
             dust.SetColor("_BaseColor", Color.white);
@@ -205,8 +224,8 @@ namespace VoidMall.Editor
                 dust.SetTexture("_BaseMap", particleTexture);
 
             // Небо тестовых полигонов: нижняя полусфера чёрная — в шахтах-безднах видна пустота, а не «земля» skybox.
-            var sky = GetOrCreateMaterial(VoidSkyboxPath, Shader.Find("Skybox/Procedural"));
-            sky.SetColor("_GroundColor", Color.black);
+            // Небо: выше горизонта — цвет тумана, внизу — чёрная пустота (LightingDirector подкрашивает по времени суток).
+            GetOrCreateMaterial(VoidSkyboxPath, Shader.Find("VoidMall/FogSky"));
 
             var props = GetOrCreateMaterial(PropsMaterialPath, Shader.Find("VoidMall/Props"));
             props.enableInstancing = true;
@@ -269,7 +288,7 @@ namespace VoidMall.Editor
             new("section.foodcourt", "Фудкорт", SectionLayout.Hall, "block.tile_checker", "block.paint_white", "block.facade_dark", "block.ceiling_tile", 1f, 0b11000, new Color(0.85f, 0.3f, 0.85f), station: CraftStation.Cooking, stationChance: 0.6f),
             new("section.empty", "Пустой зал", SectionLayout.Empty, "block.carpet", "block.wallpaper", "block.facade_light", "block.ceiling_tile", 0.6f, AllFloors, new Color(0.85f, 0.8f, 0.5f)),
             new("section.storage", "Подсобка", SectionLayout.Warehouse, "block.concrete", "block.drywall", "block.facade_dark", "block.concrete", 1f, AllFloors, new Color(0.5f, 0.5f, 0.5f), service: true, serviceRetail: 1f, station: CraftStation.Workbench, stationChance: 0.2f),
-            new("section.tech", "Вентиляционная", SectionLayout.Tech, "block.concrete", "block.concrete", "block.concrete", "block.concrete", 1f, 0, new Color(0.35f, 0.35f, 0.4f), service: true, serviceTech: 1f),
+            new("section.tech", "Вентиляционная", SectionLayout.Tech, "block.concrete", "block.concrete", "block.concrete", "block.concrete", 1f, 0, new Color(0.35f, 0.35f, 0.4f), service: true, serviceTech: 1f, station: CraftStation.Crusher, stationChance: 0.3f),
             // Щитовые: всегда — служебная комната ядра на парковке, изредка — подсобки магазинов, пара на техническом этаже.
             new("section.electrical", "Щитовая", SectionLayout.Electrical, "block.tile_dark", "block.paint_gray", "block.facade_dark", "block.concrete", 1f, 0, new Color(0.95f, 0.8f, 0.2f), service: true, serviceRetail: 0.12f, serviceTech: 0.07f, serviceParking: 1f),
         };

@@ -146,6 +146,7 @@ namespace VoidMall.Tests
             var vertices = new NativeList<ChunkVertex>(Allocator.TempJob);
             var opaque = new NativeList<int>(Allocator.TempJob);
             var transparent = new NativeList<int>(Allocator.TempJob);
+            BlockShapes.BuildNative(out var shapeVertices, out var shapeRanges, Allocator.TempJob);
             try
             {
                 new ChunkMeshJob
@@ -156,6 +157,8 @@ namespace VoidMall.Tests
                     Vertices = vertices,
                     OpaqueIndices = opaque,
                     TransparentIndices = transparent,
+                    ShapeVertices = shapeVertices,
+                    ShapeRanges = shapeRanges,
                 }.Run();
                 Assert.That(vertices.Length, Is.EqualTo((opaque.Length + transparent.Length) / 6 * 4));
                 return ((opaque.Length + transparent.Length) / 6, transparent.Length / 6);
@@ -166,6 +169,8 @@ namespace VoidMall.Tests
                 vertices.Dispose();
                 opaque.Dispose();
                 transparent.Dispose();
+                shapeVertices.Dispose();
+                shapeRanges.Dispose();
             }
         }
     }
