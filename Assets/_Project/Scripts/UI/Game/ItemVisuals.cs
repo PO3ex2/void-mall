@@ -67,6 +67,20 @@ namespace VoidMall.UI
             return icon;
         }
 
+        /// <summary>Пометка испорченной еды: зеленоватая плёнка и подпись.</summary>
+        public static VisualElement SpoiledMark()
+        {
+            var mark = new Label("гниль") { pickingMode = PickingMode.Ignore };
+            mark.style.position = Position.Absolute;
+            mark.style.left = mark.style.right = mark.style.top = mark.style.bottom = 0f;
+            mark.style.backgroundColor = new Color(0.35f, 0.5f, 0.1f, 0.35f);
+            mark.style.fontSize = 9f;
+            mark.style.color = new Color(0.85f, 1f, 0.5f);
+            mark.style.unityTextAlign = TextAnchor.UpperLeft;
+            mark.style.paddingLeft = 3f;
+            return mark;
+        }
+
         public static Label CountLabel(int count)
         {
             var label = new Label(count > 1 ? count.ToString() : string.Empty) { pickingMode = PickingMode.Ignore };
@@ -183,6 +197,8 @@ namespace VoidMall.UI
                 ItemVisuals.Border(element, new Color(1f, 1f, 1f, 0.15f), 1f, 3f);
                 element.Add(ItemVisuals.Icon(def, w * ItemVisuals.Cell - 2f, h * ItemVisuals.Cell - 2f, placement.Rotated));
                 element.Add(ItemVisuals.CountLabel(stack.Count));
+                if (stack.Spoiled)
+                    element.Add(ItemVisuals.SpoiledMark());
                 element.RegisterCallback<PointerDownEvent>(evt => ItemPointerDown?.Invoke(stack, evt));
                 element.RegisterCallback<PointerEnterEvent>(_ => ItemHovered?.Invoke(stack));
                 _items.Add(element);

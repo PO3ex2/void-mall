@@ -150,6 +150,9 @@ namespace VoidMall.Player
 
         public void SetInputSource(IPlayerInputSource source) => _input = source;
 
+        /// <summary>Заменить пул стамины (модуль выживания подменяет простой пул префаба).</summary>
+        public void SetStaminaPool(IStaminaPool pool) => _stamina = pool;
+
         public void AddModifierSource(IMovementModifierSource source)
         {
             if (!_modifierSources.Contains(source))

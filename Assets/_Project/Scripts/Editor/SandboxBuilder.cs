@@ -126,6 +126,7 @@ namespace VoidMall.Editor
                 player.AddComponent<VoidMall.Items.PlayerInventory>();
                 var tool = player.AddComponent<VoidMall.Game.ToolController>();
                 player.AddComponent<VoidMall.Game.PropInteractor>();
+                player.AddComponent<VoidMall.Survival.PlayerVitals>();
                 ProjectSetup.SetReference(tool, "_outlineMaterial", AssetDatabase.LoadAssetAtPath<Material>(WorldAssetsSetup.OutlineMaterialPath));
                 ProjectSetup.SetReference(tool, "_crackMaterial", AssetDatabase.LoadAssetAtPath<Material>(WorldAssetsSetup.CracksMaterialPath));
                 ProjectSetup.SetReference(tool, "_brushMaterial", AssetDatabase.LoadAssetAtPath<Material>(WorldAssetsSetup.BrushMaterialPath));

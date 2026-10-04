@@ -27,6 +27,8 @@ namespace VoidMall.World
         Switchboard,
         CableReel,
         VentUnit,
+        Bed,
+        SleepingBag,
         Count,
     }
 
@@ -57,6 +59,8 @@ namespace VoidMall.World
             PropShape.Switchboard => new Vector3(2.4f, 2.1f, 0.6f),
             PropShape.CableReel => new Vector3(0.7f, 1f, 1f),
             PropShape.VentUnit => new Vector3(2.2f, 1.6f, 1.2f),
+            PropShape.Bed => new Vector3(1f, 0.95f, 2.1f),
+            PropShape.SleepingBag => new Vector3(0.8f, 0.16f, 2f),
             _ => Vector3.one,
         };
 
@@ -161,6 +165,11 @@ namespace VoidMall.World
                     Add(new Vector3(-w / 2, 0, -0.04f), new Vector3(-w / 2 + 0.05f, h, 0.04f));
                     Add(new Vector3(w / 2 - 0.05f, 0, -0.04f), new Vector3(w / 2, h, 0.04f));
                     Add(new Vector3(-w / 2, h - 0.05f, -0.03f), new Vector3(w / 2, h, 0.03f));
+                    break;
+                case PropShape.Bed:
+                    // Лежак до верха матраса и изголовье — чтобы на кровать можно было положить вещи и запрыгнуть.
+                    Add(new Vector3(-w / 2, 0, -d / 2), new Vector3(w / 2, h * 0.6f, d / 2));
+                    Add(new Vector3(-w / 2, 0, d / 2 - 0.06f), new Vector3(w / 2, h, d / 2));
                     break;
             }
         }
@@ -351,6 +360,33 @@ namespace VoidMall.World
                     for (int k = 0; k < 3; k++)
                         b.BoxMinMax(new Vector3(w * 0.15f, 0.3f + k * 0.35f, -d / 2 - 0.01f), new Vector3(w * 0.42f, 0.36f + k * 0.35f, -d / 2), DarkMetal);
                     b.BoxMinMax(new Vector3(-0.35f, h, -0.3f), new Vector3(0.35f, h + 0.4f, 0.3f), body);
+                    break;
+                }
+                case PropShape.Bed:
+                {
+                    // Односпальная кровать: каркас на ножках, матрас, подушка у изголовья (+Z), одеяло.
+                    var mattress = new Color(0.82f, 0.8f, 0.74f, 0.05f);
+                    var blanket = new Color(0.3f, 0.38f, 0.5f, 0.05f);
+                    float top = h * 0.6f; // верх матраса, выше — только изголовье
+                    float leg = 0.06f;
+                    for (int ix = -1; ix <= 1; ix += 2)
+                    for (int iz = -1; iz <= 1; iz += 2)
+                        b.BoxMinMax(new Vector3(ix * (w / 2 - leg) - leg / 2, 0, iz * (d / 2 - leg) - leg / 2), new Vector3(ix * (w / 2 - leg) + leg / 2, 0.22f, iz * (d / 2 - leg) + leg / 2), Wood);
+                    b.BoxMinMax(new Vector3(-w / 2, 0.18f, -d / 2), new Vector3(w / 2, 0.3f, d / 2), Wood);
+                    b.BoxMinMax(new Vector3(-w / 2, 0.18f, d / 2 - 0.06f), new Vector3(w / 2, h, d / 2), Wood); // изголовье
+                    b.BoxMinMax(new Vector3(-w / 2 + 0.03f, 0.3f, -d / 2 + 0.03f), new Vector3(w / 2 - 0.03f, top - 0.04f, d / 2 - 0.06f), mattress);
+                    b.BoxMinMax(new Vector3(-w / 2 + 0.15f, top - 0.04f, d / 2 - 0.5f), new Vector3(w / 2 - 0.15f, top + 0.08f, d / 2 - 0.12f), White);
+                    b.BoxMinMax(new Vector3(-w / 2 + 0.01f, top - 0.06f, -d / 2 + 0.01f), new Vector3(w / 2 - 0.01f, top, d / 2 - 0.6f), blanket);
+                    break;
+                }
+                case PropShape.SleepingBag:
+                {
+                    // Спальник на полу: туловище, капюшон у изголовья (+Z), молния по краю.
+                    var bag = new Color(0.2f, 0.42f, 0.32f, 0.08f);
+                    b.BoxMinMax(new Vector3(-w / 2, 0, -d / 2), new Vector3(w / 2, h, d / 2 - 0.35f), bag);
+                    b.BoxMinMax(new Vector3(-w / 2 + 0.06f, 0, d / 2 - 0.35f), new Vector3(w / 2 - 0.06f, h * 0.8f, d / 2), bag);
+                    b.BoxMinMax(new Vector3(-w / 2 + 0.15f, h * 0.8f, d / 2 - 0.3f), new Vector3(w / 2 - 0.15f, h * 0.95f, d / 2 - 0.05f), White);
+                    b.BoxMinMax(new Vector3(w / 2 - 0.02f, h * 0.4f, -d / 2), new Vector3(w / 2 + 0.005f, h * 0.5f, d / 2 - 0.35f), DarkMetal);
                     break;
                 }
             }

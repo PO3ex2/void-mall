@@ -12,6 +12,7 @@ namespace VoidMall.Items
     {
         public GameObject Player;
         public ItemDef Item;
+        public bool Spoiled;
     }
 
     /// <summary>
@@ -22,7 +23,7 @@ namespace VoidMall.Items
     {
         public static readonly CVar<float> CarryCapacity = new("sv_carry_capacity", 30f, "Сколько килограммов игрок несёт без штрафов.", ConsoleFlags.Cheat);
 
-        public const int PocketsWidth = 5;
+        public const int PocketsWidth = 7;
         public const int PocketsHeight = 2;
 
         /// <summary>Добыча дальше этого расстояния (обломки обрушений) падает в мир, а не в карманы.</summary>
@@ -116,6 +117,8 @@ namespace VoidMall.Items
         /// </summary>
         public int Add(ItemStack stack, bool autoEquip = true)
         {
+            if (stack.Contents != null && Items.Get(stack.Def).UnpackOnPickup)
+                return Unpack(stack);
             if (autoEquip && TryAutoEquip(stack))
                 return 0;
             int before = stack.Count;
@@ -129,6 +132,24 @@ namespace VoidMall.Items
         }
 
         public int Add(ushort def, int count) => Add(Items.Create(def, count));
+
+        private readonly List<ItemStack> _unpack = new();
+
+        /// <summary>Сумка с вещами: содержимое — в инвентарь (одежда и рюкзак надеваются), что не влезло — остаётся в сумке.</summary>
+        private int Unpack(ItemStack bag)
+        {
+            _unpack.Clear();
+            foreach (var placement in bag.Contents.Items)
+                _unpack.Add(placement.Stack);
+            foreach (var inner in _unpack)
+            {
+                bag.Contents.Remove(inner);
+                if (Add(inner) > 0)
+                    bag.Contents.TryAdd(inner);
+            }
+            RaiseChanged();
+            return bag.Contents.Items.Count > 0 ? 1 : 0;
+        }
 
         private bool TryAutoEquip(ItemStack stack)
         {
@@ -222,12 +243,23 @@ namespace VoidMall.Items
         }
 
         /// <summary>Съесть, выпить, применить (1 штуку).</summary>
+        /// <summary>
+        /// Проверка перед использованием (выживание: бинт без кровотечения не тратится). Вернуть текст отказа или null.
+        /// </summary>
+        public static System.Func<PlayerInventory, ItemDef, ItemStack, string> UseBlocker;
+
+        /// <summary>Почему последнее использование не удалось (для подсказки), null — удалось или не проверялось.</summary>
+        public string LastRefusal { get; private set; }
+
         public bool Use(ItemStack stack)
         {
             var def = Items.Get(stack.Def);
             if (def.IsEquippable)
                 return Equipment.Contains(stack) ? Unequip(stack) : Equip(stack);
             if (!def.IsConsumable)
+                return false;
+            LastRefusal = UseBlocker?.Invoke(this, def, stack);
+            if (LastRefusal != null)
                 return false;
             var grid = GridOf(stack);
             if (grid == null)
@@ -238,7 +270,7 @@ namespace VoidMall.Items
             else
                 grid.NotifyChanged();
             Hotbar.Prune(Owns);
-            EventBus<ItemConsumedEvent>.Publish(new ItemConsumedEvent { Player = gameObject, Item = def });
+            EventBus<ItemConsumedEvent>.Publish(new ItemConsumedEvent { Player = gameObject, Item = def, Spoiled = stack.Spoiled });
             RaiseChanged();
             return true;
         }

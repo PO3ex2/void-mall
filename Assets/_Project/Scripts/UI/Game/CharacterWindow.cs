@@ -6,6 +6,7 @@ using UnityEngine.UIElements;
 using VoidMall.Input;
 using VoidMall.Items;
 using VoidMall.Core;
+using VoidMall.Survival;
 
 namespace VoidMall.UI
 {
@@ -25,6 +26,13 @@ namespace VoidMall.UI
         private VisualElement _root;
         private VisualElement _window;
         private VisualElement _inventoryTab;
+        private VisualElement _stateTab;
+        private Label _stateVitals;
+        private VisualElement _stateList;
+        private float _stateTimer;
+        private readonly List<StatusKind> _conditions = new();
+        private Label _notice;
+        private Label _floorRefusal;
         private Label _placeholder;
         private readonly List<Button> _tabButtons = new();
         private int _tab;
@@ -92,6 +100,8 @@ namespace VoidMall.UI
             if (_dirty)
                 Refresh();
             UpdatePreview();
+            if (_tab == 3)
+                UpdateStateTab();
         }
 
         private void SetOpen(bool open)
@@ -164,6 +174,8 @@ namespace VoidMall.UI
             _placeholder.style.color = ItemVisuals.Muted;
             _window.Add(_placeholder);
 
+            BuildStateTab();
+
             _inventoryTab = new VisualElement();
             _inventoryTab.style.flexDirection = FlexDirection.Row;
             _window.Add(_inventoryTab);
@@ -226,6 +238,11 @@ namespace VoidMall.UI
             _weightBar.style.height = 6f;
             barBack.Add(_weightBar);
             right.Add(barBack);
+            _notice = new Label();
+            _notice.style.color = new Color(1f, 0.6f, 0.5f);
+            _notice.style.whiteSpace = WhiteSpace.Normal;
+            _notice.style.marginTop = 6f;
+            right.Add(_notice);
             _inventoryTab.Add(right);
 
             // Хотбар.
@@ -272,13 +289,158 @@ namespace VoidMall.UI
             for (int i = 0; i < _tabButtons.Count; i++)
                 _tabButtons[i].style.backgroundColor = i == index ? new Color(0.3f, 0.34f, 0.42f, 1f) : new Color(0.16f, 0.18f, 0.22f, 1f);
             _inventoryTab.style.display = index == 0 ? DisplayStyle.Flex : DisplayStyle.None;
-            _placeholder.style.display = index == 0 ? DisplayStyle.None : DisplayStyle.Flex;
+            _stateTab.style.display = index == 3 ? DisplayStyle.Flex : DisplayStyle.None;
+            _placeholder.style.display = index == 1 || index == 2 ? DisplayStyle.Flex : DisplayStyle.None;
+            _stateTimer = 0f;
             _placeholder.text = index switch
             {
                 1 => "Навыки появятся на этапе 10.",
                 2 => "Крафт появится на этапе 10.",
-                _ => "Состояние (части тела, питание, рассудок) появится на этапе 7.",
+                _ => string.Empty,
             };
+        }
+
+        // ───────────────────────────── Состояние ─────────────────────────────
+
+        private void BuildStateTab()
+        {
+            _stateTab = new VisualElement();
+            _stateTab.style.flexDirection = FlexDirection.Row;
+            _stateTab.style.minHeight = 380f;
+            _stateTab.style.width = 820f;
+
+            var left = Column(330f);
+            left.Add(Title("Показатели"));
+            _stateVitals = new Label();
+            _stateVitals.style.whiteSpace = WhiteSpace.Normal;
+            _stateVitals.style.fontSize = 13f;
+            left.Add(_stateVitals);
+
+            // Сон на полу: когда кровати рядом нет.
+            var floorSleep = new Button(SleepOnFloor) { text = "Поспать на полу" };
+            StyleButton(floorSleep);
+            floorSleep.style.marginTop = 12f;
+            floorSleep.style.marginLeft = 0f;
+            floorSleep.style.alignSelf = Align.FlexStart;
+            left.Add(floorSleep);
+            var floorHint = new Label($"Бодрость — вдвое медленнее и только до {VitalsModel.FloorRestCap:0}%, точка возрождения не сохраняется. После — «Не выспался» на {VitalsModel.UnrestedHours:0} ч.");
+            floorHint.style.whiteSpace = WhiteSpace.Normal;
+            floorHint.style.color = ItemVisuals.Muted;
+            floorHint.style.fontSize = 11f;
+            left.Add(floorHint);
+            _floorRefusal = new Label();
+            _floorRefusal.style.whiteSpace = WhiteSpace.Normal;
+            _floorRefusal.style.color = new Color(1f, 0.6f, 0.5f);
+            left.Add(_floorRefusal);
+            _stateTab.Add(left);
+
+            var right = Column(0f);
+            right.style.flexGrow = 1f;
+            right.style.marginLeft = 20f;
+            right.Add(Title("Состояния — что это и как лечить"));
+            _stateList = new ScrollView();
+            _stateList.style.maxHeight = 420f;
+            right.Add(_stateList);
+            _stateTab.Add(right);
+            _window.Add(_stateTab);
+        }
+
+        private void SleepOnFloor()
+        {
+            var vitals = PlayerVitals.Local;
+            if (vitals == null)
+                return;
+            string refusal = vitals.TrySleepOnFloor();
+            _floorRefusal.text = refusal ?? string.Empty;
+            if (refusal == null)
+                SetOpen(false);
+        }
+
+        private void UpdateStateTab()
+        {
+            _stateTimer -= Time.unscaledDeltaTime;
+            if (_stateTimer > 0f)
+                return;
+            _stateTimer = 0.25f;
+            var vitals = PlayerVitals.Local;
+            if (vitals == null)
+            {
+                _stateVitals.text = "Нет игрока с выживанием (полигон мира).";
+                _stateList.Clear();
+                return;
+            }
+            var m = vitals.Model;
+            var env = vitals.Environment;
+            var sb = new StringBuilder();
+            sb.Append($"Здоровье: {m.Health:0} / {m.MaxHealth:0}");
+            if (m.TraumaStacks > 0)
+                sb.Append($"  (травма: −{VitalsModel.TraumaPerStack * m.TraumaStacks * 100f:0}%)");
+            sb.Append($"\nСтамина: {m.Stamina:0} / {m.MaxStamina:0}");
+            sb.Append($"\nСытость: {m.Calories:0} / {VitalsModel.MaxCalories:0} ккал");
+            sb.Append($"\nВода: {m.Water:0} / {VitalsModel.MaxWater:0} мл");
+            sb.Append($"\nБодрость: {m.Rest:0}%");
+            sb.Append($"\nРассудок: {m.Sanity:0}%");
+            sb.Append($"\n\nТемпература тела: {m.BodyTemperature:0.0} °C");
+            sb.Append($"\nВоздух: {env.AirTemperature:0} °C, одежда греет на {env.Warmth:0} °C");
+            sb.Append($"\nКомфорт: {VitalsModel.ComfortMin:0}…{VitalsModel.ComfortMax:0} °C с учётом одежды");
+            var (fat, protein, carbs) = m.DietShares;
+            sb.Append("\n\nРацион за сутки:");
+            if (fat + protein + carbs <= 0f)
+                sb.Append(" почти ничего не ели");
+            else
+                sb.Append($"\n  жиры {fat * 100f:0}% (норма 15–40)\n  белки {protein * 100f:0}% (норма 12–30)\n  углеводы {carbs * 100f:0}% (норма 35–70)\n  {(m.DietBalanced == true ? "сбалансирован" : "однообразно — ешьте разное")}");
+            if (vitals.HasSpawnPoint)
+                sb.Append("\n\nТочка возрождения: у кровати");
+            _stateVitals.text = sb.ToString();
+
+            m.GetConditions(_conditions);
+            _stateList.Clear();
+            if (_conditions.Count == 0)
+            {
+                var none = new Label("Ничего не беспокоит.");
+                none.style.color = ItemVisuals.Muted;
+                _stateList.Add(none);
+            }
+            foreach (var kind in _conditions)
+            {
+                var info = StatusCatalog.Get(kind);
+                var status = StatusCatalog.IsStored(kind) ? m.Find(kind) : null;
+                var title = new Label(info.Name + StatusSuffix(status));
+                title.style.unityFontStyleAndWeight = FontStyle.Bold;
+                title.style.color = info.Positive ? new Color(0.55f, 0.9f, 0.6f) : new Color(1f, 0.6f, 0.55f);
+                title.style.marginTop = 6f;
+                _stateList.Add(title);
+                var text = new Label(info.Description + (string.IsNullOrEmpty(info.Treatment) ? "" : "\nЛечение: " + info.Treatment));
+                text.style.whiteSpace = WhiteSpace.Normal;
+                text.style.color = ItemVisuals.Muted;
+                text.style.fontSize = 12f;
+                _stateList.Add(text);
+            }
+        }
+
+        private static string StatusSuffix(Status status)
+        {
+            if (status == null)
+                return string.Empty;
+            var sb = new StringBuilder();
+            if (status.Splinted)
+                sb.Append(" (в шине)");
+            if (status.Stacks > 1)
+                sb.Append($" ×{status.Stacks}");
+            if (!float.IsInfinity(status.Remaining))
+                sb.Append($" · ещё {status.Remaining:0.#} ч");
+            return sb.ToString();
+        }
+
+        private static string TreatsText(MedicalTreatment treats)
+        {
+            var parts = new List<string>();
+            if ((treats & MedicalTreatment.Bleeding) != 0) parts.Add("кровотечение");
+            if ((treats & MedicalTreatment.Fracture) != 0) parts.Add("перелом (шина)");
+            if ((treats & MedicalTreatment.Pain) != 0) parts.Add("боль");
+            if ((treats & MedicalTreatment.Infection) != 0) parts.Add("инфекцию");
+            if ((treats & MedicalTreatment.Poisoning) != 0) parts.Add("отравление");
+            return string.Join(", ", parts);
         }
 
         private void ToggleLayer()
@@ -412,7 +574,7 @@ namespace VoidMall.UI
             if (stack == null || _inventory == null)
                 return;
             var def = _inventory.Items.Get(stack.Def);
-            _infoTitle.text = def.DisplayName + (stack.Count > 1 ? $" ×{stack.Count}" : "");
+            _infoTitle.text = def.DisplayName + (stack.Count > 1 ? $" ×{stack.Count}" : "") + (stack.Spoiled ? " (испорчено)" : "");
             var sb = new StringBuilder();
             sb.Append(ItemVisuals.CategoryName(def.Category));
             sb.Append($"\nВес: {def.Weight:0.##} кг{(stack.Count > 1 ? $" (всего {def.Weight * stack.Count:0.##})" : "")}");
@@ -425,6 +587,16 @@ namespace VoidMall.UI
             }
             if (def.Calories > 0 || def.Water > 0)
                 sb.Append($"\nКалории: {def.Calories:0} · вода: {def.Water:0} мл");
+            if (def.Fat + def.Protein + def.Carbs > 0)
+                sb.Append($"\nЖиры {def.Fat:0} г · белки {def.Protein:0} г · углеводы {def.Carbs:0} г");
+            if (stack.Spoiled)
+                sb.Append("\nИспорчено: вдвое меньше калорий и отравление");
+            if (def.Treats != MedicalTreatment.None)
+                sb.Append($"\nЛечит: {TreatsText(def.Treats)}");
+            if (def.Heal > 0)
+                sb.Append($"\nЗдоровье: +{def.Heal:0}");
+            if (def.Warmth != 0)
+                sb.Append($"\nТепло: +{def.Warmth:0} °C");
             if (def.IsEquippable)
                 sb.Append($"\nСлот: {ItemVisuals.SlotName(def.Slot)}{(def.Slot != EquipSlot.Backpack ? (def.Layer == EquipLayer.Armor ? " (броня)" : " (одежда)") : "")}");
             if (def.Armor > 0)
@@ -446,7 +618,8 @@ namespace VoidMall.UI
             if (evt.button == 1)
             {
                 int slot = _inventory.Hotbar.IndexOf(stack);
-                _inventory.Use(stack);
+                bool used = _inventory.Use(stack);
+                _notice.text = used ? string.Empty : _inventory.LastRefusal ?? string.Empty;
                 if (slot >= 0)
                     _inventory.RefillHotbar(slot, stack.Def);
                 return;

@@ -36,9 +36,14 @@ MonoBehaviour:
   Protein: 0
   Carbs: 0
   Water: 0
+  Treats: 0
+  Heal: 0
   Slot: 0
   Layer: 0
   Armor: 0
+  Warmth: 0
   ContainerGrid: {x: 0, y: 0}
   PlacesBlock: {fileID: 11400000, guid: fb0af67f1ab5b284e9cce70019f10e45, type: 2}
   SmoothMaterial: {fileID: 0}
+  PlacesProp: 
+  UnpackOnPickup: 0

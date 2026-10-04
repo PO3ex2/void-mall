@@ -8,6 +8,7 @@ using VoidMall.Core;
 using VoidMall.Input;
 using VoidMall.Items;
 using VoidMall.Player;
+using VoidMall.Survival;
 using VoidMall.World;
 
 namespace VoidMall.Game
@@ -29,6 +30,7 @@ namespace VoidMall.Game
 
         private const float Reach = 2.6f;
         private const float UnnailTime = 1f;
+        private const float SleepHoldTime = 0.35f;
         private const float MaxHoldError = 1.6f;
         private const float MaxDragDistance = 3.4f;
         private const float ThrowImpulse = 260f;
@@ -217,8 +219,15 @@ namespace VoidMall.Game
                             Say("Гвозди вытащены");
                     }
                 }
-                else
+                else if (_target.Def.PackUp && _interactHeld >= SleepHoldTime)
                 {
+                    // Спальник: удержание E — свернуть обратно в предмет (в инвентарь).
+                    _interactConsumed = true;
+                    PackUp(_target);
+                }
+                else if ((!_target.Def.Sleepable && !_target.Def.PackUp) || _interactHeld >= SleepHoldTime)
+                {
+                    // Кровать: короткое E — лечь спать, удержание — взять или тащить.
                     _interactConsumed = true;
                     TryGrab(_target);
                 }
@@ -226,7 +235,9 @@ namespace VoidMall.Game
             if (_interact.WasReleasedThisFrame())
             {
                 // Прибитую группу можно схватить коротким нажатием — она не сдвинется, но подсказка объяснит почему.
-                if (!_interactConsumed && _target != null && _target.IsInGroup && !_target.IsNailed && _interactHeld < UnnailTime)
+                if (!_interactConsumed && _target != null && _target.Def.Sleepable && !_target.IsNailed && !_target.IsInGroup)
+                    TrySleep(_target);
+                else if (!_interactConsumed && _target != null && _target.IsInGroup && !_target.IsNailed && _interactHeld < UnnailTime)
                     TryGrab(_target);
                 else if (!_interactConsumed && _target != null && _target.IsNailed)
                     Say("Прибито. Удерживайте E, чтобы вытащить гвозди");
@@ -256,6 +267,23 @@ namespace VoidMall.Game
                 _disassembleTarget = null;
                 _disassembleProgress = 0f;
             }
+        }
+
+        private void PackUp(PropBody body)
+        {
+            var def = body.Def;
+            PropManager.Instance.Remove(body, PropRemoveReason.Disassembled);
+            Say($"Свёрнуто: {def.DisplayName}");
+        }
+
+        private void TrySleep(PropBody bed)
+        {
+            var vitals = PlayerVitals.Local;
+            if (vitals == null)
+                return;
+            string refusal = vitals.TrySleep(bed);
+            if (refusal != null)
+                Say(refusal);
         }
 
         private void TryGrab(PropBody body)
@@ -610,12 +638,12 @@ namespace VoidMall.Game
             else if (_worldItemTarget != null && PlayerInventory.Local != null)
             {
                 var stack = _worldItemTarget.Stack;
-                text = $"{PlayerInventory.Local.Items.Get(stack.Def).DisplayName}{(stack.Count > 1 ? $" ×{stack.Count}" : "")} · E — взять";
+                text = $"{PlayerInventory.Local.Items.Get(stack.Def).DisplayName}{(stack.Count > 1 ? $" ×{stack.Count}" : "")}{(stack.Spoiled ? " (испорчено)" : "")} · E — взять";
             }
             else if (_target != null && _shelfItemTarget >= 0 && ShelfLoot.Instance != null && PlayerInventory.Local != null
                      && ShelfLoot.Instance.TryGetItem(_target, _shelfItemTarget, out var shelfItem))
             {
-                text = $"{PlayerInventory.Local.Items.Get(shelfItem.Def).DisplayName}{(shelfItem.Count > 1 ? $" ×{shelfItem.Count}" : "")} · E — взять";
+                text = $"{PlayerInventory.Local.Items.Get(shelfItem.Def).DisplayName}{(shelfItem.Count > 1 ? $" ×{shelfItem.Count}" : "")}{(shelfItem.Spoiled ? " (испорчено)" : "")} · E — взять";
             }
             else if (_target != null)
             {
@@ -623,6 +651,7 @@ namespace VoidMall.Game
                 float health = PropManager.Instance.Health(_target);
                 string action = _target.IsNailed
                     ? (_interactHeld > 0.15f ? $"Вытаскиваем гвозди… {_interactHeld / UnnailTime * 100f:0}%" : "прибито · удерживайте E — вытащить гвозди")
+                    : _target.Def.Sleepable ? "E — спать · удерживайте E — " + (_target.Def.PackUp ? "свернуть" : mass <= HoldMass.Value ? "взять" : "тащить")
                     : (mass <= HoldMass.Value ? "E — взять" : mass <= DragMass.Value ? "E — тащить" : "слишком тяжело")
                       + (_target.IsInGroup ? (_interactHeld > 0.15f ? $" · вытаскиваем гвозди… {_interactHeld / UnnailTime * 100f:0}%" : " · удерживайте E — вытащить гвозди") : "");
                 text = $"{_target.Def.DisplayName} · {mass:0} кг · прочность {health * 100f:0}% · {action} · удерживайте F — разобрать";

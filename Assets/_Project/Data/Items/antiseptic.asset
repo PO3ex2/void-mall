@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: VoidMall.Items::VoidMall.Items.ItemDef
   _id: item.antiseptic
   DisplayName: "\u0410\u043D\u0442\u0438\u0441\u0435\u043F\u0442\u0438\u043A"
-  Description: "\u041F\u0440\u043E\u0442\u0438\u0432 \u0438\u043D\u0444\u0435\u043A\u0446\u0438\u0438 (\u044D\u0442\u0430\u043F 7)."
+  Description: "\u0423\u0431\u0438\u0432\u0430\u0435\u0442 \u0438\u043D\u0444\u0435\u043A\u0446\u0438\u044E \u0432 \u0440\u0430\u043D\u0435."
   Category: 5
   Shape: 2
   Tint: {r: 0.4, g: 0.75, b: 0.45, a: 1}
@@ -36,9 +36,14 @@ MonoBehaviour:
   Protein: 0
   Carbs: 0
   Water: 0
+  Treats: 8
+  Heal: 2
   Slot: 0
   Layer: 0
   Armor: 0
+  Warmth: 0
   ContainerGrid: {x: 0, y: 0}
   PlacesBlock: {fileID: 0}
   SmoothMaterial: {fileID: 0}
+  PlacesProp: 
+  UnpackOnPickup: 0

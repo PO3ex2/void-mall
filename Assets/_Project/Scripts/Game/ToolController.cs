@@ -7,6 +7,8 @@ using VoidMall.Core;
 using VoidMall.Input;
 using VoidMall.Items;
 using VoidMall.Net;
+using VoidMall.Survival;
+using Random = UnityEngine.Random;
 using VoidMall.World;
 
 namespace VoidMall.Game
@@ -15,7 +17,8 @@ namespace VoidMall.Game
     /// Действия предметом в руке (выбранным в хотбаре: 1–9, колесо):
     /// руки — слабый удар; молоток, кувалда, лом — урон по блокам и пропам по своим характеристикам;
     /// бур — срезать (ЛКМ) и наращивать (ПКМ, тратит грунт или бетонную крошку) гладкий массив;
-    /// блок — ставится ПКМ (тратится); еда и медикаменты — ЛКМ, применить; одежда — ЛКМ, надеть; фонарик — ЛКМ, вкл/выкл.
+    /// блок — ставится ПКМ (тратится); спальник — раскладывается ПКМ; еда и медикаменты — ЛКМ, применить; одежда — ЛКМ, надеть; фонарик — ЛКМ, вкл/выкл.
+    /// Голыми руками по стеклу и острому металлу можно порезаться (перчатки защищают), сломанная рука бьёт медленнее.
     /// Все правки мира — командами через сессию (готово к коопу). В творческом режиме блоки и материалы не тратятся.
     /// </summary>
     public sealed class ToolController : MonoBehaviour
@@ -147,6 +150,8 @@ namespace VoidMall.Game
             }
             if (item != null && item.PlacesBlock != null)
                 HandlePlacing(item);
+            if (item != null && !string.IsNullOrEmpty(item.PlacesProp))
+                HandlePropPlacing(item);
             if (item != null && _primary.WasPressedThisFrame())
             {
                 if (item.Tool == ToolKind.Flashlight)
@@ -158,7 +163,8 @@ namespace VoidMall.Game
                 {
                     var stack = Inventory.ActiveStack;
                     int slot = Inventory.Hotbar.Selected;
-                    Inventory.Use(stack);
+                    if (!Inventory.Use(stack) && !string.IsNullOrEmpty(Inventory.LastRefusal))
+                        Say(Inventory.LastRefusal);
                     Inventory.RefillHotbar(slot, stack.Def);
                     return;
                 }
@@ -179,6 +185,9 @@ namespace VoidMall.Game
                 return;
             bool striker = item != null && (item.Tool == ToolKind.Hammer || item.Tool == ToolKind.Sledgehammer || item.Tool == ToolKind.Crowbar);
             float interval = striker ? item.SwingInterval : 0.45f;
+            var vitals = PlayerVitals.Local;
+            if (vitals != null)
+                interval *= vitals.Model.SwingMultiplier;
             if (_propTarget != null && PropManager.Instance != null)
             {
                 _actionTimer = interval;
@@ -188,7 +197,57 @@ namespace VoidMall.Game
             if (!_hasTarget)
                 return;
             _actionTimer = interval;
+            if (item == null)
+                TryCutHands(_target.Value.Material);
             Send(new DamageBlockCommand { Position = _target.Cell, Amount = striker ? item.BlockDamage : HandDamage.Value });
+        }
+
+        /// <summary>Стекло и острый металл голыми руками: шанс порезаться, если не надеты перчатки.</summary>
+        private void TryCutHands(ushort material)
+        {
+            var vitals = PlayerVitals.Local;
+            if (vitals == null || Inventory.Equipment.Get(EquipSlot.Arms, EquipLayer.Clothing) != null || Inventory.Equipment.Get(EquipSlot.Arms, EquipLayer.Armor) != null)
+                return;
+            string id = World.Materials.Get(material).Id;
+            bool glass = id == "block.glass" || id == "block.skylight";
+            bool sharp = id == "block.metal" || id == "block.shutter" || id == "block.duct";
+            if ((glass && Random.value < 0.5f) || (sharp && Random.value < 0.2f))
+            {
+                vitals.Cut(glass ? Random.Range(4f, 9f) : Random.Range(2f, 5f));
+                Say(glass ? "Порезались о стекло — наденьте перчатки" : "Порезались об острый край — наденьте перчатки");
+            }
+        }
+
+        /// <summary>ПКМ предметом-постройкой (спальник): разложить проп на полу перед собой.</summary>
+        private void HandlePropPlacing(ItemDef item)
+        {
+            if (!_secondary.WasPressedThisFrame() || PropManager.Instance == null)
+                return;
+            if (!PropManager.Instance.Props.TryGetIndex(item.PlacesProp, out ushort propIndex))
+                return;
+            var view = _camera.transform;
+            if (!Physics.Raycast(view.position, view.forward, out var hit, _reach, WorldMask | PropMask, QueryTriggerInteraction.Ignore) || hit.normal.y < 0.7f)
+            {
+                Say("Разложить можно только на ровном полу");
+                return;
+            }
+            Vector3 size = PropManager.Instance.Props.Size(propIndex);
+            Vector3 forward = Vector3.ProjectOnPlane(view.forward, Vector3.up);
+            var rotation = Quaternion.LookRotation(forward.sqrMagnitude > 0.001f ? forward.normalized : Vector3.forward);
+            Vector3 position = hit.point + Vector3.up * 0.02f;
+            Vector3 center = position + Vector3.up * (size.y * 0.5f + 0.02f);
+            if (Physics.CheckBox(center, new Vector3(size.x, size.y, size.z) * 0.45f, rotation, GameLayers.PlayerCollisionMask | PropMask | (1 << GameLayers.Player), QueryTriggerInteraction.Ignore))
+            {
+                Say("Не помещается: мешает стена, игрок или предмет");
+                return;
+            }
+            var stack = Inventory.ActiveStack;
+            int slot = Inventory.Hotbar.Selected;
+            if (!Inventory.TryConsume(stack.Def, 1))
+                return;
+            Inventory.RefillHotbar(slot, stack.Def);
+            PropManager.Instance.SpawnNew(propIndex, position, rotation);
+            Say($"Разложено: {item.DisplayName} · E — спать");
         }
 
         private void HandlePlacing(ItemDef item)
@@ -405,6 +464,12 @@ namespace VoidMall.Game
         private string _message;
         private float _messageTime;
 
+        private void Say(string message)
+        {
+            _message = message;
+            _messageTime = 2f;
+        }
+
         private void CreateHud()
         {
             if (GameBootstrap.Config == null || GameBootstrap.Config.PanelSettings == null)
@@ -456,6 +521,7 @@ namespace VoidMall.Game
                 : item.Tool == ToolKind.Drill ? "ЛКМ — срезать, ПКМ — нарастить"
                 : item.Tool == ToolKind.Flashlight ? $"ЛКМ — {(_flashlightOn ? "выключить" : "включить")}"
                 : item.PlacesBlock != null ? "ПКМ — поставить, ЛКМ — ударить"
+                : !string.IsNullOrEmpty(item.PlacesProp) ? "ПКМ — разложить на полу"
                 : item.IsConsumable ? "ЛКМ — использовать"
                 : item.IsEquippable ? "ЛКМ — надеть"
                 : item.IsTool ? "ЛКМ — бить" + (item.Tool == ToolKind.Hammer ? ", ПКМ с пропом в руках — прибить" : "")

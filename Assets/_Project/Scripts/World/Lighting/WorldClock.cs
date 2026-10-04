@@ -21,6 +21,9 @@ namespace VoidMall.World
         /// <summary>Игровое время с начала мира, часы.</summary>
         public double TotalHours { get; private set; }
 
+        /// <summary>Ускорение времени (сон в одиночной игре). 1 — обычный ход.</summary>
+        public float TimeScale { get; set; } = 1f;
+
         public float Hour => (float)(TotalHours % 24.0);
         public int Day => (int)(TotalHours / 24.0) + 1;
         public bool IsNight => LampRules.Wave(Hour) > 0.5f;
@@ -54,7 +57,7 @@ namespace VoidMall.World
             if (Frozen.Value)
                 return;
             float minutes = Mathf.Max(0.1f, DayLength.Value);
-            TotalHours += Time.deltaTime * 24.0 / (minutes * 60.0);
+            TotalHours += Time.deltaTime * 24.0 / (minutes * 60.0) * TimeScale;
         }
 
         public void SetHour(float hour)

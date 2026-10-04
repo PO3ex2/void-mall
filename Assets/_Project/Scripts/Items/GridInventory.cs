@@ -31,6 +31,9 @@ namespace VoidMall.Items
         /// <summary>Содержимое контейнера (рюкзак). Null — не контейнер.</summary>
         public GridInventory Contents;
 
+        /// <summary>Испорченная еда (просрочка): отравляет. Со свежей в один стак не складывается.</summary>
+        public bool Spoiled;
+
         public long Id { get; } = _nextId++;
 
         public ItemStack(ushort def, int count = 1)
@@ -181,7 +184,7 @@ namespace VoidMall.Items
                 {
                     if (stack.Count == 0)
                         break;
-                    if (item.Stack == stack || item.Stack.Def != stack.Def || item.Stack.Contents != null || item.Stack.Count >= max)
+                    if (item.Stack == stack || !CanStack(item.Stack, stack) || item.Stack.Count >= max)
                         continue;
                     int moved = Math.Min(max - item.Stack.Count, stack.Count);
                     item.Stack.Count += moved;
@@ -197,7 +200,7 @@ namespace VoidMall.Items
             }
             while (stack.Count > 0)
             {
-                var part = new ItemStack(stack.Def, Math.Min(stack.Count, max)) { Durability = stack.Durability };
+                var part = new ItemStack(stack.Def, Math.Min(stack.Count, max)) { Durability = stack.Durability, Spoiled = stack.Spoiled };
                 if (!FindSpace(part, out int x, out int y, out bool rotated))
                     break;
                 Occupy(part, x, y, rotated);
@@ -246,7 +249,7 @@ namespace VoidMall.Items
         {
             if (!Contains(stack) || count <= 0 || count >= stack.Count)
                 return null;
-            var part = new ItemStack(stack.Def, count) { Durability = stack.Durability };
+            var part = new ItemStack(stack.Def, count) { Durability = stack.Durability, Spoiled = stack.Spoiled };
             if (!FindSpace(part, out int x, out int y, out bool rotated))
                 return null;
             stack.Count -= count;
@@ -259,7 +262,7 @@ namespace VoidMall.Items
         /// <summary>Слить source в target (один вид): сколько влезло. Опустевший source убирается из сетки.</summary>
         public int Merge(ItemStack source, ItemStack target)
         {
-            if (source == target || source.Def != target.Def || target.Contents != null || source.Contents != null)
+            if (source == target || !CanStack(source, target))
                 return 0;
             int moved = Math.Min(_catalog.MaxStack(target.Def) - target.Count, source.Count);
             if (moved <= 0)
@@ -271,6 +274,10 @@ namespace VoidMall.Items
             Changed?.Invoke();
             return moved;
         }
+
+        /// <summary>Можно ли сложить два стака в один: один вид, не контейнеры, одинаково свежие.</summary>
+        public static bool CanStack(ItemStack a, ItemStack b) =>
+            a.Def == b.Def && a.Contents == null && b.Contents == null && a.Spoiled == b.Spoiled;
 
         /// <summary>Вес содержимого (с вложенными контейнерами).</summary>
         public float TotalWeight()

@@ -157,6 +157,13 @@ namespace VoidMall.World
         private void OnCollisionEnter(Collision collision)
         {
             var root = Root;
+            // Тяжёлое и быстрое бьёт игрока (только летящий проп, не тот, что игрок несёт).
+            if (collision.collider.gameObject.layer == GameLayers.Player && root.IsAwake && !root.IsHeld)
+            {
+                float speed = collision.relativeVelocity.magnitude, mass = root.GroupMass;
+                if (speed > 4f && mass > 3f)
+                    EventBus<PlayerImpactEvent>.Publish(new PlayerImpactEvent { Player = collision.collider.gameObject, Damage = Mathf.Min(80f, mass * speed * 0.08f), Reason = $"Ударило: {root.Def.DisplayName}" });
+            }
             if (root.IsAwake || root.IsNailed)
                 return;
             var other = collision.rigidbody;

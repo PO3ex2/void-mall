@@ -1,0 +1,49 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9f0051f3e8b3438408ddcd1c06a3bc12, type: 3}
+  m_Name: lost_bag
+  m_EditorClassIdentifier: VoidMall.Items::VoidMall.Items.ItemDef
+  _id: item.lost_bag
+  DisplayName: "\u0421\u0443\u043C\u043A\u0430 \u0441 \u0432\u0435\u0449\u0430\u043C\u0438"
+  Description: "\u0412\u0430\u0448\u0438 \u0432\u0435\u0449\u0438 \u0441 \u043C\u0435\u0441\u0442\u0430 \u0433\u0438\u0431\u0435\u043B\u0438. \u041F\u043E\u0434\u0431\u0435\u0440\u0438\u0442\u0435 \u2014 \u0441\u043E\u0434\u0435\u0440\u0436\u0438\u043C\u043E\u0435 \u0440\u0430\u0437\u043B\u043E\u0436\u0438\u0442\u0441\u044F \u043F\u043E \u0438\u043D\u0432\u0435\u043D\u0442\u0430\u0440\u044E."
+  Category: 9
+  Shape: 4
+  Tint: {r: 0.85, g: 0.65, b: 0.15, a: 1}
+  ModelSize: {x: 0.4, y: 0.3, z: 0.3}
+  Mesh: {fileID: 0}
+  Material: {fileID: 0}
+  Icon: {fileID: 2800000, guid: 49f7dd8125f5a7d49818c2fd38c865e0, type: 3}
+  GridSize: {x: 2, y: 2}
+  Weight: 0.5
+  MaxStack: 1
+  Tool: 0
+  ToolTier: 0
+  BlockDamage: 0
+  PropDamage: 0
+  SwingInterval: 0.35
+  DrillStrength: 0
+  Calories: 0
+  Fat: 0
+  Protein: 0
+  Carbs: 0
+  Water: 0
+  Treats: 0
+  Heal: 0
+  Slot: 0
+  Layer: 0
+  Armor: 0
+  Warmth: 0
+  ContainerGrid: {x: 12, y: 12}
+  PlacesBlock: {fileID: 0}
+  SmoothMaterial: {fileID: 0}
+  PlacesProp: 
+  UnpackOnPickup: 1

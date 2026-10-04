@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: VoidMall.Items::VoidMall.Items.ItemDef
   _id: item.splint
   DisplayName: "\u0428\u0438\u043D\u0430"
-  Description: "\u0424\u0438\u043A\u0441\u0438\u0440\u0443\u0435\u0442 \u043F\u0435\u0440\u0435\u043B\u043E\u043C (\u044D\u0442\u0430\u043F 7)."
+  Description: "\u0424\u0438\u043A\u0441\u0438\u0440\u0443\u0435\u0442 \u043F\u0435\u0440\u0435\u043B\u043E\u043C: \u043C\u0435\u043D\u044C\u0448\u0435 \u043C\u0435\u0448\u0430\u0435\u0442, \u0437\u0430 \u0434\u0432\u043E\u0435 \u0441\u0443\u0442\u043E\u043A \u0441\u0440\u0430\u0441\u0442\u0430\u0435\u0442\u0441\u044F."
   Category: 5
   Shape: 16
   Tint: {r: 0.85, g: 0.85, b: 0.8, a: 1}
@@ -36,9 +36,14 @@ MonoBehaviour:
   Protein: 0
   Carbs: 0
   Water: 0
+  Treats: 2
+  Heal: 0
   Slot: 0
   Layer: 0
   Armor: 0
+  Warmth: 0
   ContainerGrid: {x: 0, y: 0}
   PlacesBlock: {fileID: 0}
   SmoothMaterial: {fileID: 0}
+  PlacesProp: 
+  UnpackOnPickup: 0

@@ -8,6 +8,7 @@
         "VoidMall.Player",
         "VoidMall.World",
         "VoidMall.Items",
+        "VoidMall.Survival",
         "Unity.Mathematics",
         "Unity.Collections",
         "Unity.InputSystem"

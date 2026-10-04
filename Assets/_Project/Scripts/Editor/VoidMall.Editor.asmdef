@@ -11,6 +11,7 @@
         "VoidMall.UI",
         "VoidMall.Game",
         "VoidMall.Items",
+        "VoidMall.Survival",
         "Unity.InputSystem",
         "UnityEditor.TestRunner",
         "UnityEngine.TestRunner"

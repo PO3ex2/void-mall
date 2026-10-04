@@ -228,6 +228,20 @@ namespace VoidMall.Items
                     entry.Instance.Body.WakeUp();
         }
 
+        /// <summary>Где лежит стак (если он ещё в мире): для маркера сумки с вещами после смерти.</summary>
+        public bool TryGetPosition(ItemStack stack, out Vector3 position)
+        {
+            foreach (var entry in _entries)
+            {
+                if (entry.Stack != stack)
+                    continue;
+                position = entry.Instance != null ? entry.Instance.transform.position : entry.Position;
+                return true;
+            }
+            position = default;
+            return false;
+        }
+
         public static bool TryGet(Collider collider, out WorldItem item)
         {
             item = collider != null ? collider.GetComponent<WorldItem>() : null;

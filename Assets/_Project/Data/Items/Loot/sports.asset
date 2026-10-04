@@ -15,6 +15,10 @@ MonoBehaviour:
   Section: section.sports
   Fill: 0.3
   Entries:
+  - Item: {fileID: 11400000, guid: 3ea0569ce69f4cf4d82b57bda1e3402b, type: 2}
+    Weight: 2
+    Min: 1
+    Max: 1
   - Item: {fileID: 11400000, guid: 998eebf67a87d584d9dcffea95073789, type: 2}
     Weight: 4
     Min: 1

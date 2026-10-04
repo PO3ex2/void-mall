@@ -1,0 +1,25 @@
+{
+    "name": "VoidMall.Survival",
+    "rootNamespace": "VoidMall.Survival",
+    "references": [
+        "VoidMall.Core",
+        "VoidMall.Console",
+        "VoidMall.Input",
+        "VoidMall.Player",
+        "VoidMall.World",
+        "VoidMall.Items",
+        "Unity.Mathematics",
+        "Unity.Collections",
+        "Unity.RenderPipelines.Core.Runtime",
+        "Unity.RenderPipelines.Universal.Runtime"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

@@ -29,3 +29,6 @@ MonoBehaviour:
     Disassembled: 5
     Broken: 2
   DebrisColor: {r: 0.55, g: 0.57, b: 0.6, a: 1}
+  Sleepable: 0
+  SleepQuality: 1
+  PackUp: 0

@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: VoidMall.Items::VoidMall.Items.ItemDef
   _id: item.bandage
   DisplayName: "\u0411\u0438\u043D\u0442"
-  Description: "\u041E\u0441\u0442\u0430\u043D\u0430\u0432\u043B\u0438\u0432\u0430\u0435\u0442 \u043A\u0440\u043E\u0432\u043E\u0442\u0435\u0447\u0435\u043D\u0438\u0435 (\u044D\u0442\u0430\u043F 7)."
+  Description: "\u0421\u0438\u043B\u044C\u043D\u043E\u0435 \u043A\u0440\u043E\u0432\u043E\u0442\u0435\u0447\u0435\u043D\u0438\u0435 \u0434\u0435\u043B\u0430\u0435\u0442 \u0441\u043B\u0430\u0431\u044B\u043C, \u0441\u043B\u0430\u0431\u043E\u0435 \u2014 \u043E\u0441\u0442\u0430\u043D\u0430\u0432\u043B\u0438\u0432\u0430\u0435\u0442."
   Category: 5
   Shape: 3
   Tint: {r: 0.95, g: 0.95, b: 0.92, a: 1}
@@ -36,9 +36,14 @@ MonoBehaviour:
   Protein: 0
   Carbs: 0
   Water: 0
+  Treats: 1
+  Heal: 3
   Slot: 0
   Layer: 0
   Armor: 0
+  Warmth: 0
   ContainerGrid: {x: 0, y: 0}
   PlacesBlock: {fileID: 0}
   SmoothMaterial: {fileID: 0}
+  PlacesProp: 
+  UnpackOnPickup: 0

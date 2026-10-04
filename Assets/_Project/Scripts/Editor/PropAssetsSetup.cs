@@ -63,7 +63,12 @@ namespace VoidMall.Editor
             new("prop.switchboard", "Главный распределительный щит", PropShape.Switchboard, 320f, 1400, 14f, MetalDust, ("material.scrap_metal", 10, 5), ("material.wire", 8, 3), ("material.fuse", 4, 1)),
             new("prop.cable_reel", "Кабельный барабан", PropShape.CableReel, 70f, 300, 6f, WoodDust, ("material.wire", 10, 5), ("material.plank", 3, 1)),
             new("prop.vent_unit", "Вентустановка", PropShape.VentUnit, 380f, 1300, 14f, MetalDust, ("material.scrap_metal", 12, 6), ("material.wire", 3, 1), ("material.pipe", 2, 1)),
+            new("prop.bed", "Кровать", PropShape.Bed, 40f, 250, 5f, WoodDust, ("material.plank", 4, 2), ("material.fabric", 3, 1), ("material.foam", 3, 1), ("material.screws", 4, 1)),
+            new("prop.sleeping_bag", "Спальник", PropShape.SleepingBag, 2f, 40, 1f, PaperDust, ("item.sleeping_bag", 1, 0), ("material.fabric", 0, 2)),
         };
+
+        /// <summary>На чём можно спать (E): сон сохраняет точку возрождения. Диван — хуже кровати.</summary>
+        private static readonly HashSet<string> Sleepable = new() { "prop.bed", "prop.sleeping_bag", "prop.sofa" };
 
         public static void CreatePropAssets()
         {
@@ -97,6 +102,9 @@ namespace VoidMall.Editor
                 def.Hardness = spec.Hardness;
                 def.DisassembleTime = spec.DisassembleTime;
                 def.DebrisColor = spec.Debris;
+                def.Sleepable = Sleepable.Contains(spec.Id);
+                def.PackUp = spec.Id == "prop.sleeping_bag";
+                def.SleepQuality = spec.Id == "prop.sofa" ? 0.7f : 1f;
                 def.Yields = new List<PropYield>();
                 foreach (var (material, full, broken) in spec.Yields)
                     def.Yields.Add(new PropYield { Material = material, Disassembled = full, Broken = broken });

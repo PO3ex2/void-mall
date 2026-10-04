@@ -1,0 +1,40 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3b6d19e156aa5a244bb1c2c0a92dc1a3, type: 3}
+  m_Name: bed
+  m_EditorClassIdentifier: VoidMall.World::VoidMall.World.PropDef
+  _id: prop.bed
+  DisplayName: "\u041A\u0440\u043E\u0432\u0430\u0442\u044C"
+  Shape: 21
+  Size: {x: 1, y: 0.95, z: 2.1}
+  Mesh: {fileID: 0}
+  Material: {fileID: 0}
+  Mass: 40
+  Hardness: 250
+  DisassembleTime: 5
+  Yields:
+  - Material: material.plank
+    Disassembled: 4
+    Broken: 2
+  - Material: material.fabric
+    Disassembled: 3
+    Broken: 1
+  - Material: material.foam
+    Disassembled: 3
+    Broken: 1
+  - Material: material.screws
+    Disassembled: 4
+    Broken: 1
+  DebrisColor: {r: 0.55, g: 0.42, b: 0.3, a: 1}
+  Sleepable: 1
+  SleepQuality: 1
+  PackUp: 0

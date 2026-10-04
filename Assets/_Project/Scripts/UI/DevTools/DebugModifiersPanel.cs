@@ -8,8 +8,8 @@ using VoidMall.Player;
 namespace VoidMall.UI
 {
     /// <summary>
-    /// Панель F4: ползунки веса и травм для проверки влияния модификаторов на движение,
-    /// пока нет инвентаря и модуля выживания.
+    /// Панель F4: ползунки веса и травм для проверки модификаторов движения. Действуют поверх выживания
+    /// (настоящие травмы — команды status_add, status_clear); «бесконечная стамина» — у пула выживания.
     /// </summary>
     [RequireComponent(typeof(UIDocument))]
     public sealed class DebugModifiersPanel : MonoBehaviour
@@ -168,9 +168,9 @@ namespace VoidMall.UI
             return source != null;
         }
 
-        private static bool TryGetStamina(out SimpleStaminaPool pool)
+        private static bool TryGetStamina(out IStaminaPool pool)
         {
-            pool = PlayerMotor.Local != null ? PlayerMotor.Local.Stamina as SimpleStaminaPool : null;
+            pool = PlayerMotor.Local != null ? PlayerMotor.Local.Stamina : null;
             return pool != null;
         }
     }

@@ -9,6 +9,7 @@
         "VoidMall.Player",
         "VoidMall.World",
         "VoidMall.Items",
+        "VoidMall.Survival",
         "Unity.Collections",
         "Unity.Mathematics",
         "Unity.Burst"

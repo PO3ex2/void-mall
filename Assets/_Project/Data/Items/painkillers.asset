@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: VoidMall.Items::VoidMall.Items.ItemDef
   _id: item.painkillers
   DisplayName: "\u041E\u0431\u0435\u0437\u0431\u043E\u043B\u0438\u0432\u0430\u044E\u0449\u0435\u0435"
-  Description: "\u0421\u043D\u0438\u043C\u0430\u0435\u0442 \u0431\u043E\u043B\u044C (\u044D\u0442\u0430\u043F 7)."
+  Description: "\u0413\u043B\u0443\u0448\u0438\u0442 \u0431\u043E\u043B\u044C \u043D\u0430 3 \u0447\u0430\u0441\u0430: \u043C\u0435\u043D\u044C\u0448\u0435 \u0445\u0440\u043E\u043C\u043E\u0442\u044B \u0438 \u0442\u0440\u044F\u0441\u043A\u0438."
   Category: 5
   Shape: 0
   Tint: {r: 0.3, g: 0.6, b: 0.9, a: 1}
@@ -36,9 +36,14 @@ MonoBehaviour:
   Protein: 0
   Carbs: 0
   Water: 0
+  Treats: 4
+  Heal: 0
   Slot: 0
   Layer: 0
   Armor: 0
+  Warmth: 0
   ContainerGrid: {x: 0, y: 0}
   PlacesBlock: {fileID: 0}
   SmoothMaterial: {fileID: 0}
+  PlacesProp: 
+  UnpackOnPickup: 0

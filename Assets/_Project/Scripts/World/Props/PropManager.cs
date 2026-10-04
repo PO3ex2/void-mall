@@ -130,6 +130,10 @@ namespace VoidMall.World
             }
             Props = new PropRegistry(_set);
             _ids = PropIds.Resolve(Props);
+            var propIds = new List<string>();
+            foreach (var def in Props.All)
+                propIds.Add(def.Id.Replace("prop.", ""));
+            DevConsole.RegisterCompleter("prop_spawn", token => token == 0 ? propIds : null);
         }
 
         private void OnEnable()
@@ -689,6 +693,12 @@ namespace VoidMall.World
             }
             return 1f - state.Damage / (float)body.Def.Hardness;
         }
+
+        /// <summary>Проп сломан или разобран (например, кровать — точка возрождения).</summary>
+        public bool IsRemoved(ulong id) => _states.TryGetValue(id, out var state) && state.Removed;
+
+        /// <summary>Проп сейчас в мире (загружен).</summary>
+        public bool TryGetLive(ulong id, out PropBody body) => _live.TryGetValue(id, out body) && body != null;
 
         public float Health(PropBody body) =>
             _states.TryGetValue(body.Id, out var state) ? 1f - state.Damage / (float)body.Def.Hardness : 1f;

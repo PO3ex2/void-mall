@@ -43,10 +43,10 @@ namespace VoidMall.Player
         {
             if (!TryGetPlayer(out var motor, out var error))
                 return error;
-            if (motor.Stamina is not SimpleStaminaPool pool)
-                return "Player has no SimpleStaminaPool.";
-            pool.Infinite = enabled;
-            pool.Refill();
+            if (motor.Stamina == null)
+                return "У игрока нет стамины.";
+            motor.Stamina.Infinite = enabled;
+            motor.Stamina.Refill();
             return $"stamina_infinite {(enabled ? 1 : 0)}";
         }
 

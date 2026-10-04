@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3b6d19e156aa5a244bb1c2c0a92dc1a3, type: 3}
+  m_Name: sleeping_bag
+  m_EditorClassIdentifier: VoidMall.World::VoidMall.World.PropDef
+  _id: prop.sleeping_bag
+  DisplayName: "\u0421\u043F\u0430\u043B\u044C\u043D\u0438\u043A"
+  Shape: 22
+  Size: {x: 0.8, y: 0.16, z: 2}
+  Mesh: {fileID: 0}
+  Material: {fileID: 0}
+  Mass: 2
+  Hardness: 40
+  DisassembleTime: 1
+  Yields:
+  - Material: item.sleeping_bag
+    Disassembled: 1
+    Broken: 0
+  - Material: material.fabric
+    Disassembled: 0
+    Broken: 2
+  DebrisColor: {r: 0.65, g: 0.55, b: 0.4, a: 1}
+  Sleepable: 1
+  SleepQuality: 1
+  PackUp: 1

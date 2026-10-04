@@ -64,6 +64,18 @@ namespace VoidMall.Items
         Backpack,
     }
 
+    /// <summary>Что лечит лекарство (можно несколько).</summary>
+    [System.Flags]
+    public enum MedicalTreatment
+    {
+        None = 0,
+        Bleeding = 1,
+        Fracture = 2,
+        Pain = 4,
+        Infection = 8,
+        Poisoning = 16,
+    }
+
     public enum EquipLayer : byte
     {
         Armor,
@@ -118,12 +130,20 @@ namespace VoidMall.Items
         [Tooltip("Сила бура за применение (0…1).")]
         [Min(0f)] public float DrillStrength;
 
-        [Header("Еда и вода (этап 7)")]
-        public float Calories;
+        [Header("Еда и вода")]
+        [Tooltip("Ккал.")] public float Calories;
+        [Tooltip("Граммы жиров, белков, углеводов — для баланса рациона за сутки.")]
         public float Fat;
         public float Protein;
         public float Carbs;
-        public float Water;
+        [Tooltip("Мл воды.")] public float Water;
+
+        [Header("Лекарство")]
+        [Tooltip("Что лечит.")]
+        public MedicalTreatment Treats;
+
+        [Tooltip("Сколько здоровья восстанавливает.")]
+        [Min(0f)] public float Heal;
 
         [Header("Экипировка")]
         public EquipSlot Slot;
@@ -131,6 +151,9 @@ namespace VoidMall.Items
 
         [Tooltip("Защита (этап 7–8).")]
         [Min(0f)] public float Armor;
+
+        [Tooltip("Утепление одежды, °C: на столько теплее ощущается окружение.")]
+        public float Warmth;
 
         [Header("Контейнер (рюкзак)")]
         [Tooltip("Размер сетки внутри, клеток. 0 — не контейнер.")]
@@ -142,6 +165,12 @@ namespace VoidMall.Items
 
         [Tooltip("Гладкий материал, который выпадает при копании и тратится буром при наращивании.")]
         public MaterialDef SmoothMaterial;
+
+        [Tooltip("ID пропа, который ставится этим предметом (спальник). Пусто — не ставится.")]
+        public string PlacesProp;
+
+        [Tooltip("Контейнер, который при подборе раскладывается в инвентарь (сумка с вещами после смерти).")]
+        public bool UnpackOnPickup;
 
         public bool IsContainer => ContainerGrid.x > 0 && ContainerGrid.y > 0;
         public bool IsTool => Tool != ToolKind.None;

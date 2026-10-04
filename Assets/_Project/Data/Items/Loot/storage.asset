@@ -15,6 +15,10 @@ MonoBehaviour:
   Section: section.storage
   Fill: 0.3
   Entries:
+  - Item: {fileID: 11400000, guid: 3ea0569ce69f4cf4d82b57bda1e3402b, type: 2}
+    Weight: 0.8
+    Min: 1
+    Max: 1
   - Item: {fileID: 11400000, guid: 6955c0ec9d60d6c4199e0cd509bd81c7, type: 2}
     Weight: 6
     Min: 1

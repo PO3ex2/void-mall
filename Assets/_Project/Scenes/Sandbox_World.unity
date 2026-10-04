@@ -119,7 +119,7 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
---- !u!1 &652968489
+--- !u!1 &547118574
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -127,18 +127,18 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 652968501}
-  - component: {fileID: 652968500}
-  - component: {fileID: 652968499}
-  - component: {fileID: 652968498}
-  - component: {fileID: 652968497}
-  - component: {fileID: 652968496}
-  - component: {fileID: 652968495}
-  - component: {fileID: 652968494}
-  - component: {fileID: 652968493}
-  - component: {fileID: 652968492}
-  - component: {fileID: 652968491}
-  - component: {fileID: 652968490}
+  - component: {fileID: 547118586}
+  - component: {fileID: 547118585}
+  - component: {fileID: 547118584}
+  - component: {fileID: 547118583}
+  - component: {fileID: 547118582}
+  - component: {fileID: 547118581}
+  - component: {fileID: 547118580}
+  - component: {fileID: 547118579}
+  - component: {fileID: 547118578}
+  - component: {fileID: 547118577}
+  - component: {fileID: 547118576}
+  - component: {fileID: 547118575}
   m_Layer: 0
   m_Name: World
   m_TagString: Untagged
@@ -146,37 +146,37 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &652968490
+--- !u!114 &547118575
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 652968489}
+  m_GameObject: {fileID: 547118574}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 315a82dbc738dfb4f8cb394015c4cef8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: VoidMall.Items::VoidMall.Items.ShelfLoot
---- !u!114 &652968491
+--- !u!114 &547118576
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 652968489}
+  m_GameObject: {fileID: 547118574}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 939aa17e04a95964f833f2d9d295aaf1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: VoidMall.Items::VoidMall.Items.WorldItems
---- !u!114 &652968492
+--- !u!114 &547118577
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 652968489}
+  m_GameObject: {fileID: 547118574}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 2663a4ec0276c144186f71ff5f48f94a, type: 3}
@@ -185,13 +185,13 @@ MonoBehaviour:
   _items: {fileID: 11400000, guid: 28cf16444be106a4bb4d5730d6eec16a, type: 2}
   _loot: {fileID: 11400000, guid: e424ff568d9528b459ff935c45a26ed9, type: 2}
   _material: {fileID: 2100000, guid: d1d7efd7877eaaf42b2972de3a6850fd, type: 2}
---- !u!114 &652968493
+--- !u!114 &547118578
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 652968489}
+  m_GameObject: {fileID: 547118574}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 23851c644bb386944b3efc4a116b5cb8, type: 3}
@@ -200,25 +200,25 @@ MonoBehaviour:
   _set: {fileID: 11400000, guid: 13a612b9a3af7ab48b6dc016379b644e, type: 2}
   _material: {fileID: 2100000, guid: d1d7efd7877eaaf42b2972de3a6850fd, type: 2}
   _dustMaterial: {fileID: 2100000, guid: 151820b9a3a4fd845a2b8f14d63ab97f, type: 2}
---- !u!114 &652968494
+--- !u!114 &547118579
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 652968489}
+  m_GameObject: {fileID: 547118574}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 43d014a89ed3d1847b97e73b0b48a420, type: 3}
   m_Name: 
   m_EditorClassIdentifier: VoidMall.World::VoidMall.World.AnomalyFxDirector
---- !u!114 &652968495
+--- !u!114 &547118580
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 652968489}
+  m_GameObject: {fileID: 547118574}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a57003048d9b18245a50482be3056517, type: 3}
@@ -239,64 +239,64 @@ MonoBehaviour:
   _nightFog: {r: 0, g: 0, b: 0, a: 1}
   _dayReflections: 0.25
   _nightSkyExposure: 0
---- !u!114 &652968496
+--- !u!114 &547118581
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 652968489}
+  m_GameObject: {fileID: 547118574}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: eb6cab95f3a0d34438140920004e8b75, type: 3}
   m_Name: 
   m_EditorClassIdentifier: VoidMall.World::VoidMall.World.WorldClock
   _settings: {fileID: 11400000, guid: a80008bfb8886514fa856742f06a37ed, type: 2}
---- !u!114 &652968497
+--- !u!114 &547118582
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 652968489}
+  m_GameObject: {fileID: 547118574}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: bb84c75e92c2986439253d50fbb31915, type: 3}
   m_Name: 
   m_EditorClassIdentifier: VoidMall.World::VoidMall.World.MallStructures
   _material: {fileID: 2100000, guid: d1d7efd7877eaaf42b2972de3a6850fd, type: 2}
---- !u!114 &652968498
+--- !u!114 &547118583
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 652968489}
+  m_GameObject: {fileID: 547118574}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 56e12027e3e63c04e88685817f6d7d47, type: 3}
   m_Name: 
   m_EditorClassIdentifier: VoidMall.World::VoidMall.World.DebrisSpawner
   _dustMaterial: {fileID: 2100000, guid: 151820b9a3a4fd845a2b8f14d63ab97f, type: 2}
---- !u!114 &652968499
+--- !u!114 &547118584
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 652968489}
+  m_GameObject: {fileID: 547118574}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f438ec63c69293b4a9f0346197c443bf, type: 3}
   m_Name: 
   m_EditorClassIdentifier: VoidMall.World::VoidMall.World.WorldAuthority
---- !u!114 &652968500
+--- !u!114 &547118585
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 652968489}
+  m_GameObject: {fileID: 547118574}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 562f1fa70d860b24698757142a7dbf27, type: 3}
@@ -307,13 +307,13 @@ MonoBehaviour:
   _transparentMaterial: {fileID: 2100000, guid: 2cd48bdfdef53a24f80016116d631505, type: 2}
   _settings: {fileID: 11400000, guid: a80008bfb8886514fa856742f06a37ed, type: 2}
   _seed: 1337
---- !u!4 &652968501
+--- !u!4 &547118586
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 652968489}
+  m_GameObject: {fileID: 547118574}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
@@ -322,7 +322,7 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1001 &863470999
+--- !u!1001 &1247574514
 PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
@@ -380,41 +380,56 @@ PrefabInstance:
     m_AddedComponents:
     - targetCorrespondingSourceObject: {fileID: 2279345652427918525, guid: 648813251dc9a804d9b5132ecfc08660, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 863471004}
+      addedObject: {fileID: 1247574520}
     - targetCorrespondingSourceObject: {fileID: 2279345652427918525, guid: 648813251dc9a804d9b5132ecfc08660, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 863471003}
+      addedObject: {fileID: 1247574519}
     - targetCorrespondingSourceObject: {fileID: 2279345652427918525, guid: 648813251dc9a804d9b5132ecfc08660, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 863471002}
+      addedObject: {fileID: 1247574518}
     - targetCorrespondingSourceObject: {fileID: 2279345652427918525, guid: 648813251dc9a804d9b5132ecfc08660, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 863471001}
+      addedObject: {fileID: 1247574517}
+    - targetCorrespondingSourceObject: {fileID: 2279345652427918525, guid: 648813251dc9a804d9b5132ecfc08660, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1247574516}
   m_SourcePrefab: {fileID: 100100000, guid: 648813251dc9a804d9b5132ecfc08660, type: 3}
---- !u!1 &863471000 stripped
+--- !u!1 &1247574515 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 2279345652427918525, guid: 648813251dc9a804d9b5132ecfc08660, type: 3}
-  m_PrefabInstance: {fileID: 863470999}
+  m_PrefabInstance: {fileID: 1247574514}
   m_PrefabAsset: {fileID: 0}
---- !u!114 &863471001
+--- !u!114 &1247574516
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 863471000}
+  m_GameObject: {fileID: 1247574515}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5aa22a1f417cb9d45b5607b51e812be6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: VoidMall.Survival::VoidMall.Survival.PlayerVitals
+--- !u!114 &1247574517
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1247574515}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 0e970b5ee5a83cb43930579d6143a13a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: VoidMall.Game::VoidMall.Game.PropInteractor
---- !u!114 &863471002
+--- !u!114 &1247574518
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 863471000}
+  m_GameObject: {fileID: 1247574515}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: cc416ff1ef7917b48a463a3e4a7ea6cc, type: 3}
@@ -424,25 +439,25 @@ MonoBehaviour:
   _outlineMaterial: {fileID: 2100000, guid: 968c4052043727b4c9583885961b1c6b, type: 2}
   _crackMaterial: {fileID: 2100000, guid: 6677d53d76c3d2049b0b8327c8924747, type: 2}
   _brushMaterial: {fileID: 2100000, guid: c927430dba5f67045a6a77fe0f76e208, type: 2}
---- !u!114 &863471003
+--- !u!114 &1247574519
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 863471000}
+  m_GameObject: {fileID: 1247574515}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: fb127dc9d11b4344ea57ad1973a403d2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: VoidMall.Items::VoidMall.Items.PlayerInventory
---- !u!114 &863471004
+--- !u!114 &1247574520
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 863471000}
+  m_GameObject: {fileID: 1247574515}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: bb32793e7698bbc4dac2dc7d6669c68c, type: 3}
@@ -452,5 +467,5 @@ MonoBehaviour:
 SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
-  - {fileID: 652968501}
-  - {fileID: 863470999}
+  - {fileID: 547118586}
+  - {fileID: 1247574514}

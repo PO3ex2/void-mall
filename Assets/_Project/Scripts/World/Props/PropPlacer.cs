@@ -11,7 +11,7 @@ namespace VoidMall.World
     {
         public ushort Shelf, Fridge, Checkout, DisplayTable, ClothesRack, Table, Chair, PalletRack, BoxStack, Car;
         public ushort Cabinet, Boiler, Bench, Planter, Sofa, CardboardBox, PlasticCrate, TrashBin;
-        public ushort Switchboard, CableReel, VentUnit;
+        public ushort Switchboard, CableReel, VentUnit, Bed;
 
         public static PropIds Resolve(PropRegistry props) => new()
         {
@@ -36,6 +36,7 @@ namespace VoidMall.World
             Switchboard = props.IndexOf("prop.switchboard"),
             CableReel = props.IndexOf("prop.cable_reel"),
             VentUnit = props.IndexOf("prop.vent_unit"),
+            Bed = props.IndexOf("prop.bed"),
         };
     }
 
@@ -127,6 +128,9 @@ namespace VoidMall.World
                         break;
                     case SectionLayout.Hall: Dining(ctx, plan, i, output); break;
                     case SectionLayout.Showroom:
+                        // Мебельный: через раз — кровать изголовьем к стене (на ней можно спать).
+                        if (h % 2 == 0)
+                            AgainstWall(ctx, plan, i, ctx.Ids.Bed, output);
                         Grid(ctx, plan, i, ctx.Ids.Sofa, 4.6f, 4.2f, 2.5f, h, output);
                         break;
                     case SectionLayout.Tech:

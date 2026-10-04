@@ -16,6 +16,12 @@ namespace VoidMall.Core
 
         /// <summary>Списать сколько есть. Для непрерывных действий (спринт).</summary>
         void Drain(float amount);
+
+        /// <summary>Отладка: стамина не тратится.</summary>
+        bool Infinite { get; set; }
+
+        /// <summary>Восстановить до максимума.</summary>
+        void Refill();
     }
 
     /// <summary>Поверхность, которая переносит стоящих на ней: эскалатор, лифт, платформа.</summary>
@@ -73,6 +79,7 @@ namespace VoidMall.Core
         Void,
         Fall,
         Damage,
+        Glitch,
     }
 
     /// <summary>Игрок погиб. На этапе 7 по нему выпадет рюкзак и начнётся возрождение (как в 7DTD).</summary>
@@ -81,6 +88,14 @@ namespace VoidMall.Core
         public GameObject Player;
         public DeathCause Cause;
         public Vector3 Position;
+    }
+
+    /// <summary>Игрока ударило что-то тяжёлое (летящий проп). Survival наносит урон.</summary>
+    public struct PlayerImpactEvent
+    {
+        public GameObject Player;
+        public float Damage;
+        public string Reason;
     }
 
     /// <summary>Игрок приземлился. Survival по этому событию считает урон ногам.</summary>

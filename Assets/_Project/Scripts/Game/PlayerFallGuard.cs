@@ -2,13 +2,14 @@ using UnityEngine;
 using VoidMall.Console;
 using VoidMall.Core;
 using VoidMall.Player;
+using VoidMall.Survival;
 
 namespace VoidMall.Game
 {
     /// <summary>
     /// Смерть в пустоте: упавший ниже мира (в шахту-бездну или из-за бага коллизии) игрок погибает.
-    /// Пока нет модуля выживания (этап 7), «смерть» = событие PlayerDiedEvent + возрождение на последнем месте,
-    /// где игрок уверенно стоял. На этапе 7 здесь появятся рюкзак и возрождение на кровати.
+    /// С модулем выживания смерть обрабатывает PlayerVitals (экран смерти, сумка с вещами, возрождение у кровати);
+    /// без него (полигон движения) — событие PlayerDiedEvent и возрождение на последнем месте, где игрок уверенно стоял.
     /// </summary>
     public sealed class PlayerFallGuard : MonoBehaviour
     {
@@ -42,6 +43,13 @@ namespace VoidMall.Game
             if (state.Position.y > VoidDeathY)
             {
                 RememberSafePosition(in state);
+                return;
+            }
+
+            var vitals = motor.GetComponent<PlayerVitals>();
+            if (vitals != null)
+            {
+                vitals.Kill(DeathCause.Void, "Упал в пустоту");
                 return;
             }
 

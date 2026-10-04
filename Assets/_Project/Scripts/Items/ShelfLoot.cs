@@ -28,6 +28,9 @@ namespace VoidMall.Items
         /// <summary>Доля стеллажей, разграбленных подчистую.</summary>
         private const float LootedChance = 0.15f;
 
+        /// <summary>Доля испорченной еды на полках: съесть можно, но вдвое меньше калорий и отравление.</summary>
+        private const float SpoiledChance = 0.25f;
+
         public static ShelfLoot Instance { get; private set; }
 
         public struct ShelfItem
@@ -35,6 +38,7 @@ namespace VoidMall.Items
             public int Slot;
             public ushort Def;
             public int Count;
+            public bool Spoiled;
             public Vector3 LocalPosition;
             public Quaternion LocalRotation;
         }
@@ -171,6 +175,7 @@ namespace VoidMall.Items
                         Slot = slot,
                         Def = index,
                         Count = count,
+                        Spoiled = def.Category == ItemCategory.Food && Hash.ToFloat01(Hash.Get(seed, slot, 11)) < SpoiledChance,
                         LocalPosition = place.Position + new Vector3(offset, 0f, 0f),
                         LocalRotation = Quaternion.Euler(0f, yaw, 0f),
                     });
@@ -235,7 +240,7 @@ namespace VoidMall.Items
                 // Чуть выше доски, чтобы коробка предмета не начинала внутри неё.
                 Vector3 position = prop.transform.TransformPoint(item.LocalPosition + Vector3.up * 0.005f);
                 Vector3 velocity = body != null && !body.isKinematic ? body.GetPointVelocity(position) : Vector3.zero;
-                WorldItems.Instance?.Spawn(system.Items.Create(item.Def, item.Count), position, velocity, prop.transform.rotation * item.LocalRotation, tumble: false);
+                WorldItems.Instance?.Spawn(CreateStack(item), position, velocity, prop.transform.rotation * item.LocalRotation, tumble: false);
             }
             RemoveShelf(prop.Id);
         }
@@ -306,7 +311,14 @@ namespace VoidMall.Items
                 RemoveShelf(prop.Id);
             else
                 _dirtyCells.Add(shelf.Cell);
-            return ItemSystem.Instance.Items.Create(item.Def, item.Count);
+            return CreateStack(item);
+        }
+
+        private static ItemStack CreateStack(in ShelfItem item)
+        {
+            var stack = ItemSystem.Instance.Items.Create(item.Def, item.Count);
+            stack.Spoiled = item.Spoiled;
+            return stack;
         }
 
         // ───────────────────────────── Отрисовка ─────────────────────────────
