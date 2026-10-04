@@ -142,6 +142,9 @@ namespace VoidMall.Survival
 
             double hours = clock != null ? clock.TotalHours : 0.0;
             float gameHours = double.IsNaN(_lastHours) ? 0f : (float)Math.Max(0.0, hours - _lastHours);
+            // Скачок времени командой time (больше получаса за кадр) — не прожитые часы: нужды не трогаем.
+            if (gameHours > 0.5f)
+                gameHours = 0f;
             _lastHours = hours;
 
             Model.God = GodMode.Value;

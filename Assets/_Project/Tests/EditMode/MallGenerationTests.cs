@@ -357,7 +357,16 @@ namespace VoidMall.Tests
             Assert.That(LampRules.Wave(2f), Is.EqualTo(1f));
             Assert.That(LampRules.Wave(22.5f), Is.EqualTo(0.5f).Within(1e-4f));
             Assert.That(LampRules.Wave(6.5f), Is.EqualTo(0.5f).Within(1e-4f));
-            Assert.That(LampRules.Intensity(1, new int3(10, 24, 10), LampKind.Emergency, 1f, 0f, 0f), Is.EqualTo(1f));
+            // Аварийные горят только с 20:00 до 23:30, к полуночи гаснут все и не горят до вечера.
+            Assert.That(LampRules.Intensity(1, new int3(10, 24, 10), LampKind.Emergency, 1f, 0f, LampRules.EmergencyWave(21f), 0f), Is.EqualTo(1f));
+            Assert.That(LampRules.EmergencyWave(21f), Is.EqualTo(0f));
+            Assert.That(LampRules.EmergencyWave(3f), Is.EqualTo(1f));
+            Assert.That(LampRules.EmergencyWave(12f), Is.EqualTo(1f));
+            for (int x = 0; x < 50; x++)
+            {
+                Assert.That(LampRules.Intensity(1, new int3(x, 24, 7), LampKind.Emergency, 1f, 0f, LampRules.EmergencyWave(3f), 0f), Is.EqualTo(0f));
+                Assert.That(LampRules.Intensity(1, new int3(x, 24, 7), LampKind.Emergency, 0f, 1f, LampRules.EmergencyWave(12f), 0f), Is.EqualTo(0f));
+            }
         }
 
         // ───────────── Вспомогательное ─────────────

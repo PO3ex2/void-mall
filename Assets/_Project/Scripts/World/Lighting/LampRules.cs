@@ -18,16 +18,23 @@ namespace VoidMall.World
         public const float MorningStart = 6f;
         public const float MorningEnd = 7f;
 
+        /// <summary>Аварийные лампы загораются по одной с 19:45 до 20:00 и гаснут по одной с 23:30 до полуночи.</summary>
+        public const float EmergencyOnStart = 19.75f;
+        public const float EmergencyOnEnd = 20f;
+        public const float EmergencyOffStart = 23.5f;
+
         public const float DarkGroupChance = 0.12f;
         public const float DeadLampChance = 0.05f;
         public const float FlickerLampChance = 0.08f;
 
         /// <summary>Ширина зоны мерцания вокруг фазы отключения группы (доля волны).</summary>
         public const float TransitionWidth = 0.03f;
+        public const float EmergencyFlickerWidth = 0.06f;
 
         private const int SaltPhase = 900;
         private const int SaltDark = 901;
         private const int SaltLamp = 902;
+        private const int SaltEmergency = 903;
 
         /// <summary>Прогресс волны отключения: 0 — всё горит (день), 1 — всё погашено (ночь).</summary>
         public static float Wave(float hour)
@@ -39,6 +46,30 @@ namespace VoidMall.World
             if (hour < MorningEnd)
                 return 1f - (hour - MorningStart) / (MorningEnd - MorningStart);
             return 0f;
+        }
+
+        /// <summary>Прогресс отключения аварийных ламп: 0 — горят (20:00–23:30), 1 — все погашены (с полуночи до 19:45).</summary>
+        public static float EmergencyWave(float hour)
+        {
+            if (hour >= EmergencyOffStart)
+                return (hour - EmergencyOffStart) / (24f - EmergencyOffStart);
+            if (hour >= EmergencyOnEnd)
+                return 0f;
+            if (hour >= EmergencyOnStart)
+                return 1f - (hour - EmergencyOnStart) / (EmergencyOnEnd - EmergencyOnStart);
+            return 1f;
+        }
+
+        /// <summary>Аварийная лампа: у каждой своя фаза отключения, рядом с ней — мигает.</summary>
+        public static float EmergencyIntensity(uint seed, int3 cell, float emergencyWave, float time)
+        {
+            uint lamp = Hash.Get(seed, cell.x, cell.y, cell.z, SaltEmergency);
+            // Фаза внутри [w, 1 − w]: к полуночи погасли все, днём ни одна не мигает.
+            float phase = EmergencyFlickerWidth + Hash.ToFloat01(lamp) * (1f - 2f * EmergencyFlickerWidth);
+            float margin = emergencyWave - phase;
+            if (margin > EmergencyFlickerWidth)
+                return 0f;
+            return margin > -EmergencyFlickerWidth ? Flicker(lamp, time, 14f) : 1f;
         }
 
         /// <summary>Яркость световых фонарей атриумов: днём 1, ночью почти 0, плавно на рассвете и закате.</summary>
@@ -81,10 +112,10 @@ namespace VoidMall.World
             return on;
         }
 
-        public static float Intensity(uint seed, int3 cell, LampKind kind, float wave, float skylight, float time) => kind switch
+        public static float Intensity(uint seed, int3 cell, LampKind kind, float wave, float skylight, float emergencyWave, float time) => kind switch
         {
             LampKind.Lamp => LampIntensity(seed, cell, wave, time),
-            LampKind.Emergency => 1f,
+            LampKind.Emergency => EmergencyIntensity(seed, cell, emergencyWave, time),
             LampKind.Skylight => skylight,
             _ => 0f,
         };

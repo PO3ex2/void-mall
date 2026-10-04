@@ -6,6 +6,7 @@
 uint _VM_Seed;
 float _VM_LampWave;
 float _VM_Skylight;
+float _VM_EmergencyWave;
 float _VM_Time;
 
 uint VM_Rotl(uint v, int c) { return (v << c) | (v >> (32 - c)); }
@@ -65,11 +66,22 @@ float VM_LampIntensity(int3 cell)
     return on;
 }
 
+// Аварийная лампа: фаза отключения своя у каждой (полночь), рядом с фазой — мигает.
+float VM_EmergencyIntensity(int3 cell)
+{
+    uint lamp = VM_Hash4(_VM_Seed, cell.x, cell.y, cell.z, 903);
+    float phase = 0.06 + VM_ToFloat01(lamp) * (1.0 - 2.0 * 0.06);
+    float margin = _VM_EmergencyWave - phase;
+    if (margin > 0.06)
+        return 0;
+    return margin > -0.06 ? VM_Flicker(lamp, _VM_Time, 14.0) : 1.0;
+}
+
 // kind: 1 — лампа, 2 — аварийная, 3 — световой фонарь.
 float VM_LampKindIntensity(int3 cell, int kind)
 {
     if (kind == 1) return VM_LampIntensity(cell);
-    if (kind == 2) return 1;
+    if (kind == 2) return VM_EmergencyIntensity(cell);
     if (kind == 3) return _VM_Skylight;
     return 0;
 }

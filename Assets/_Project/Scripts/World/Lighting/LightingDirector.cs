@@ -37,18 +37,18 @@ namespace VoidMall.World
         [SerializeField] private Color _nightFog = new(0f, 0f, 0f);
         [SerializeField, Range(0f, 1f)] private float _dayReflections = 0.25f;
 
-        /// <summary>Яркость неба ночью относительно дневной: небо в проёмах и за дальностью прорисовки гаснет вместе с туманом (ночной туман чёрный).</summary>
-        [SerializeField, Range(0f, 1f)] private float _nightSkyExposure = 0f;
+        /// <summary>Насколько туман темнеет вечером (18–21 ч, вместе со световыми фонарями) ещё до отключения ламп.</summary>
+        [SerializeField, Range(0f, 1f)] private float _eveningFogDarkness = 0.8f;
 
-        private static readonly int ExposureId = Shader.PropertyToID("_Exposure");
-        private Material _sky, _sourceSky;
-        private float _dayExposure, _appliedExposure = -1f;
+        private Camera _camera;
+        private float _fogStart, _fogEnd;
 
         private Color _appliedAmbient = new(-1f, -1f, -1f, -1f);
 
         private static readonly int SeedId = Shader.PropertyToID("_VM_Seed");
         private static readonly int WaveId = Shader.PropertyToID("_VM_LampWave");
         private static readonly int SkylightId = Shader.PropertyToID("_VM_Skylight");
+        private static readonly int EmergencyWaveId = Shader.PropertyToID("_VM_EmergencyWave");
         private static readonly int TimeId = Shader.PropertyToID("_VM_Time");
 
         private struct Slot
@@ -68,6 +68,7 @@ namespace VoidMall.World
         private float _nextRefresh;
         private float _wave;
         private float _skylight;
+        private float _emergencyWave;
         private float _time;
 
         public static LightingDirector Instance { get; private set; }
@@ -83,49 +84,27 @@ namespace VoidMall.World
             Instance = this;
             _lightRoot = new GameObject("Lamp Lights").transform;
             _lightRoot.SetParent(transform, false);
+            _fogStart = RenderSettings.fogStartDistance;
+            _fogEnd = RenderSettings.fogEndDistance;
         }
 
         private void OnEnable() => Services.Register<ILightProbe>(this);
 
         private void OnDisable() => Services.Unregister<ILightProbe>(this);
 
-        private void OnDestroy()
-        {
-            if (_sky == null)
-                return;
-            if (RenderSettings.skybox == _sky)
-                RenderSettings.skybox = _sourceSky;
-            Destroy(_sky);
-        }
-
         /// <summary>
-        /// Скайбокс туман не берёт: ночью дневное небо светилось бы в концах галерей (за прогруженными чанками) и в
-        /// проёмах. Небо — копия материала сцены (сам ассет не трогаем), её экспозиция гаснет к ночи.
+        /// Небо камера не рисует: фон — цвет тумана. Даль за прогруженными чанками и проёмы растворяются в дымке
+        /// (скайбокс туман не берёт и выбивался жёлтым пятном), ночью — в темноте.
         /// </summary>
-        private void UpdateSky(float darkness)
+        private void UpdateBackground(Color fog)
         {
-            var current = RenderSettings.skybox;
-            if (current == null)
+            if (_camera == null || !_camera.isActiveAndEnabled)
+                _camera = Camera.main;
+            if (_camera == null)
                 return;
-            if (current != _sky)
-            {
-                if (!current.HasProperty(ExposureId))
-                    return;
-                if (_sky != null)
-                    Destroy(_sky);
-                _sourceSky = current;
-                _dayExposure = current.GetFloat(ExposureId);
-                _sky = new Material(current) { name = current.name + " (runtime)", hideFlags = HideFlags.DontSave };
-                _appliedExposure = -1f;
-                RenderSettings.skybox = _sky;
-            }
-            // Только при изменении: смена материала неба может запускать пересчёт отражений от него.
-            float exposure = _dayExposure * Mathf.Lerp(1f, _nightSkyExposure, darkness);
-            if (Mathf.Abs(exposure - _appliedExposure) > 0.001f)
-            {
-                _appliedExposure = exposure;
-                _sky.SetFloat(ExposureId, exposure);
-            }
+            if (_camera.clearFlags != CameraClearFlags.SolidColor)
+                _camera.clearFlags = CameraClearFlags.SolidColor;
+            _camera.backgroundColor = fog;
         }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
@@ -147,10 +126,12 @@ namespace VoidMall.World
             float hour = WorldClock.Instance != null ? WorldClock.Instance.Hour : 12f;
             _wave = LampRules.Wave(hour);
             _skylight = LampRules.SkylightLevel(hour);
+            _emergencyWave = LampRules.EmergencyWave(hour);
             _time = Time.time;
             Shader.SetGlobalInteger(SeedId, unchecked((int)world.Seed));
             Shader.SetGlobalFloat(WaveId, _wave);
             Shader.SetGlobalFloat(SkylightId, _skylight);
+            Shader.SetGlobalFloat(EmergencyWaveId, _emergencyWave);
             Shader.SetGlobalFloat(TimeId, _time);
 
             float darkness = math.saturate(_wave);
@@ -167,8 +148,15 @@ namespace VoidMall.World
                 // Отражения — от неба-скайбокса, в закрытом моле их почти не должно быть, ночью — совсем.
                 RenderSettings.reflectionIntensity = Mathf.Lerp(_dayReflections, 0f, darkness);
             }
-            RenderSettings.fogColor = Color.Lerp(_dayFog, _nightFog, darkness);
-            UpdateSky(darkness);
+            // Туман (и фон камеры) темнеет вечером вместе со световыми фонарями, а чёрным становится с отключением ламп.
+            float evening = 1f - math.saturate((_skylight - 0.03f) / 0.97f);
+            Color fog = Color.Lerp(_dayFog, _nightFog, math.max(darkness, evening * _eveningFogDarkness));
+            RenderSettings.fogColor = fog;
+            // Туман густеет до края прогрузки, иначе на краю видна граница между миром и фоном.
+            float edge = ChunkManager.ViewDistance.Value * WorldConstants.ChunkSize - WorldConstants.ChunkSize * 0.75f;
+            RenderSettings.fogEndDistance = Mathf.Max(24f, Mathf.Min(_fogEnd, edge));
+            RenderSettings.fogStartDistance = Mathf.Min(_fogStart, RenderSettings.fogEndDistance * 0.3f);
+            UpdateBackground(fog);
 
             Vector3 center = ViewerPosition();
             if (Time.unscaledTime >= _nextRefresh)
@@ -272,7 +260,7 @@ namespace VoidMall.World
                 slot.Fade = Mathf.MoveTowards(slot.Fade, slot.Assigned ? 1f : 0f, fadeStep);
                 LampKind kind = slot.Fade > 0f ? KindAt(world, slot.Lamp) : LampKind.None;
                 float intensity = kind == LampKind.None ? 0f
-                    : LampRules.Intensity(world.Seed, slot.Lamp, kind, _wave, _skylight, _time) * slot.Fade;
+                    : LampRules.Intensity(world.Seed, slot.Lamp, kind, _wave, _skylight, _emergencyWave, _time) * slot.Fade;
                 if (intensity <= 0.001f)
                 {
                     slot.Light.enabled = false;
@@ -336,7 +324,7 @@ namespace VoidMall.World
         private float BaseIntensity(uint seed, int3 cell, LampKind kind)
         {
             if (kind != LampKind.Lamp)
-                return LampRules.Intensity(seed, cell, kind, _wave, _skylight, _time);
+                return LampRules.Intensity(seed, cell, kind, _wave, _skylight, _emergencyWave, _time);
             // Для выбора кандидатов мерцание не важно: берём «горит ли в принципе».
             if (LampRules.IsDarkGroup(seed, LampRules.GroupOf(cell)))
                 return 0f;
@@ -378,7 +366,7 @@ namespace VoidMall.World
             foreach (var cell in _sampleLamps)
             {
                 LampKind kind = KindAt(world, cell);
-                float intensity = LampRules.Intensity(world.Seed, cell, kind, _wave, _skylight, _time);
+                float intensity = LampRules.Intensity(world.Seed, cell, kind, _wave, _skylight, _emergencyWave, _time);
                 if (intensity <= 0f)
                     continue;
                 float range = kind == LampKind.Emergency ? _emergencyRange : kind == LampKind.Skylight ? _skylightRange : _lampRange;
