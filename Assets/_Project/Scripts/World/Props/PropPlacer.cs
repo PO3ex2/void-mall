@@ -12,6 +12,16 @@ namespace VoidMall.World
         public ushort Shelf, Fridge, Checkout, DisplayTable, ClothesRack, Table, Chair, PalletRack, BoxStack, Car;
         public ushort Cabinet, Boiler, Bench, Planter, Sofa, CardboardBox, PlasticCrate, TrashBin;
         public ushort Switchboard, CableReel, VentUnit, Bed;
+        public ushort Workbench, SewingTable, ChemTable, Stove;
+
+        public ushort StationProp(CraftStation station) => station switch
+        {
+            CraftStation.Workbench => Workbench,
+            CraftStation.Sewing => SewingTable,
+            CraftStation.Chemistry => ChemTable,
+            CraftStation.Cooking => Stove,
+            _ => ushort.MaxValue,
+        };
 
         public static PropIds Resolve(PropRegistry props) => new()
         {
@@ -37,6 +47,10 @@ namespace VoidMall.World
             CableReel = props.IndexOf("prop.cable_reel"),
             VentUnit = props.IndexOf("prop.vent_unit"),
             Bed = props.IndexOf("prop.bed"),
+            Workbench = props.IndexOf("prop.workbench"),
+            SewingTable = props.IndexOf("prop.sewing_table"),
+            ChemTable = props.IndexOf("prop.chem_table"),
+            Stove = props.IndexOf("prop.stove"),
         };
     }
 
@@ -106,6 +120,10 @@ namespace VoidMall.World
                     continue;
                 }
                 SectionLayout layout = sections[room.Section].Layout;
+                // Крафтовая станция у стены — раньше остальной мебели, чтобы ей хватило места.
+                var section = sections[room.Section];
+                if (section.Station != CraftStation.None && Hash.ToFloat01(Hash.Get(h, 0x57A7)) < section.StationChance)
+                    AgainstWall(ctx, plan, i, ctx.Ids.StationProp(section.Station), output);
                 switch (layout)
                 {
                     case SectionLayout.Rows:

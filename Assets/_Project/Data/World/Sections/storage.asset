@@ -26,3 +26,5 @@ MonoBehaviour:
   ServiceWeightRetail: 1
   ServiceWeightTech: 0
   ServiceWeightParking: 0
+  Station: 1
+  StationChance: 0.2

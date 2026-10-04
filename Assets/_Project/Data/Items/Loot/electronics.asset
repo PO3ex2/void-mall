@@ -15,6 +15,14 @@ MonoBehaviour:
   Section: section.electronics
   Fill: 0.3
   Entries:
+  - Item: {fileID: 11400000, guid: e7940399c5261904b8b484b38cb28bb8, type: 2}
+    Weight: 0.3
+    Min: 1
+    Max: 1
+  - Item: {fileID: 11400000, guid: 0e5a9863812ec914a8e4bd86630553ba, type: 2}
+    Weight: 0.15
+    Min: 1
+    Max: 1
   - Item: {fileID: 11400000, guid: d23f8c0193ec8074ca6fd47bad705f5e, type: 2}
     Weight: 6
     Min: 1

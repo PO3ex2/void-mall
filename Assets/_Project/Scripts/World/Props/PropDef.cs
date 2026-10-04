@@ -59,6 +59,16 @@ namespace VoidMall.World
 
         [Tooltip("Удержание E сворачивает проп обратно в предмет (выход разбора) — спальник.")]
         public bool PackUp;
+
+        [Header("Крафтовая станция")]
+        [Tooltip("Какая станция (E — открыть окно крафта). None — не станция.")]
+        public CraftStation Station;
+
+        [Tooltip("Скорость крафта станции (плита 1, горелка 0.7).")]
+        [Min(0.1f)] public float StationSpeed = 1f;
+
+        [Tooltip("Крафтит сама, без открытого окна (плита, горелка — пока есть топливо).")]
+        public bool StationAutonomous;
     }
 
     /// <summary>Реестр пропов на сессию: ID ↔ индекс, меши (процедурные строятся один раз).</summary>

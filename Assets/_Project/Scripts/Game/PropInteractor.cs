@@ -4,12 +4,16 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
 using VoidMall.Console;
+using VoidMall.Crafting;
 using VoidMall.Core;
 using VoidMall.Input;
 using VoidMall.Items;
 using VoidMall.Player;
+using VoidMall.Skills;
 using VoidMall.Survival;
+using VoidMall.UI;
 using VoidMall.World;
+using Random = UnityEngine.Random;
 
 namespace VoidMall.Game
 {
@@ -18,6 +22,7 @@ namespace VoidMall.Game
     /// E — взять лёгкий проп (держится перед камерой) или тащить тяжёлый за точку захвата, E ещё раз — отпустить;
     /// ЛКМ с пропом в руках — бросить; R — повернуть на 45° (Shift+R — наклонить); колесо — ближе/дальше;
     /// ПКМ с молотком — прибить проп к тому, чего он касается; удержание E на прибитом — вытащить гвозди;
+    /// кровать — короткое E спать; крафтовая станция — короткое E открыть окно (удержание — взять или тащить);
     /// удержание F — аккуратно разобрать (материалы — в журнал добычи до появления инвентаря).
     /// Тяжёлая ноша замедляет игрока (IMovementModifierSource).
     /// </summary>
@@ -73,6 +78,15 @@ namespace VoidMall.Game
         private readonly Collider[] _overlap = new Collider[32];
 
         public bool IsHolding => _mode != Mode.None;
+
+        /// <summary>Масса ноши (0 — руки свободны): для очков физических навыков.</summary>
+        public float CarriedMass => _mode != Mode.None && _held != null ? _held.GroupMass : 0f;
+
+        /// <summary>«Плотник» вытаскивает гвозди быстрее.</summary>
+        private static float UnnailDuration => UnnailTime * (1f - 0.2f * PlayerSkills.LevelOf(SkillId.Carpenter));
+
+        /// <summary>Короткое E делает что-то своё (спать, открыть станцию), а взять — удержанием.</summary>
+        private static bool HasTapAction(PropBody body) => body.Def.Sleepable || body.Def.Station != CraftStation.None;
 
         public bool IsBusy => _mode != Mode.None || _waitRelease || _disassembleTarget != null || (_interactHeld > 0.15f && _target != null && _target.IsNailed);
 
@@ -212,7 +226,7 @@ namespace VoidMall.Game
                 _interactHeld += Time.deltaTime;
                 if (_target.IsNailed || _target.IsInGroup)
                 {
-                    if (_interactHeld >= UnnailTime)
+                    if (_interactHeld >= UnnailDuration)
                     {
                         _interactConsumed = true;
                         if (PropManager.Instance.Unnail(_target))
@@ -225,9 +239,9 @@ namespace VoidMall.Game
                     _interactConsumed = true;
                     PackUp(_target);
                 }
-                else if ((!_target.Def.Sleepable && !_target.Def.PackUp) || _interactHeld >= SleepHoldTime)
+                else if ((!HasTapAction(_target) && !_target.Def.PackUp) || _interactHeld >= SleepHoldTime)
                 {
-                    // Кровать: короткое E — лечь спать, удержание — взять или тащить.
+                    // Кровать и станции: короткое E — спать или открыть окно, удержание — взять или тащить.
                     _interactConsumed = true;
                     TryGrab(_target);
                 }
@@ -235,9 +249,12 @@ namespace VoidMall.Game
             if (_interact.WasReleasedThisFrame())
             {
                 // Прибитую группу можно схватить коротким нажатием — она не сдвинется, но подсказка объяснит почему.
-                if (!_interactConsumed && _target != null && _target.Def.Sleepable && !_target.IsNailed && !_target.IsInGroup)
+                // Станцию можно открыть, даже если она прибита.
+                if (!_interactConsumed && _target != null && _target.Def.Station != CraftStation.None && _interactHeld < SleepHoldTime)
+                    OpenStation(_target);
+                else if (!_interactConsumed && _target != null && _target.Def.Sleepable && !_target.IsNailed && !_target.IsInGroup)
                     TrySleep(_target);
-                else if (!_interactConsumed && _target != null && _target.IsInGroup && !_target.IsNailed && _interactHeld < UnnailTime)
+                else if (!_interactConsumed && _target != null && _target.IsInGroup && !_target.IsNailed && _interactHeld < UnnailDuration)
                     TryGrab(_target);
                 else if (!_interactConsumed && _target != null && _target.IsNailed)
                     Say("Прибито. Удерживайте E, чтобы вытащить гвозди");
@@ -252,12 +269,15 @@ namespace VoidMall.Game
                     _disassembleTarget = _target;
                     _disassembleProgress = 0f;
                 }
-                _disassembleProgress += Time.deltaTime / Mathf.Max(0.1f, _target.Def.DisassembleTime);
+                // «Аккуратный разбор» — быстрее.
+                float time = _target.Def.DisassembleTime * (1f - 0.15f * PlayerSkills.LevelOf(SkillId.Salvager));
+                _disassembleProgress += Time.deltaTime / Mathf.Max(0.1f, time);
                 if (_disassembleProgress >= 1f)
                 {
                     var def = _target.Def;
                     PropManager.Instance.Remove(_target, PropRemoveReason.Disassembled);
                     Say($"Разобрано: {def.DisplayName}");
+                    PlayerSkills.AwardLocal(Aspect.Construction, 0.8f);
                     _disassembleTarget = null;
                     _disassembleProgress = 0f;
                 }
@@ -267,6 +287,17 @@ namespace VoidMall.Game
                 _disassembleTarget = null;
                 _disassembleProgress = 0f;
             }
+        }
+
+        private void OpenStation(PropBody body)
+        {
+            var crafting = CraftingSystem.Instance;
+            var station = crafting != null ? crafting.GetStation(body) : null;
+            if (station == null || StationWindow.Instance == null)
+                return;
+            string refusal = StationWindow.Instance.Open(station);
+            if (refusal != null)
+                Say(refusal);
         }
 
         private void PackUp(PropBody body)
@@ -465,7 +496,14 @@ namespace VoidMall.Game
                 Say("Нет гвоздей");
                 return;
             }
-            if (NailHeld() && needNails)
+            if (!NailHeld())
+                return;
+            PlayerSkills.AwardLocal(Aspect.Construction, 0.4f);
+            // Молоток изнашивается; «Плотник» иногда сберегает гвоздь.
+            var hammer = inventory?.ActiveStack;
+            if (hammer != null && inventory.Wear(hammer))
+                Say("Молоток сломался");
+            if (needNails && Random.value >= 0.25f * PlayerSkills.LevelOf(SkillId.Carpenter))
                 inventory.TryConsume(nails, 1);
         }
 
@@ -650,10 +688,11 @@ namespace VoidMall.Game
                 float mass = _target.Root.GroupMass;
                 float health = PropManager.Instance.Health(_target);
                 string action = _target.IsNailed
-                    ? (_interactHeld > 0.15f ? $"Вытаскиваем гвозди… {_interactHeld / UnnailTime * 100f:0}%" : "прибито · удерживайте E — вытащить гвозди")
+                    ? (_interactHeld > 0.15f ? $"Вытаскиваем гвозди… {_interactHeld / UnnailDuration * 100f:0}%" : "прибито · удерживайте E — вытащить гвозди")
+                    : _target.Def.Station != CraftStation.None ? "E — открыть · удерживайте E — " + (mass <= HoldMass.Value ? "взять" : "тащить")
                     : _target.Def.Sleepable ? "E — спать · удерживайте E — " + (_target.Def.PackUp ? "свернуть" : mass <= HoldMass.Value ? "взять" : "тащить")
                     : (mass <= HoldMass.Value ? "E — взять" : mass <= DragMass.Value ? "E — тащить" : "слишком тяжело")
-                      + (_target.IsInGroup ? (_interactHeld > 0.15f ? $" · вытаскиваем гвозди… {_interactHeld / UnnailTime * 100f:0}%" : " · удерживайте E — вытащить гвозди") : "");
+                      + (_target.IsInGroup ? (_interactHeld > 0.15f ? $" · вытаскиваем гвозди… {_interactHeld / UnnailDuration * 100f:0}%" : " · удерживайте E — вытащить гвозди") : "");
                 text = $"{_target.Def.DisplayName} · {mass:0} кг · прочность {health * 100f:0}% · {action} · удерживайте F — разобрать";
             }
             else

@@ -1,0 +1,55 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9f0051f3e8b3438408ddcd1c06a3bc12, type: 3}
+  m_Name: dish_noodles_meat
+  m_EditorClassIdentifier: VoidMall.Items::VoidMall.Items.ItemDef
+  _id: item.dish_noodles_meat
+  DisplayName: "\u041B\u0430\u043F\u0448\u0430 \u0441 \u0442\u0443\u0448\u0451\u043D\u043A\u043E\u0439"
+  Description: "\u0413\u043E\u0440\u044F\u0447\u0435\u0435 \u0431\u043B\u044E\u0434\u043E: \u0441\u044B\u0442\u043D\u043E, \u0441\u0431\u0430\u043B\u0430\u043D\u0441\u0438\u0440\u043E\u0432\u0430\u043D\u043E, \u0443\u0441\u043F\u043E\u043A\u0430\u0438\u0432\u0430\u0435\u0442."
+  Category: 3
+  Shape: 1
+  Tint: {r: 0.9, g: 0.75, b: 0.45, a: 1}
+  ModelSize: {x: 0.14, y: 0.08, z: 0.14}
+  Mesh: {fileID: 0}
+  Material: {fileID: 0}
+  Icon: {fileID: 2800000, guid: 2027885a430af7e44bd0c08e0f84fbbb, type: 3}
+  GridSize: {x: 1, y: 1}
+  Weight: 0.6
+  MaxStack: 3
+  Tool: 0
+  ToolTier: 0
+  BlockDamage: 0
+  PropDamage: 0
+  SwingInterval: 0.35
+  DrillStrength: 0
+  Uses: 0
+  RepairCost: []
+  Electric: 0
+  Calories: 835
+  Fat: 35
+  Protein: 50
+  Carbs: 80
+  Water: 300
+  Cooked: 1
+  FuelSeconds: 0
+  Treats: 0
+  Heal: 0
+  Slot: 0
+  Layer: 0
+  Armor: 0
+  Warmth: 0
+  ContainerGrid: {x: 0, y: 0}
+  PlacesBlock: {fileID: 0}
+  SmoothMaterial: {fileID: 0}
+  PlacesProp: 
+  UnpackOnPickup: 0
+  TeachesRecipe: 

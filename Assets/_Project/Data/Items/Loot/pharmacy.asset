@@ -15,6 +15,10 @@ MonoBehaviour:
   Section: section.pharmacy
   Fill: 0.35
   Entries:
+  - Item: {fileID: 11400000, guid: 7034f187d84ab7648af873de014f6820, type: 2}
+    Weight: 4
+    Min: 1
+    Max: 2
   - Item: {fileID: 11400000, guid: ab0fdbe85b6869645af9fe4b2555e01f, type: 2}
     Weight: 10
     Min: 1

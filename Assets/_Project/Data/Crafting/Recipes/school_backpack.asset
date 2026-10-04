@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9301737d61c2e3948bfaf4bf2577b054, type: 3}
+  m_Name: school_backpack
+  m_EditorClassIdentifier: VoidMall.Crafting::VoidMall.Crafting.RecipeDef
+  _id: recipe.school_backpack
+  Result: {fileID: 11400000, guid: 998eebf67a87d584d9dcffea95073789, type: 2}
+  ResultCount: 1
+  Ingredients:
+  - Item: {fileID: 11400000, guid: 71199ea977a4b4a4f912836631e799cc, type: 2}
+    Count: 6
+  - Item: {fileID: 11400000, guid: 344bb588195adc84bb0d1db76fa79dfa, type: 2}
+    Count: 2
+  Station: 2
+  Time: 30
+  Category: 3
+  Blueprint: 0
+  Skill: 0
+  SkillLevel: 0

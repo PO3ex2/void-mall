@@ -41,29 +41,35 @@ namespace VoidMall.Editor
             public float Heal, Warmth;
             public string PlacesProp;
             public bool Unpack;
+            public int Uses;
+            public (string item, int count)[] Repair;
+            public bool Electric, Cooked;
+            public float Fuel;
+            public string Teaches;
         }
 
         private static readonly Color Steel = new(0.62f, 0.64f, 0.68f);
         private static readonly Color WoodColor = new(0.6f, 0.45f, 0.3f);
+        private static readonly Color Blueprint = new(0.3f, 0.5f, 0.85f);
 
         private static readonly Spec[] Specs =
         {
             // ── Инструменты ──
-            new() { Id = "item.hammer", Name = "Молоток", Description = "Ломает несложное, прибивает пропы гвоздями (ПКМ с пропом в руках).", Category = ItemCategory.Tool, Shape = ItemShape.Hammer, Size = new(0.32f, 0.12f, 0.05f), Grid = new(2, 1), Weight = 0.8f, Tint = Steel, Tool = ToolKind.Hammer, Tier = 1, BlockDamage = 60, PropDamage = 70, Swing = 0.35f },
-            new() { Id = "item.sledgehammer", Name = "Кувалда", Description = "Тяжело и медленно, зато бетон крошится.", Category = ItemCategory.Tool, Shape = ItemShape.Sledgehammer, Size = new(0.8f, 0.14f, 0.08f), Grid = new(3, 1), Weight = 5f, Tint = Steel, Tool = ToolKind.Sledgehammer, Tier = 2, BlockDamage = 220, PropDamage = 180, Swing = 0.7f },
-            new() { Id = "item.crowbar", Name = "Лом", Description = "Разбирает мебель на раз-два.", Category = ItemCategory.Tool, Shape = ItemShape.Crowbar, Size = new(0.7f, 0.12f, 0.03f), Grid = new(3, 1), Weight = 2.2f, Tint = new(0.55f, 0.12f, 0.1f), Tool = ToolKind.Crowbar, Tier = 1, BlockDamage = 45, PropDamage = 300, Swing = 0.45f },
-            new() { Id = "item.drill", Name = "Перфоратор", Description = "Срезает (ЛКМ) и наращивает (ПКМ, тратит грунт или бетонную крошку) гладкий массив.", Category = ItemCategory.Tool, Shape = ItemShape.Drill, Size = new(0.32f, 0.26f, 0.08f), Grid = new(2, 2), Weight = 2.8f, Tint = new(0.9f, 0.75f, 0.15f), Tool = ToolKind.Drill, Tier = 1, Drill = 0.25f, Swing = 0.08f },
-            new() { Id = "item.drill_pro", Name = "Мощный перфоратор", Description = "Копает почти вдвое быстрее обычного.", Category = ItemCategory.Tool, Shape = ItemShape.Drill, Size = new(0.36f, 0.28f, 0.09f), Grid = new(2, 2), Weight = 3.6f, Tint = new(0.95f, 0.45f, 0.1f), Tool = ToolKind.Drill, Tier = 2, Drill = 0.42f, Swing = 0.08f },
+            new() { Id = "item.hammer", Name = "Молоток", Description = "Ломает несложное, прибивает пропы гвоздями (ПКМ с пропом в руках).", Category = ItemCategory.Tool, Shape = ItemShape.Hammer, Size = new(0.32f, 0.12f, 0.05f), Grid = new(2, 1), Weight = 0.8f, Tint = Steel, Tool = ToolKind.Hammer, Tier = 1, BlockDamage = 60, PropDamage = 70, Swing = 0.35f, Uses = 300, Repair = new[] { ("material.scrap_metal", 1), ("material.plank", 1) } },
+            new() { Id = "item.sledgehammer", Name = "Кувалда", Description = "Тяжело и медленно, зато бетон крошится.", Category = ItemCategory.Tool, Shape = ItemShape.Sledgehammer, Size = new(0.8f, 0.14f, 0.08f), Grid = new(3, 1), Weight = 5f, Tint = Steel, Tool = ToolKind.Sledgehammer, Tier = 2, BlockDamage = 220, PropDamage = 180, Swing = 0.7f, Uses = 350, Repair = new[] { ("material.scrap_metal", 3) } },
+            new() { Id = "item.crowbar", Name = "Лом", Description = "Разбирает мебель на раз-два.", Category = ItemCategory.Tool, Shape = ItemShape.Crowbar, Size = new(0.7f, 0.12f, 0.03f), Grid = new(3, 1), Weight = 2.2f, Tint = new(0.55f, 0.12f, 0.1f), Tool = ToolKind.Crowbar, Tier = 1, BlockDamage = 45, PropDamage = 300, Swing = 0.45f, Uses = 400, Repair = new[] { ("material.scrap_metal", 2) } },
+            new() { Id = "item.drill", Name = "Перфоратор", Description = "Срезает (ЛКМ) и наращивает (ПКМ, тратит грунт или бетонную крошку) гладкий массив.", Category = ItemCategory.Tool, Shape = ItemShape.Drill, Size = new(0.32f, 0.26f, 0.08f), Grid = new(2, 2), Weight = 2.8f, Tint = new(0.9f, 0.75f, 0.15f), Tool = ToolKind.Drill, Tier = 1, Drill = 0.25f, Swing = 0.08f, Uses = 2000, Electric = true, Repair = new[] { ("material.scrap_metal", 1), ("material.wire", 1) } },
+            new() { Id = "item.drill_pro", Name = "Мощный перфоратор", Description = "Копает почти вдвое быстрее обычного.", Category = ItemCategory.Tool, Shape = ItemShape.Drill, Size = new(0.36f, 0.28f, 0.09f), Grid = new(2, 2), Weight = 3.6f, Tint = new(0.95f, 0.45f, 0.1f), Tool = ToolKind.Drill, Tier = 2, Drill = 0.42f, Swing = 0.08f, Uses = 3000, Electric = true, Repair = new[] { ("material.scrap_metal", 2), ("material.wire", 2), ("material.electrical_tape", 1) } },
             new() { Id = "item.flashlight", Name = "Фонарик", Description = "ЛКМ — включить. Светит, пока лежит в инвентаре.", Category = ItemCategory.Tool, Shape = ItemShape.Flashlight, Size = new(0.2f, 0.05f, 0.05f), Weight = 0.3f, Tint = new(0.15f, 0.15f, 0.17f), Tool = ToolKind.Flashlight },
 
             // ── Материалы ──
             new() { Id = "material.nails", Name = "Гвозди", Description = "Один гвоздь — одно прибивание.", Category = ItemCategory.Material, Shape = ItemShape.Pack, Size = new(0.12f, 0.05f, 0.08f), Weight = 0.01f, Stack = 200, Tint = Steel },
             new() { Id = "material.screws", Name = "Шурупы", Category = ItemCategory.Material, Shape = ItemShape.Pack, Size = new(0.1f, 0.05f, 0.08f), Weight = 0.01f, Stack = 200, Tint = new(0.75f, 0.7f, 0.5f) },
-            new() { Id = "material.plank", Name = "Доска", Category = ItemCategory.Material, Shape = ItemShape.Plank, Size = new(1f, 0.03f, 0.12f), Grid = new(3, 1), Weight = 1.5f, Stack = 10, Tint = WoodColor },
+            new() { Id = "material.plank", Name = "Доска", Category = ItemCategory.Material, Shape = ItemShape.Plank, Size = new(1f, 0.03f, 0.12f), Grid = new(3, 1), Weight = 1.5f, Stack = 10, Tint = WoodColor, Fuel = 60f },
             new() { Id = "material.scrap_metal", Name = "Металлолом", Category = ItemCategory.Material, Shape = ItemShape.Pile, Size = new(0.25f, 0.12f, 0.2f), Weight = 0.6f, Stack = 20, Tint = Steel },
             new() { Id = "material.glass_shard", Name = "Осколки стекла", Category = ItemCategory.Material, Shape = ItemShape.Pile, Size = new(0.2f, 0.06f, 0.15f), Weight = 0.2f, Stack = 30, Tint = new(0.7f, 0.85f, 0.9f) },
             new() { Id = "material.plastic", Name = "Пластик", Category = ItemCategory.Material, Shape = ItemShape.Pile, Size = new(0.2f, 0.08f, 0.15f), Weight = 0.1f, Stack = 30, Tint = new(0.25f, 0.5f, 0.85f) },
-            new() { Id = "material.cardboard", Name = "Картон", Category = ItemCategory.Material, Shape = ItemShape.Plank, Size = new(0.4f, 0.02f, 0.3f), Weight = 0.1f, Stack = 30, Tint = new(0.65f, 0.5f, 0.32f) },
+            new() { Id = "material.cardboard", Name = "Картон", Category = ItemCategory.Material, Shape = ItemShape.Plank, Size = new(0.4f, 0.02f, 0.3f), Weight = 0.1f, Stack = 30, Tint = new(0.65f, 0.5f, 0.32f), Fuel = 20f },
             new() { Id = "material.fabric", Name = "Ткань", Category = ItemCategory.Material, Shape = ItemShape.Pack, Size = new(0.3f, 0.05f, 0.25f), Weight = 0.1f, Stack = 20, Tint = new(0.5f, 0.35f, 0.55f) },
             new() { Id = "material.wire", Name = "Провод", Category = ItemCategory.Material, Shape = ItemShape.Coil, Size = new(0.15f, 0.06f, 0.15f), Weight = 0.15f, Stack = 20, Tint = new(0.85f, 0.3f, 0.15f) },
             new() { Id = "material.fuse", Name = "Предохранитель", Description = "Из щитовых. Понадобится, чтобы оживить щиток.", Category = ItemCategory.Material, Shape = ItemShape.Can, Size = new(0.03f, 0.07f, 0.03f), Weight = 0.03f, Stack = 20, Tint = new(0.85f, 0.8f, 0.7f) },
@@ -111,22 +117,42 @@ namespace VoidMall.Editor
             // ── Сон и смерть ──
             new() { Id = "item.sleeping_bag", Name = "Спальник", Description = "ПКМ — разложить на полу. На нём можно спать (E): сон восстанавливает бодрость и сохраняет точку возрождения.", Category = ItemCategory.Misc, Shape = ItemShape.Bag, Size = new(0.25f, 0.45f, 0.25f), Grid = new(2, 3), Weight = 1.8f, Tint = new(0.2f, 0.42f, 0.32f), PlacesProp = "prop.sleeping_bag" },
             new() { Id = "item.lost_bag", Name = "Сумка с вещами", Description = "Ваши вещи с места гибели. Подберите — содержимое разложится по инвентарю.", Category = ItemCategory.Misc, Shape = ItemShape.Bag, Size = new(0.4f, 0.3f, 0.3f), Grid = new(2, 2), Weight = 0.5f, Tint = new(0.85f, 0.65f, 0.15f), Container = new(12, 12), Unpack = true },
+
+            // ── Крафт (этап 8) ──
+            new() { Id = "material.chemicals", Name = "Бытовая химия", Description = "Для химстола: антисептик, обезболивающее.", Category = ItemCategory.Material, Shape = ItemShape.Bottle, Size = new(0.08f, 0.2f, 0.08f), Weight = 0.6f, Stack = 5, Tint = new(0.85f, 0.9f, 0.95f) },
+            new() { Id = "item.gas_canister", Name = "Газовый баллончик", Description = "Топливо для плиты и горелки: 5 минут готовки.", Category = ItemCategory.Misc, Shape = ItemShape.Can, Size = new(0.07f, 0.18f, 0.07f), Weight = 0.4f, Stack = 5, Tint = new(0.95f, 0.55f, 0.15f), Fuel = 300f },
+            new() { Id = "item.torch", Name = "Факел", Description = "ЛКМ — зажечь. Горит, только пока в руке, около четырёх минут.", Category = ItemCategory.Tool, Shape = ItemShape.Pipe, Size = new(0.45f, 0.06f, 0.06f), Grid = new(2, 1), Weight = 0.4f, Tint = new(0.55f, 0.35f, 0.2f), Tool = ToolKind.Torch, Uses = 240 },
+            new() { Id = "item.dish_noodles_meat", Name = "Лапша с тушёнкой", Description = "Горячее блюдо: сытно, сбалансировано, успокаивает.", Category = ItemCategory.Food, Shape = ItemShape.Can, Size = new(0.14f, 0.08f, 0.14f), Weight = 0.6f, Stack = 3, Tint = new(0.9f, 0.75f, 0.45f), Calories = 835, Fat = 35, Protein = 50, Carbs = 80, Water = 300, Cooked = true },
+            new() { Id = "item.dish_beans_meat", Name = "Фасоль с мясом", Description = "Горячее блюдо: сытно, сбалансировано, успокаивает.", Category = ItemCategory.Food, Shape = ItemShape.Can, Size = new(0.14f, 0.08f, 0.14f), Weight = 0.7f, Stack = 3, Tint = new(0.65f, 0.35f, 0.2f), Calories = 790, Fat = 30, Protein = 60, Carbs = 70, Water = 150, Cooked = true },
+            new() { Id = "item.hot_chocolate", Name = "Горячий шоколад", Description = "Горячий напиток: вода и заметный плюс к рассудку.", Category = ItemCategory.Drink, Shape = ItemShape.Can, Size = new(0.08f, 0.1f, 0.08f), Weight = 0.35f, Stack = 3, Tint = new(0.45f, 0.28f, 0.18f), Calories = 248, Fat = 8, Protein = 4, Carbs = 40, Water = 400, Cooked = true },
+            new() { Id = "item.workbench", Name = "Верстак", Description = "ПКМ — поставить (R — повернуть). Инструменты, гвозди, мебель, блоки, починка.", Category = ItemCategory.Misc, Shape = ItemShape.Box, Size = new(0.5f, 0.3f, 0.3f), Grid = new(3, 2), Weight = 15f, Tint = WoodColor, PlacesProp = "prop.workbench" },
+            new() { Id = "item.sewing_table", Name = "Швейный стол", Description = "ПКМ — поставить. Одежда, рюкзаки, спальники, ткань из одежды.", Category = ItemCategory.Misc, Shape = ItemShape.Box, Size = new(0.45f, 0.3f, 0.3f), Grid = new(2, 2), Weight = 12f, Tint = new(0.85f, 0.85f, 0.82f), PlacesProp = "prop.sewing_table" },
+            new() { Id = "item.chem_table", Name = "Химстол", Description = "ПКМ — поставить. Антисептик и обезболивающее из бытовой химии.", Category = ItemCategory.Misc, Shape = ItemShape.Box, Size = new(0.45f, 0.3f, 0.3f), Grid = new(2, 2), Weight = 12f, Tint = new(0.7f, 0.85f, 0.9f), PlacesProp = "prop.chem_table" },
+            new() { Id = "item.burner", Name = "Туристическая горелка", Description = "ПКМ — поставить. Готовка и прогрев еды, нужно топливо. Удержание E — свернуть.", Category = ItemCategory.Misc, Shape = ItemShape.Can, Size = new(0.15f, 0.12f, 0.15f), Grid = new(2, 2), Weight = 1.5f, Tint = new(0.75f, 0.2f, 0.15f), PlacesProp = "prop.burner" },
+            new() { Id = "item.barricade", Name = "Баррикада из досок", Description = "ПКМ — поставить. Перекрывает проход; прибейте молотком.", Category = ItemCategory.Misc, Shape = ItemShape.Plank, Size = new(0.6f, 0.08f, 0.3f), Grid = new(4, 2), Weight = 8f, Tint = WoodColor, PlacesProp = "prop.barricade" },
+            new() { Id = "item.table", Name = "Стол", Description = "ПКМ — поставить.", Category = ItemCategory.Misc, Shape = ItemShape.Box, Size = new(0.4f, 0.2f, 0.4f), Grid = new(2, 2), Weight = 8f, Tint = WoodColor, PlacesProp = "prop.table" },
+            new() { Id = "item.shelf", Name = "Стеллаж", Description = "ПКМ — поставить.", Category = ItemCategory.Misc, Shape = ItemShape.Box, Size = new(0.5f, 0.3f, 0.2f), Grid = new(3, 2), Weight = 15f, Tint = Steel, PlacesProp = "prop.shelf" },
+            new() { Id = "item.blueprint_sledgehammer", Name = "Чертёж: кувалда", Category = ItemCategory.Blueprint, Shape = ItemShape.Box, Size = new(0.21f, 0.01f, 0.3f), Weight = 0.05f, Tint = Blueprint, Teaches = "recipe.sledgehammer" },
+            new() { Id = "item.blueprint_drill", Name = "Чертёж: перфоратор", Category = ItemCategory.Blueprint, Shape = ItemShape.Box, Size = new(0.21f, 0.01f, 0.3f), Weight = 0.05f, Tint = Blueprint, Teaches = "recipe.drill" },
+            new() { Id = "item.blueprint_drill_pro", Name = "Чертёж: мощный перфоратор", Category = ItemCategory.Blueprint, Shape = ItemShape.Box, Size = new(0.21f, 0.01f, 0.3f), Weight = 0.05f, Tint = Blueprint, Teaches = "recipe.drill_pro" },
+            new() { Id = "item.blueprint_padded_vest", Name = "Чертёж: утеплённый жилет", Category = ItemCategory.Blueprint, Shape = ItemShape.Box, Size = new(0.21f, 0.01f, 0.3f), Weight = 0.05f, Tint = Blueprint, Teaches = "recipe.padded_vest" },
+            new() { Id = "item.blueprint_hiking_backpack", Name = "Чертёж: туристический рюкзак", Category = ItemCategory.Blueprint, Shape = ItemShape.Box, Size = new(0.21f, 0.01f, 0.3f), Weight = 0.05f, Tint = Blueprint, Teaches = "recipe.hiking_backpack" },
         };
 
         /// <summary>Таблицы лута: раздел → (предмет, вес, мин, макс). Fill — доля мест на полках, где вообще что-то лежит.</summary>
         private static readonly (string section, float fill, (string item, float weight, int min, int max)[] entries)[] Loot =
         {
             ("section.grocery", 0.4f, new[] { ("item.canned_beans", 10f, 1, 2), ("item.canned_meat", 6f, 1, 2), ("item.crackers", 8f, 1, 1), ("item.chocolate", 8f, 1, 3), ("item.chips", 8f, 1, 1), ("item.noodles", 8f, 1, 3), ("item.water_bottle", 10f, 1, 2), ("item.soda", 8f, 1, 3) }),
-            ("section.pharmacy", 0.35f, new[] { ("item.bandage", 10f, 1, 3), ("item.painkillers", 8f, 1, 2), ("item.splint", 3f, 1, 1), ("item.antiseptic", 6f, 1, 1), ("item.water_bottle", 3f, 1, 1), ("item.chocolate", 2f, 1, 1) }),
-            ("section.hardware", 0.3f, new[] { ("item.sleeping_bag", 0.6f, 1, 1), ("material.nails", 10f, 10, 40), ("material.screws", 8f, 10, 40), ("item.hammer", 3f, 1, 1), ("item.crowbar", 2f, 1, 1), ("item.sledgehammer", 1f, 1, 1), ("item.drill", 1f, 1, 1), ("item.drill_pro", 0.3f, 1, 1), ("item.flashlight", 3f, 1, 1), ("material.plank", 6f, 1, 4), ("material.wire", 5f, 1, 3), ("material.pipe", 3f, 1, 2), ("item.gloves_work", 3f, 1, 1), ("item.hard_hat", 2f, 1, 1), ("item.work_boots", 1f, 1, 1) }),
-            ("section.electronics", 0.3f, new[] { ("item.flashlight", 6f, 1, 1), ("material.wire", 8f, 1, 3), ("material.plastic", 5f, 1, 3), ("item.drill", 1f, 1, 1) }),
-            ("section.clothing", 0.35f, new[] { ("item.hoodie", 8f, 1, 1), ("item.jeans", 8f, 1, 1), ("item.sneakers", 6f, 1, 1), ("item.cap", 6f, 1, 1), ("item.gloves_work", 3f, 1, 1), ("item.school_backpack", 2f, 1, 1), ("item.hiking_backpack", 0.6f, 1, 1), ("item.padded_vest", 1f, 1, 1), ("material.fabric", 3f, 1, 3) }),
-            ("section.sports", 0.3f, new[] { ("item.sleeping_bag", 2f, 1, 1), ("item.school_backpack", 4f, 1, 1), ("item.hiking_backpack", 2f, 1, 1), ("item.knee_pads", 4f, 1, 1), ("item.arm_guards", 3f, 1, 1), ("item.sneakers", 4f, 1, 1), ("item.water_bottle", 5f, 1, 2), ("item.cap", 3f, 1, 1) }),
+            ("section.pharmacy", 0.35f, new[] { ("material.chemicals", 4f, 1, 2), ("item.bandage", 10f, 1, 3), ("item.painkillers", 8f, 1, 2), ("item.splint", 3f, 1, 1), ("item.antiseptic", 6f, 1, 1), ("item.water_bottle", 3f, 1, 1), ("item.chocolate", 2f, 1, 1) }),
+            ("section.hardware", 0.3f, new[] { ("material.chemicals", 3f, 1, 2), ("item.gas_canister", 1f, 1, 1), ("item.blueprint_sledgehammer", 0.4f, 1, 1), ("item.blueprint_drill", 0.3f, 1, 1), ("item.blueprint_drill_pro", 0.15f, 1, 1), ("item.sleeping_bag", 0.6f, 1, 1), ("material.nails", 10f, 10, 40), ("material.screws", 8f, 10, 40), ("item.hammer", 3f, 1, 1), ("item.crowbar", 2f, 1, 1), ("item.sledgehammer", 1f, 1, 1), ("item.drill", 1f, 1, 1), ("item.drill_pro", 0.3f, 1, 1), ("item.flashlight", 3f, 1, 1), ("material.plank", 6f, 1, 4), ("material.wire", 5f, 1, 3), ("material.pipe", 3f, 1, 2), ("item.gloves_work", 3f, 1, 1), ("item.hard_hat", 2f, 1, 1), ("item.work_boots", 1f, 1, 1) }),
+            ("section.electronics", 0.3f, new[] { ("item.blueprint_drill", 0.3f, 1, 1), ("item.blueprint_drill_pro", 0.15f, 1, 1), ("item.flashlight", 6f, 1, 1), ("material.wire", 8f, 1, 3), ("material.plastic", 5f, 1, 3), ("item.drill", 1f, 1, 1) }),
+            ("section.clothing", 0.35f, new[] { ("item.blueprint_padded_vest", 0.3f, 1, 1), ("item.blueprint_hiking_backpack", 0.3f, 1, 1), ("item.hoodie", 8f, 1, 1), ("item.jeans", 8f, 1, 1), ("item.sneakers", 6f, 1, 1), ("item.cap", 6f, 1, 1), ("item.gloves_work", 3f, 1, 1), ("item.school_backpack", 2f, 1, 1), ("item.hiking_backpack", 0.6f, 1, 1), ("item.padded_vest", 1f, 1, 1), ("material.fabric", 3f, 1, 3) }),
+            ("section.sports", 0.3f, new[] { ("item.burner", 1f, 1, 1), ("item.gas_canister", 2f, 1, 2), ("item.sleeping_bag", 2f, 1, 1), ("item.school_backpack", 4f, 1, 1), ("item.hiking_backpack", 2f, 1, 1), ("item.knee_pads", 4f, 1, 1), ("item.arm_guards", 3f, 1, 1), ("item.sneakers", 4f, 1, 1), ("item.water_bottle", 5f, 1, 2), ("item.cap", 3f, 1, 1) }),
             ("section.furniture", 0.2f, new[] { ("material.fabric", 5f, 1, 3), ("material.foam", 5f, 1, 3), ("material.plank", 3f, 1, 2), ("material.screws", 3f, 5, 20) }),
             ("section.toys", 0.3f, new[] { ("material.plastic", 8f, 1, 3), ("material.cardboard", 5f, 1, 3), ("item.chocolate", 2f, 1, 2) }),
             ("section.foodcourt", 0.25f, new[] { ("item.soda", 8f, 1, 2), ("item.water_bottle", 6f, 1, 1), ("item.noodles", 5f, 1, 2), ("item.chips", 5f, 1, 1), ("item.crackers", 3f, 1, 1) }),
             ("section.empty", 0.05f, new[] { ("material.cardboard", 5f, 1, 2), ("material.plastic", 3f, 1, 2) }),
-            ("section.storage", 0.3f, new[] { ("item.sleeping_bag", 0.8f, 1, 1), ("material.cardboard", 6f, 1, 4), ("material.nails", 3f, 5, 20), ("material.screws", 3f, 5, 20), ("item.canned_beans", 3f, 1, 3), ("item.water_bottle", 3f, 1, 2), ("material.plank", 4f, 1, 3), ("item.hammer", 1f, 1, 1), ("item.flashlight", 1f, 1, 1), ("item.hiking_backpack", 0.3f, 1, 1) }),
+            ("section.storage", 0.3f, new[] { ("material.chemicals", 2f, 1, 1), ("item.gas_canister", 1f, 1, 1), ("item.blueprint_sledgehammer", 0.2f, 1, 1), ("item.blueprint_drill", 0.15f, 1, 1), ("item.sleeping_bag", 0.8f, 1, 1), ("material.cardboard", 6f, 1, 4), ("material.nails", 3f, 5, 20), ("material.screws", 3f, 5, 20), ("item.canned_beans", 3f, 1, 3), ("item.water_bottle", 3f, 1, 2), ("material.plank", 4f, 1, 3), ("item.hammer", 1f, 1, 1), ("item.flashlight", 1f, 1, 1), ("item.hiking_backpack", 0.3f, 1, 1) }),
             ("section.tech", 0.25f, new[] { ("material.wire", 8f, 1, 4), ("material.pipe", 6f, 1, 2), ("material.scrap_metal", 6f, 1, 3), ("item.flashlight", 2f, 1, 1), ("item.crowbar", 1f, 1, 1), ("item.gloves_work", 2f, 1, 1), ("item.hard_hat", 1f, 1, 1) }),
             ("section.electrical", 0.3f, new[] { ("material.wire", 10f, 1, 4), ("material.fuse", 8f, 1, 4), ("material.electrical_tape", 6f, 1, 2), ("material.screws", 4f, 5, 20), ("item.flashlight", 2f, 1, 1), ("item.gloves_work", 2f, 1, 1), ("item.crowbar", 1f, 1, 1), ("item.hard_hat", 1f, 1, 1) }),
             ("", 0.2f, new[] { ("material.cardboard", 4f, 1, 2), ("material.plastic", 4f, 1, 2), ("item.water_bottle", 2f, 1, 1), ("item.chips", 2f, 1, 1) }),
@@ -174,6 +200,19 @@ namespace VoidMall.Editor
                 EditorUtility.SetDirty(def);
                 set.Items.Add(def);
             }
+            // Цена починки ссылается на другие предметы — второй проход, когда все созданы.
+            foreach (var spec in Specs)
+            {
+                if (spec.Repair == null)
+                    continue;
+                var def = byId[spec.Id];
+                foreach (var (item, count) in spec.Repair)
+                    if (byId.TryGetValue(item, out var part))
+                        def.RepairCost.Add(new ItemAmount(part, count));
+                    else
+                        Debug.LogError($"[Setup] Repair: unknown item '{item}'.");
+                EditorUtility.SetDirty(def);
+            }
             EditorUtility.SetDirty(set);
 
             CreateLootTables(byId);
@@ -215,6 +254,12 @@ namespace VoidMall.Editor
             def.Warmth = spec.Warmth;
             def.PlacesProp = spec.PlacesProp;
             def.UnpackOnPickup = spec.Unpack;
+            def.Uses = spec.Uses;
+            def.Electric = spec.Electric;
+            def.Cooked = spec.Cooked;
+            def.FuelSeconds = spec.Fuel;
+            def.TeachesRecipe = spec.Teaches;
+            def.RepairCost = new List<ItemAmount>();
             def.PlacesBlock = null;
             def.SmoothMaterial = null;
             if (!string.IsNullOrEmpty(spec.Smooth))

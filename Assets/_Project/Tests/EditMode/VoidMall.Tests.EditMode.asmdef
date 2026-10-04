@@ -10,6 +10,8 @@
         "VoidMall.World",
         "VoidMall.Items",
         "VoidMall.Survival",
+        "VoidMall.Skills",
+        "VoidMall.Crafting",
         "Unity.Collections",
         "Unity.Mathematics",
         "Unity.Burst"

@@ -63,6 +63,13 @@ namespace VoidMall.World
 
         [Tooltip("Служебная комната ядра на парковке.")]
         [Min(0)] public float ServiceWeightParking;
+
+        [Header("Крафтовая станция")]
+        [Tooltip("Какая станция может стоять в комнате этого раздела (верстак в строймаркете, плита на фудкорте…).")]
+        public CraftStation Station;
+
+        [Tooltip("Шанс, что в комнате есть станция.")]
+        [Range(0f, 1f)] public float StationChance;
     }
 
     /// <summary>Сжатое описание раздела для Burst.</summary>
@@ -76,6 +83,9 @@ namespace VoidMall.World
 
         /// <summary>Вес служебного раздела на торговых этажах, техническом этаже и парковке.</summary>
         public float ServiceRetail, ServiceTech, ServiceParking;
+
+        public CraftStation Station;
+        public float StationChance;
     }
 
     /// <summary>Таблица разделов мира: NativeArray для джобов + управляемые описания.</summary>
@@ -113,6 +123,8 @@ namespace VoidMall.World
                     ServiceRetail = Mathf.Max(0f, def.ServiceWeightRetail),
                     ServiceTech = Mathf.Max(0f, def.ServiceWeightTech),
                     ServiceParking = Mathf.Max(0f, def.ServiceWeightParking),
+                    Station = def.Station,
+                    StationChance = def.StationChance,
                 };
             }
             Infos = infos;

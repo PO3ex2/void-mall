@@ -125,7 +125,7 @@ namespace VoidMall.Items
         {
             using var perf = Perf.Measure(FillProbe);
             PropMeshes.GetItemSlots(prop.Def.Shape, prop.Def.Size, _slots);
-            if (_slots.Count == 0 || prop.IsAwake)
+            if (_slots.Count == 0 || prop.IsAwake || PropManager.IsPlayerMade(prop.Id))
                 return;
             _memory.TryGetValue(prop.Id, out var memory);
             if (memory != null && memory.Spilled)

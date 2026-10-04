@@ -50,6 +50,24 @@ namespace VoidMall.Survival
         public float SleepRestCap;
     }
 
+    /// <summary>Бонусы навыков к выживанию (выставляет PlayerVitals по уровням навыков).</summary>
+    public struct VitalsPerks
+    {
+        public float StaminaBonus;     // +доля максимума стамины («Выносливость»)
+        public float StaminaCostMul;   // множитель расхода стамины («Атлет»)
+        public float FallDamageMul;    // множитель урона от падений («Крепкие кости»)
+        public float HealBonus;        // +здоровья от лекарств («Полевая хирургия»)
+        public float SplintHours;      // за сколько срастается перелом под шиной
+        public float CookMul;          // множитель калорий готовых блюд («Повар»)
+        public float ComfortWiden;     // на сколько °C шире комфорт («Закалка»)
+        public float SanityDrainMul;   // множитель потери рассудка («Крепкие нервы»)
+
+        public static VitalsPerks None => new()
+        {
+            StaminaCostMul = 1f, FallDamageMul = 1f, SplintHours = 48f, CookMul = 1f, SanityDrainMul = 1f,
+        };
+    }
+
     /// <summary>
     /// Показатели игрока (GDD §4.1, решения этапа 7): одно здоровье + травмы-состояния, сытость (ккал) и вода с балансом
     /// жиров/белков/углеводов за сутки, температура тела, бодрость, рассудок, стамина. Чистая логика без сцены —
@@ -91,6 +109,9 @@ namespace VoidMall.Survival
 
         public readonly List<Status> Statuses = new();
 
+        /// <summary>Бонусы навыков.</summary>
+        public VitalsPerks Perks = VitalsPerks.None;
+
         // Рацион за последние сутки: (возраст в игровых часах, жиры, белки, углеводы).
         private readonly List<(float age, float fat, float protein, float carbs)> _diet = new();
         private float _staminaDelay;
@@ -114,6 +135,7 @@ namespace VoidMall.Survival
                 if (Has(StatusKind.Infection) && Find(StatusKind.Infection).Intensity > 0.3f) max *= 0.8f;
                 if (IsWellFed) max *= 1.1f;
                 if (Has(StatusKind.Unrested)) max *= 0.85f;
+                max *= 1f + Perks.StaminaBonus;
                 return max;
             }
         }
@@ -225,7 +247,7 @@ namespace VoidMall.Survival
         {
             // Ощущаемая температура = воздух + одежда. Вне комфорта тело остывает или греется, в комфорте — к норме.
             float felt = env.AirTemperature + env.Warmth;
-            float cold = Mathf.Max(0f, ComfortMin - felt), heat = Mathf.Max(0f, felt - ComfortMax);
+            float cold = Mathf.Max(0f, ComfortMin - Perks.ComfortWiden - felt), heat = Mathf.Max(0f, felt - ComfortMax - Perks.ComfortWiden);
             if (cold > 0f)
                 BodyTemperature -= cold * 0.0008f * realDt;
             else if (heat > 0f)
@@ -295,6 +317,8 @@ namespace VoidMall.Survival
                 rate *= Rest <= 0f ? 2f : Rest < 25f ? 1.5f : 1f;
             if (rate < 0f && Has(StatusKind.Unrested))
                 rate *= 1.3f;
+            if (rate < 0f)
+                rate *= Perks.SanityDrainMul;
             Sanity = Mathf.Clamp(Sanity + rate * realDt, 0f, 100f);
         }
 
@@ -341,6 +365,7 @@ namespace VoidMall.Survival
 
         public bool TryConsumeStamina(float amount)
         {
+            amount *= Perks.StaminaCostMul;
             if (InfiniteStamina)
                 return true;
             if (Stamina < amount)
@@ -351,6 +376,7 @@ namespace VoidMall.Survival
 
         public void DrainStamina(float amount)
         {
+            amount *= Perks.StaminaCostMul;
             if (!InfiniteStamina)
                 SpendStamina(Mathf.Min(amount, Stamina));
         }
@@ -452,7 +478,7 @@ namespace VoidMall.Survival
             var severity = MovementRules.ClassifyFall(impactSpeed);
             if (severity == MovementRules.FallSeverity.None)
                 return;
-            float damage = (impactSpeed - MovementRules.FallDamageSpeed) * 8f + 5f;
+            float damage = ((impactSpeed - MovementRules.FallDamageSpeed) * 8f + 5f) * Perks.FallDamageMul;
             Add(StatusKind.Pain, intensity: Mathf.Clamp01(damage / 40f));
             if (severity == MovementRules.FallSeverity.Fracture && Roll(0.7f))
                 AddFracture(StatusKind.FractureLeg);
@@ -490,12 +516,13 @@ namespace VoidMall.Survival
         /// <summary>Съесть или выпить: калории, вода, рацион; испорченное отравляет.</summary>
         public void Consume(ItemDef item, bool spoiled)
         {
-            Calories = Mathf.Min(MaxCalories, Calories + item.Calories * (spoiled ? 0.5f : 1f));
+            Calories = Mathf.Min(MaxCalories, Calories + item.Calories * (spoiled ? 0.5f : 1f) * (item.Cooked ? Perks.CookMul : 1f));
             Water = Mathf.Min(MaxWater, Water + item.Water);
             if (item.Fat + item.Protein + item.Carbs > 0f)
                 _diet.Add((0f, item.Fat, item.Protein, item.Carbs));
-            if (item.Calories > 0f)
-                Sanity = Mathf.Min(100f, Sanity + 2f);
+            // Еда немного успокаивает, горячая — заметно.
+            if (item.Calories > 0f || item.Cooked)
+                Sanity = Mathf.Min(100f, Sanity + (item.Cooked ? 6f : 2f));
             if (spoiled)
             {
                 Add(StatusKind.Poisoning, hours: 1.5f);
@@ -509,7 +536,7 @@ namespace VoidMall.Survival
                     Remove(StatusKind.Poisoning);
             }
             if (item.Treats != MedicalTreatment.None || item.Heal > 0f)
-                Treat(item.Treats, item.Heal);
+                Treat(item.Treats, item.Heal + Perks.HealBonus);
         }
 
         /// <summary>Лекарство: что лечит и сколько здоровья даёт.</summary>
@@ -530,7 +557,7 @@ namespace VoidMall.Survival
                 if (fracture != null)
                 {
                     fracture.Splinted = true;
-                    fracture.Remaining = 48f;
+                    fracture.Remaining = Perks.SplintHours;
                 }
             }
             if ((treats & MedicalTreatment.Pain) != 0)

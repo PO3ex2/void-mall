@@ -15,6 +15,14 @@ MonoBehaviour:
   Section: section.clothing
   Fill: 0.35
   Entries:
+  - Item: {fileID: 11400000, guid: c8301429ad9dc194db037083ce1fa30c, type: 2}
+    Weight: 0.3
+    Min: 1
+    Max: 1
+  - Item: {fileID: 11400000, guid: 4ace75e8191681c43bbb7f552acb0490, type: 2}
+    Weight: 0.3
+    Min: 1
+    Max: 1
   - Item: {fileID: 11400000, guid: 5fd54c32348ce284bb8825b71adf805a, type: 2}
     Weight: 8
     Min: 1

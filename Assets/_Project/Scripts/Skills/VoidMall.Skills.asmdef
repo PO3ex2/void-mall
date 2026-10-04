@@ -1,0 +1,17 @@
+{
+    "name": "VoidMall.Skills",
+    "rootNamespace": "VoidMall.Skills",
+    "references": [
+        "VoidMall.Core",
+        "VoidMall.Console"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

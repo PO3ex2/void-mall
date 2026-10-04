@@ -35,3 +35,6 @@ MonoBehaviour:
   Sleepable: 0
   SleepQuality: 1
   PackUp: 0
+  Station: 0
+  StationSpeed: 1
+  StationAutonomous: 0

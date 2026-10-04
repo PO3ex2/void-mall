@@ -1,0 +1,55 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9f0051f3e8b3438408ddcd1c06a3bc12, type: 3}
+  m_Name: shelf
+  m_EditorClassIdentifier: VoidMall.Items::VoidMall.Items.ItemDef
+  _id: item.shelf
+  DisplayName: "\u0421\u0442\u0435\u043B\u043B\u0430\u0436"
+  Description: "\u041F\u041A\u041C \u2014 \u043F\u043E\u0441\u0442\u0430\u0432\u0438\u0442\u044C."
+  Category: 9
+  Shape: 0
+  Tint: {r: 0.62, g: 0.64, b: 0.68, a: 1}
+  ModelSize: {x: 0.5, y: 0.3, z: 0.2}
+  Mesh: {fileID: 0}
+  Material: {fileID: 0}
+  Icon: {fileID: 2800000, guid: 69aa7e2eec99c8a43816a147780d6a4b, type: 3}
+  GridSize: {x: 3, y: 2}
+  Weight: 15
+  MaxStack: 1
+  Tool: 0
+  ToolTier: 0
+  BlockDamage: 0
+  PropDamage: 0
+  SwingInterval: 0.35
+  DrillStrength: 0
+  Uses: 0
+  RepairCost: []
+  Electric: 0
+  Calories: 0
+  Fat: 0
+  Protein: 0
+  Carbs: 0
+  Water: 0
+  Cooked: 0
+  FuelSeconds: 0
+  Treats: 0
+  Heal: 0
+  Slot: 0
+  Layer: 0
+  Armor: 0
+  Warmth: 0
+  ContainerGrid: {x: 0, y: 0}
+  PlacesBlock: {fileID: 0}
+  SmoothMaterial: {fileID: 0}
+  PlacesProp: prop.shelf
+  UnpackOnPickup: 0
+  TeachesRecipe: 

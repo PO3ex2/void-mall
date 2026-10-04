@@ -7,6 +7,7 @@ using VoidMall.Core;
 using VoidMall.Input;
 using VoidMall.Items;
 using VoidMall.Net;
+using VoidMall.Skills;
 using VoidMall.Survival;
 using Random = UnityEngine.Random;
 using VoidMall.World;
@@ -17,7 +18,8 @@ namespace VoidMall.Game
     /// Действия предметом в руке (выбранным в хотбаре: 1–9, колесо):
     /// руки — слабый удар; молоток, кувалда, лом — урон по блокам и пропам по своим характеристикам;
     /// бур — срезать (ЛКМ) и наращивать (ПКМ, тратит грунт или бетонную крошку) гладкий массив;
-    /// блок — ставится ПКМ (тратится); спальник — раскладывается ПКМ; еда и медикаменты — ЛКМ, применить; одежда — ЛКМ, надеть; фонарик — ЛКМ, вкл/выкл.
+    /// блок — ставится ПКМ (тратится); постройки (станции, мебель, баррикады, спальник) — призрак: R — повернуть, ПКМ — поставить; факел — ЛКМ; еда и медикаменты — ЛКМ, применить; одежда — ЛКМ, надеть; фонарик — ЛКМ, вкл/выкл.
+    /// Инструменты изнашиваются (ItemDef.Uses) и ломаются на нуле; «Разрушитель» бьёт сильнее.
     /// Голыми руками по стеклу и острому металлу можно порезаться (перчатки защищают), сломанная рука бьёт медленнее.
     /// Все правки мира — командами через сессию (готово к коопу). В творческом режиме блоки и материалы не тратятся.
     /// </summary>
@@ -58,6 +60,21 @@ namespace VoidMall.Game
         private string _lastInfo;
         private Light _flashlight;
         private bool _flashlightOn;
+        private Light _torch;
+        private bool _torchOn;
+        private float _torchFlicker;
+
+        // Призрак постройки.
+        private InputAction _rotate;
+        private Material _ghostMaterial;
+        private Mesh _ghostMesh;
+        private Matrix4x4 _ghostMatrix;
+        private bool _ghostVisible, _ghostValid;
+        private float _ghostYaw = float.NaN;
+        private Vector3 _ghostPosition;
+        private Quaternion _ghostRotation;
+        private ushort _ghostProp;
+        private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
 
         private ChunkManager World => ChunkManager.Instance;
         private PlayerInventory Inventory => PlayerInventory.Local;
@@ -82,11 +99,15 @@ namespace VoidMall.Game
                 _primary = input.Action(map, "Primary");
                 _secondary = input.Action(map, "Secondary");
                 _scroll = input.Action(map, "Scroll");
+                _rotate = input.Action(map, "Reload");
                 for (int i = 0; i < Hotbar.Size; i++)
                     _slots[i] = input.Action(map, $"Slot{i + 1}");
             }
             CreateVisuals();
             CreateFlashlight();
+            CreateTorch();
+            if (_brushMaterial != null)
+                _ghostMaterial = new Material(_brushMaterial) { name = "BuildGhost" };
             CreateHud();
         }
 
@@ -96,6 +117,9 @@ namespace VoidMall.Game
             if (_cracks != null) Destroy(_cracks.gameObject);
             if (_brush != null) Destroy(_brush.gameObject);
             if (_crackInstance != null) Destroy(_crackInstance);
+            if (_torch != null)
+                LightingDirector.DynamicLights.Remove(_torch);
+            if (_ghostMaterial != null) Destroy(_ghostMaterial);
             if (_flashlight != null)
                 LightingDirector.DynamicLights.Remove(_flashlight);
         }
@@ -120,12 +144,15 @@ namespace VoidMall.Game
                 _hasTarget = false;
             }
 
+            _ghostVisible = false;
             if (!InputBlocked)
             {
                 HandleSelection();
                 HandleActions();
             }
             UpdateFlashlight();
+            UpdateTorch();
+            DrawGhost();
             UpdateVisuals();
             UpdateHud();
         }
@@ -151,7 +178,9 @@ namespace VoidMall.Game
             if (item != null && item.PlacesBlock != null)
                 HandlePlacing(item);
             if (item != null && !string.IsNullOrEmpty(item.PlacesProp))
-                HandlePropPlacing(item);
+                HandleBuilding(item);
+            else
+                _ghostYaw = float.NaN;
             if (item != null && _primary.WasPressedThisFrame())
             {
                 if (item.Tool == ToolKind.Flashlight)
@@ -159,7 +188,12 @@ namespace VoidMall.Game
                     _flashlightOn = !_flashlightOn;
                     return;
                 }
-                if (item.IsConsumable || item.IsEquippable)
+                if (item.Tool == ToolKind.Torch)
+                {
+                    _torchOn = !_torchOn;
+                    return;
+                }
+                if (item.IsConsumable || item.IsEquippable || item.IsReadable)
                 {
                     var stack = Inventory.ActiveStack;
                     int slot = Inventory.Hotbar.Selected;
@@ -184,6 +218,7 @@ namespace VoidMall.Game
             if (_actionTimer > 0f)
                 return;
             bool striker = item != null && (item.Tool == ToolKind.Hammer || item.Tool == ToolKind.Sledgehammer || item.Tool == ToolKind.Crowbar);
+            float power = 1f + 0.15f * PlayerSkills.LevelOf(SkillId.Wrecker);
             float interval = striker ? item.SwingInterval : 0.45f;
             var vitals = PlayerVitals.Local;
             if (vitals != null)
@@ -191,7 +226,9 @@ namespace VoidMall.Game
             if (_propTarget != null && PropManager.Instance != null)
             {
                 _actionTimer = interval;
-                PropManager.Instance.Damage(_propTarget, striker ? item.PropDamage : HandDamage.Value);
+                PropManager.Instance.Damage(_propTarget, Mathf.RoundToInt((striker ? item.PropDamage : HandDamage.Value) * power));
+                if (striker)
+                    WearActive();
                 return;
             }
             if (!_hasTarget)
@@ -199,7 +236,9 @@ namespace VoidMall.Game
             _actionTimer = interval;
             if (item == null)
                 TryCutHands(_target.Value.Material);
-            Send(new DamageBlockCommand { Position = _target.Cell, Amount = striker ? item.BlockDamage : HandDamage.Value });
+            Send(new DamageBlockCommand { Position = _target.Cell, Amount = Mathf.RoundToInt((striker ? item.BlockDamage : HandDamage.Value) * power) });
+            if (striker)
+                WearActive();
         }
 
         /// <summary>Стекло и острый металл голыми руками: шанс порезаться, если не надеты перчатки.</summary>
@@ -218,25 +257,42 @@ namespace VoidMall.Game
             }
         }
 
-        /// <summary>ПКМ предметом-постройкой (спальник): разложить проп на полу перед собой.</summary>
-        private void HandlePropPlacing(ItemDef item)
+        // ── Стройка: призрак-предпросмотр ──
+
+        /// <summary>
+        /// Предмет-постройка в руке (станция, мебель, баррикада, спальник): полупрозрачный проп на полу под прицелом —
+        /// зелёный, если помещается, красный — если мешает. R — повернуть на 45°, ПКМ — поставить.
+        /// </summary>
+        private void HandleBuilding(ItemDef item)
         {
-            if (!_secondary.WasPressedThisFrame() || PropManager.Instance == null)
-                return;
-            if (!PropManager.Instance.Props.TryGetIndex(item.PlacesProp, out ushort propIndex))
+            var props = PropManager.Instance;
+            if (props == null || !props.Props.TryGetIndex(item.PlacesProp, out ushort propIndex))
                 return;
             var view = _camera.transform;
-            if (!Physics.Raycast(view.position, view.forward, out var hit, _reach, WorldMask | PropMask, QueryTriggerInteraction.Ignore) || hit.normal.y < 0.7f)
+            if (float.IsNaN(_ghostYaw))
+                _ghostYaw = Mathf.Round(view.eulerAngles.y / 45f) * 45f + 180f; // лицом к игроку
+            if (_rotate != null && _rotate.WasPressedThisFrame())
+                _ghostYaw += 45f;
+            if (!Physics.Raycast(view.position, view.forward, out var hit, _reach + 1f, WorldMask | PropMask, QueryTriggerInteraction.Ignore) || hit.normal.y < 0.7f)
             {
-                Say("Разложить можно только на ровном полу");
+                if (_secondary.WasPressedThisFrame())
+                    Say("Поставить можно только на ровную поверхность");
                 return;
             }
-            Vector3 size = PropManager.Instance.Props.Size(propIndex);
-            Vector3 forward = Vector3.ProjectOnPlane(view.forward, Vector3.up);
-            var rotation = Quaternion.LookRotation(forward.sqrMagnitude > 0.001f ? forward.normalized : Vector3.forward);
-            Vector3 position = hit.point + Vector3.up * 0.02f;
-            Vector3 center = position + Vector3.up * (size.y * 0.5f + 0.02f);
-            if (Physics.CheckBox(center, new Vector3(size.x, size.y, size.z) * 0.45f, rotation, GameLayers.PlayerCollisionMask | PropMask | (1 << GameLayers.Player), QueryTriggerInteraction.Ignore))
+            Vector3 size = props.Props.Size(propIndex);
+            _ghostProp = propIndex;
+            _ghostPosition = hit.point + Vector3.up * 0.02f;
+            _ghostRotation = Quaternion.Euler(0f, _ghostYaw, 0f);
+            Vector3 center = _ghostPosition + Vector3.up * (size.y * 0.5f + 0.03f);
+            _ghostValid = !Physics.CheckBox(center, size * 0.47f, _ghostRotation,
+                GameLayers.PlayerCollisionMask | PropMask | (1 << GameLayers.Player), QueryTriggerInteraction.Ignore);
+            _ghostMesh = props.Props.GetMesh(propIndex);
+            _ghostMatrix = Matrix4x4.TRS(_ghostPosition, _ghostRotation, Vector3.one);
+            _ghostVisible = true;
+
+            if (!_secondary.WasPressedThisFrame())
+                return;
+            if (!_ghostValid)
             {
                 Say("Не помещается: мешает стена, игрок или предмет");
                 return;
@@ -246,8 +302,76 @@ namespace VoidMall.Game
             if (!Inventory.TryConsume(stack.Def, 1))
                 return;
             Inventory.RefillHotbar(slot, stack.Def);
-            PropManager.Instance.SpawnNew(propIndex, position, rotation);
-            Say($"Разложено: {item.DisplayName} · E — спать");
+            props.SpawnNew(_ghostProp, _ghostPosition, _ghostRotation);
+            PlayerSkills.AwardLocal(Aspect.Construction, 1f);
+            var def = props.Props.Get(_ghostProp);
+            Say(def.Sleepable ? $"Поставлено: {def.DisplayName} · E — спать"
+                : def.Station != CraftStation.None ? $"Поставлено: {def.DisplayName} · E — открыть"
+                : $"Поставлено: {def.DisplayName}");
+        }
+
+        private void DrawGhost()
+        {
+            if (!_ghostVisible || InputBlocked || _ghostMesh == null || _ghostMaterial == null)
+                return;
+            _ghostMaterial.SetColor(BaseColorId, _ghostValid ? new Color(0.35f, 1f, 0.45f, 0.35f) : new Color(1f, 0.3f, 0.3f, 0.35f));
+            var rp = new RenderParams(_ghostMaterial) { shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off, receiveShadows = false };
+            Graphics.RenderMesh(rp, _ghostMesh, 0, _ghostMatrix);
+        }
+
+        /// <summary>Износ инструмента в руке; сломался — сообщение.</summary>
+        private void WearActive()
+        {
+            var stack = Inventory.ActiveStack;
+            if (stack == null)
+                return;
+            var def = Inventory.Items.Get(stack.Def);
+            if (Inventory.Wear(stack))
+                Say($"Сломалось: {def.DisplayName}");
+        }
+
+        // ── Факел ──
+
+        private void CreateTorch()
+        {
+            var go = new GameObject("Torch");
+            go.transform.SetParent(_camera.transform, false);
+            go.transform.localPosition = new Vector3(0.3f, -0.15f, 0.35f);
+            _torch = go.AddComponent<Light>();
+            _torch.type = LightType.Point;
+            _torch.range = 9f;
+            _torch.intensity = 2.2f;
+            _torch.color = new Color(1f, 0.62f, 0.3f);
+            _torch.shadows = LightShadows.None;
+            _torch.enabled = false;
+        }
+
+        /// <summary>Факел горит, только пока в руке, и сгорает (износ — секунды горения).</summary>
+        private void UpdateTorch()
+        {
+            var item = ActiveItem;
+            bool inHand = item != null && item.Tool == ToolKind.Torch;
+            if (!inHand)
+                _torchOn = false;
+            bool on = _torchOn && inHand;
+            if (on)
+            {
+                _torchFlicker += Time.deltaTime * 9f;
+                _torch.intensity = 2.2f + Mathf.PerlinNoise(_torchFlicker, 0.3f) * 0.8f;
+                var stack = Inventory.ActiveStack;
+                if (stack != null && Inventory.Wear(stack, Time.deltaTime))
+                {
+                    Say("Факел догорел");
+                    _torchOn = on = false;
+                }
+            }
+            if (_torch.enabled == on)
+                return;
+            _torch.enabled = on;
+            if (on)
+                LightingDirector.DynamicLights.Add(_torch);
+            else
+                LightingDirector.DynamicLights.Remove(_torch);
         }
 
         private void HandlePlacing(ItemDef item)
@@ -270,6 +394,7 @@ namespace VoidMall.Game
                 return;
             Inventory.RefillHotbar(slot, stack.Def);
             Send(new PlaceBlockCommand { Position = cell, Material = material });
+            PlayerSkills.AwardLocal(Aspect.Construction, 0.15f);
         }
 
         private void HandleDrilling(ItemDef drill)
@@ -311,6 +436,7 @@ namespace VoidMall.Game
                 Add = add,
                 Material = material,
             });
+            WearActive();
         }
 
         private bool TryGetFillMaterial(out ushort item, out ushort material)
@@ -413,7 +539,8 @@ namespace VoidMall.Game
         {
             var item = ActiveItem;
             bool drill = item != null && item.Tool == ToolKind.Drill;
-            bool showOutline = !drill && _hasTarget && !InputBlocked;
+            bool building = item != null && !string.IsNullOrEmpty(item.PlacesProp);
+            bool showOutline = !drill && !building && _hasTarget && !InputBlocked;
             _outline.gameObject.SetActive(showOutline);
             _brush.gameObject.SetActive(drill && _hasDrillTarget && !InputBlocked);
             if (drill && _hasDrillTarget)
@@ -516,12 +643,16 @@ namespace VoidMall.Game
             _messageTime -= Time.deltaTime;
             var item = ActiveItem;
             int total = item == null ? 0 : Inventory.CountOf(Inventory.ActiveStack.Def);
-            string hand = item == null ? "Руки" : $"{item.DisplayName}{(total > 1 ? $" ×{total}" : "")}";
+            var activeStack = Inventory.ActiveStack;
+            string wear = item != null && item.HasWear && activeStack != null ? $" ({activeStack.Durability * 100f:0}%)" : "";
+            string hand = item == null ? "Руки" : $"{item.DisplayName}{(total > 1 ? $" ×{total}" : "")}{wear}";
             string action = item == null ? "ЛКМ — ударить"
                 : item.Tool == ToolKind.Drill ? "ЛКМ — срезать, ПКМ — нарастить"
                 : item.Tool == ToolKind.Flashlight ? $"ЛКМ — {(_flashlightOn ? "выключить" : "включить")}"
+                : item.Tool == ToolKind.Torch ? $"ЛКМ — {(_torchOn ? "потушить" : "зажечь")}"
+                : item.IsReadable ? "ЛКМ — изучить чертёж"
                 : item.PlacesBlock != null ? "ПКМ — поставить, ЛКМ — ударить"
-                : !string.IsNullOrEmpty(item.PlacesProp) ? "ПКМ — разложить на полу"
+                : !string.IsNullOrEmpty(item.PlacesProp) ? (_ghostVisible && !_ghostValid ? "Не помещается" : "ПКМ — поставить, R — повернуть")
                 : item.IsConsumable ? "ЛКМ — использовать"
                 : item.IsEquippable ? "ЛКМ — надеть"
                 : item.IsTool ? "ЛКМ — бить" + (item.Tool == ToolKind.Hammer ? ", ПКМ с пропом в руках — прибить" : "")

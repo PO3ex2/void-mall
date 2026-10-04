@@ -81,6 +81,26 @@ namespace VoidMall.UI
             return mark;
         }
 
+        /// <summary>Полоска прочности внизу ячейки (инструмент изношен).</summary>
+        public static VisualElement WearBar(ItemStack stack, ItemDef def)
+        {
+            if (!def.HasWear || stack.Durability >= 0.999f)
+                return null;
+            var back = new VisualElement { pickingMode = PickingMode.Ignore };
+            back.style.position = Position.Absolute;
+            back.style.left = 4f;
+            back.style.right = 4f;
+            back.style.bottom = 3f;
+            back.style.height = 3f;
+            back.style.backgroundColor = new Color(0f, 0f, 0f, 0.6f);
+            var fill = new VisualElement { pickingMode = PickingMode.Ignore };
+            fill.style.height = 3f;
+            fill.style.width = Length.Percent(Mathf.Clamp01(stack.Durability) * 100f);
+            fill.style.backgroundColor = Color.Lerp(new Color(0.95f, 0.3f, 0.25f), new Color(0.45f, 0.85f, 0.45f), stack.Durability);
+            back.Add(fill);
+            return back;
+        }
+
         public static Label CountLabel(int count)
         {
             var label = new Label(count > 1 ? count.ToString() : string.Empty) { pickingMode = PickingMode.Ignore };
@@ -111,6 +131,7 @@ namespace VoidMall.UI
             ItemCategory.Clothing => "Одежда",
             ItemCategory.Armor => "Броня",
             ItemCategory.Backpack => "Рюкзак",
+            ItemCategory.Blueprint => "Чертёж",
             _ => "Разное",
         };
 
@@ -199,6 +220,9 @@ namespace VoidMall.UI
                 element.Add(ItemVisuals.CountLabel(stack.Count));
                 if (stack.Spoiled)
                     element.Add(ItemVisuals.SpoiledMark());
+                var wear = ItemVisuals.WearBar(stack, def);
+                if (wear != null)
+                    element.Add(wear);
                 element.RegisterCallback<PointerDownEvent>(evt => ItemPointerDown?.Invoke(stack, evt));
                 element.RegisterCallback<PointerEnterEvent>(_ => ItemHovered?.Invoke(stack));
                 _items.Add(element);

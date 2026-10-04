@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9301737d61c2e3948bfaf4bf2577b054, type: 3}
+  m_Name: antiseptic
+  m_EditorClassIdentifier: VoidMall.Crafting::VoidMall.Crafting.RecipeDef
+  _id: recipe.antiseptic
+  Result: {fileID: 11400000, guid: 04df23c31bc540b43bf04ed2a167e67a, type: 2}
+  ResultCount: 1
+  Ingredients:
+  - Item: {fileID: 11400000, guid: 7034f187d84ab7648af873de014f6820, type: 2}
+    Count: 1
+  - Item: {fileID: 11400000, guid: 5d84514f17339d041ae45ba5ee4d3134, type: 2}
+    Count: 1
+  Station: 3
+  Time: 15
+  Category: 2
+  Blueprint: 0
+  Skill: 0
+  SkillLevel: 0

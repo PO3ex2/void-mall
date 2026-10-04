@@ -68,7 +68,7 @@ namespace VoidMall.Items
             var inventory = PlayerInventory.Local;
             if (inventory == null)
                 return "Нет игрока.";
-            var sb = new StringBuilder($"Вес {inventory.TotalWeight():0.0} / {PlayerInventory.CarryCapacity.Value:0} кг");
+            var sb = new StringBuilder($"Вес {inventory.TotalWeight():0.0} / {PlayerInventory.Capacity:0} кг");
             void Dump(string title, GridInventory grid)
             {
                 if (grid == null)

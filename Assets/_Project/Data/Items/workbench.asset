@@ -1,0 +1,55 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9f0051f3e8b3438408ddcd1c06a3bc12, type: 3}
+  m_Name: workbench
+  m_EditorClassIdentifier: VoidMall.Items::VoidMall.Items.ItemDef
+  _id: item.workbench
+  DisplayName: "\u0412\u0435\u0440\u0441\u0442\u0430\u043A"
+  Description: "\u041F\u041A\u041C \u2014 \u043F\u043E\u0441\u0442\u0430\u0432\u0438\u0442\u044C (R \u2014 \u043F\u043E\u0432\u0435\u0440\u043D\u0443\u0442\u044C). \u0418\u043D\u0441\u0442\u0440\u0443\u043C\u0435\u043D\u0442\u044B, \u0433\u0432\u043E\u0437\u0434\u0438, \u043C\u0435\u0431\u0435\u043B\u044C, \u0431\u043B\u043E\u043A\u0438, \u043F\u043E\u0447\u0438\u043D\u043A\u0430."
+  Category: 9
+  Shape: 0
+  Tint: {r: 0.6, g: 0.45, b: 0.3, a: 1}
+  ModelSize: {x: 0.5, y: 0.3, z: 0.3}
+  Mesh: {fileID: 0}
+  Material: {fileID: 0}
+  Icon: {fileID: 2800000, guid: 296ce5d0f290d8d498984512be3335db, type: 3}
+  GridSize: {x: 3, y: 2}
+  Weight: 15
+  MaxStack: 1
+  Tool: 0
+  ToolTier: 0
+  BlockDamage: 0
+  PropDamage: 0
+  SwingInterval: 0.35
+  DrillStrength: 0
+  Uses: 0
+  RepairCost: []
+  Electric: 0
+  Calories: 0
+  Fat: 0
+  Protein: 0
+  Carbs: 0
+  Water: 0
+  Cooked: 0
+  FuelSeconds: 0
+  Treats: 0
+  Heal: 0
+  Slot: 0
+  Layer: 0
+  Armor: 0
+  Warmth: 0
+  ContainerGrid: {x: 0, y: 0}
+  PlacesBlock: {fileID: 0}
+  SmoothMaterial: {fileID: 0}
+  PlacesProp: prop.workbench
+  UnpackOnPickup: 0
+  TeachesRecipe: 

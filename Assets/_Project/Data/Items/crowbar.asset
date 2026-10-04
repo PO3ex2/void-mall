@@ -31,11 +31,18 @@ MonoBehaviour:
   PropDamage: 300
   SwingInterval: 0.45
   DrillStrength: 0
+  Uses: 400
+  RepairCost:
+  - Item: {fileID: 11400000, guid: 3826e318ff3d3d842bd3d6f17eb9ac85, type: 2}
+    Count: 2
+  Electric: 0
   Calories: 0
   Fat: 0
   Protein: 0
   Carbs: 0
   Water: 0
+  Cooked: 0
+  FuelSeconds: 0
   Treats: 0
   Heal: 0
   Slot: 0
@@ -47,3 +54,4 @@ MonoBehaviour:
   SmoothMaterial: {fileID: 0}
   PlacesProp: 
   UnpackOnPickup: 0
+  TeachesRecipe: 

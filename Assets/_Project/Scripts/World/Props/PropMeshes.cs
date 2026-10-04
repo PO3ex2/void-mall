@@ -29,6 +29,12 @@ namespace VoidMall.World
         VentUnit,
         Bed,
         SleepingBag,
+        Workbench,
+        SewingTable,
+        ChemTable,
+        Stove,
+        Burner,
+        Barricade,
         Count,
     }
 
@@ -61,6 +67,12 @@ namespace VoidMall.World
             PropShape.VentUnit => new Vector3(2.2f, 1.6f, 1.2f),
             PropShape.Bed => new Vector3(1f, 0.95f, 2.1f),
             PropShape.SleepingBag => new Vector3(0.8f, 0.16f, 2f),
+            PropShape.Workbench => new Vector3(1.6f, 1.6f, 0.8f),
+            PropShape.SewingTable => new Vector3(1.2f, 1f, 0.7f),
+            PropShape.ChemTable => new Vector3(1.4f, 1.5f, 0.7f),
+            PropShape.Stove => new Vector3(0.8f, 0.9f, 0.65f),
+            PropShape.Burner => new Vector3(0.3f, 0.22f, 0.3f),
+            PropShape.Barricade => new Vector3(1.6f, 1.2f, 0.25f),
             _ => Vector3.one,
         };
 
@@ -165,6 +177,13 @@ namespace VoidMall.World
                     Add(new Vector3(-w / 2, 0, -0.04f), new Vector3(-w / 2 + 0.05f, h, 0.04f));
                     Add(new Vector3(w / 2 - 0.05f, 0, -0.04f), new Vector3(w / 2, h, 0.04f));
                     Add(new Vector3(-w / 2, h - 0.05f, -0.03f), new Vector3(w / 2, h, 0.03f));
+                    break;
+                case PropShape.Workbench:
+                case PropShape.ChemTable:
+                    // Стол до столешницы и щит или экран сзади — на столешницу можно положить вещи.
+                    float benchTop = h * (shape == PropShape.Workbench ? 0.55f : 0.6f);
+                    Add(new Vector3(-w / 2, 0, -d / 2), new Vector3(w / 2, benchTop, d / 2));
+                    Add(new Vector3(-w / 2, benchTop, d / 2 - 0.06f), new Vector3(w / 2, h, d / 2));
                     break;
                 case PropShape.Bed:
                     // Лежак до верха матраса и изголовье — чтобы на кровать можно было положить вещи и запрыгнуть.
@@ -387,6 +406,86 @@ namespace VoidMall.World
                     b.BoxMinMax(new Vector3(-w / 2 + 0.06f, 0, d / 2 - 0.35f), new Vector3(w / 2 - 0.06f, h * 0.8f, d / 2), bag);
                     b.BoxMinMax(new Vector3(-w / 2 + 0.15f, h * 0.8f, d / 2 - 0.3f), new Vector3(w / 2 - 0.15f, h * 0.95f, d / 2 - 0.05f), White);
                     b.BoxMinMax(new Vector3(w / 2 - 0.02f, h * 0.4f, -d / 2), new Vector3(w / 2 + 0.005f, h * 0.5f, d / 2 - 0.35f), DarkMetal);
+                    break;
+                }
+                case PropShape.Workbench:
+                {
+                    // Верстак: толстая столешница, ножки, нижняя полка, тиски на углу и щит для инструментов сзади.
+                    float top = h * 0.55f;
+                    for (int ix = -1; ix <= 1; ix += 2)
+                    for (int iz = -1; iz <= 1; iz += 2)
+                        b.BoxMinMax(new Vector3(ix * (w / 2 - 0.05f) - 0.04f, 0, iz * (d / 2 - 0.05f) - 0.04f), new Vector3(ix * (w / 2 - 0.05f) + 0.04f, top - 0.06f, iz * (d / 2 - 0.05f) + 0.04f), Wood);
+                    b.BoxMinMax(new Vector3(-w / 2, top - 0.06f, -d / 2), new Vector3(w / 2, top, d / 2), Wood);
+                    b.BoxMinMax(new Vector3(-w / 2 + 0.05f, 0.15f, -d / 2 + 0.05f), new Vector3(w / 2 - 0.05f, 0.18f, d / 2 - 0.05f), Wood);
+                    b.BoxMinMax(new Vector3(w / 2 - 0.25f, top, -d / 2 + 0.02f), new Vector3(w / 2 - 0.05f, top + 0.12f, -d / 2 + 0.18f), DarkMetal); // тиски
+                    b.BoxMinMax(new Vector3(-w / 2, top, d / 2 - 0.04f), new Vector3(w / 2, h, d / 2), new Color(0.6f, 0.5f, 0.35f, 0.15f)); // щит
+                    for (int k = 0; k < 4; k++)
+                        b.BoxMinMax(new Vector3(-w / 2 + 0.2f + k * 0.35f, top + 0.25f, d / 2 - 0.07f), new Vector3(-w / 2 + 0.24f + k * 0.35f, top + 0.5f, d / 2 - 0.04f), Metal);
+                    break;
+                }
+                case PropShape.SewingTable:
+                {
+                    // Швейный стол: стол на тонких ножках, швейная машинка, катушки ткани.
+                    float top = h * 0.75f;
+                    for (int ix = -1; ix <= 1; ix += 2)
+                    for (int iz = -1; iz <= 1; iz += 2)
+                        b.BoxMinMax(new Vector3(ix * (w / 2 - 0.04f) - 0.025f, 0, iz * (d / 2 - 0.04f) - 0.025f), new Vector3(ix * (w / 2 - 0.04f) + 0.025f, top - 0.04f, iz * (d / 2 - 0.04f) + 0.025f), DarkMetal);
+                    b.BoxMinMax(new Vector3(-w / 2, top - 0.04f, -d / 2), new Vector3(w / 2, top, d / 2), White);
+                    var machine = new Color(0.85f, 0.85f, 0.82f, 0.4f);
+                    b.BoxMinMax(new Vector3(-0.25f, top, -0.1f), new Vector3(0.2f, top + 0.08f, 0.12f), machine);
+                    b.BoxMinMax(new Vector3(0.1f, top + 0.08f, -0.06f), new Vector3(0.2f, h - 0.02f, 0.08f), machine);
+                    b.BoxMinMax(new Vector3(-0.22f, h - 0.1f, -0.05f), new Vector3(0.2f, h - 0.02f, 0.07f), machine);
+                    b.BoxMinMax(new Vector3(-w / 2 + 0.08f, top, -d / 2 + 0.1f), new Vector3(-w / 2 + 0.3f, top + 0.14f, -d / 2 + 0.3f), Fabric);
+                    b.BoxMinMax(new Vector3(-w / 2 + 0.08f, top, d / 2 - 0.3f), new Vector3(-w / 2 + 0.3f, top + 0.1f, d / 2 - 0.1f), new Color(0.6f, 0.25f, 0.25f, 0.05f));
+                    break;
+                }
+                case PropShape.ChemTable:
+                {
+                    // Химстол: лабораторный стол, колбы и штатив, вытяжной экран сзади.
+                    float top = h * 0.6f;
+                    b.BoxMinMax(new Vector3(-w / 2, 0, -d / 2 + 0.05f), new Vector3(w / 2, top - 0.04f, d / 2), White);
+                    b.BoxMinMax(new Vector3(-w / 2, top - 0.04f, -d / 2), new Vector3(w / 2, top, d / 2), new Color(0.2f, 0.22f, 0.24f, 0.5f));
+                    b.BoxMinMax(new Vector3(-w / 2, top, d / 2 - 0.04f), new Vector3(w / 2, h, d / 2), Glass);
+                    for (int k = 0; k < 4; k++)
+                    {
+                        float x = -w / 2 + 0.2f + k * 0.28f;
+                        b.BoxMinMax(new Vector3(x - 0.04f, top, -0.05f), new Vector3(x + 0.04f, top + 0.12f + 0.04f * (k % 2), 0.03f), Glass);
+                    }
+                    b.BoxMinMax(new Vector3(w / 2 - 0.3f, top, 0f), new Vector3(w / 2 - 0.28f, top + 0.35f, 0.02f), DarkMetal);
+                    b.BoxMinMax(new Vector3(w / 2 - 0.4f, top + 0.3f, -0.02f), new Vector3(w / 2 - 0.18f, top + 0.32f, 0.04f), DarkMetal);
+                    break;
+                }
+                case PropShape.Stove:
+                {
+                    // Кухонная плита: корпус, духовка с ручкой, четыре конфорки, задняя панель с ручками.
+                    var enamel = new Color(0.85f, 0.85f, 0.83f, 0.45f);
+                    b.BoxMinMax(new Vector3(-w / 2, 0, -d / 2), new Vector3(w / 2, h - 0.05f, d / 2), enamel);
+                    b.BoxMinMax(new Vector3(-w / 2 + 0.06f, 0.1f, -d / 2 - 0.01f), new Vector3(w / 2 - 0.06f, h * 0.6f, -d / 2), new Color(0.15f, 0.15f, 0.16f, 0.8f));
+                    b.BoxMinMax(new Vector3(-w / 2 + 0.1f, h * 0.62f, -d / 2 - 0.04f), new Vector3(w / 2 - 0.1f, h * 0.65f, -d / 2 - 0.01f), Metal);
+                    b.BoxMinMax(new Vector3(-w / 2, h - 0.05f, -d / 2), new Vector3(w / 2, h - 0.02f, d / 2), DarkMetal);
+                    for (int ix = 0; ix < 2; ix++)
+                    for (int iz = 0; iz < 2; iz++)
+                        b.BoxMinMax(new Vector3(-w / 4 + ix * w / 2 - 0.09f, h - 0.02f, -d / 4 + iz * d / 2 - 0.09f), new Vector3(-w / 4 + ix * w / 2 + 0.09f, h, -d / 4 + iz * d / 2 + 0.09f), new Color(0.1f, 0.1f, 0.1f, 0.6f));
+                    b.BoxMinMax(new Vector3(-w / 2, h - 0.02f, d / 2 - 0.06f), new Vector3(w / 2, h + 0.12f, d / 2), enamel);
+                    break;
+                }
+                case PropShape.Burner:
+                {
+                    // Туристическая газовая горелка: баллон и решётка-подставка.
+                    b.BoxMinMax(new Vector3(-w / 2 + 0.05f, 0, -d / 2 + 0.05f), new Vector3(w / 2 - 0.05f, h * 0.6f, d / 2 - 0.05f), new Color(0.75f, 0.2f, 0.15f, 0.4f));
+                    b.BoxMinMax(new Vector3(-0.04f, h * 0.6f, -0.04f), new Vector3(0.04f, h * 0.8f, 0.04f), Metal);
+                    b.BoxMinMax(new Vector3(-w / 2, h * 0.8f, -0.015f), new Vector3(w / 2, h, 0.015f), DarkMetal);
+                    b.BoxMinMax(new Vector3(-0.015f, h * 0.8f, -d / 2), new Vector3(0.015f, h, d / 2), DarkMetal);
+                    break;
+                }
+                case PropShape.Barricade:
+                {
+                    // Баррикада: три горизонтальные доски на двух стойках и косая доска.
+                    for (int k = 0; k < 3; k++)
+                        b.BoxMinMax(new Vector3(-w / 2, 0.15f + k * h * 0.3f, -d / 2), new Vector3(w / 2, 0.15f + k * h * 0.3f + 0.16f, -d / 2 + 0.04f), Wood);
+                    b.BoxMinMax(new Vector3(-w / 2 + 0.1f, 0, -d / 2 + 0.04f), new Vector3(-w / 2 + 0.18f, h, d / 2), Wood);
+                    b.BoxMinMax(new Vector3(w / 2 - 0.18f, 0, -d / 2 + 0.04f), new Vector3(w / 2 - 0.1f, h, d / 2), Wood);
+                    b.Box(new Vector3(0, h * 0.5f, -d / 2 - 0.02f), new Vector3(w * 1.05f, 0.14f, 0.04f), Wood, Quaternion.Euler(0, 0, 30f));
                     break;
                 }
             }

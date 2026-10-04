@@ -1,9 +1,25 @@
+using System;
+using System.Collections.Generic;
 using UnityEngine;
 using VoidMall.Core;
 using VoidMall.World;
 
 namespace VoidMall.Items
 {
+    /// <summary>Предмет и количество: ингредиент рецепта, цена починки.</summary>
+    [Serializable]
+    public struct ItemAmount
+    {
+        public ItemDef Item;
+        [Min(1)] public int Count;
+
+        public ItemAmount(ItemDef item, int count)
+        {
+            Item = item;
+            Count = count;
+        }
+    }
+
     public enum ItemCategory
     {
         Material,
@@ -16,6 +32,7 @@ namespace VoidMall.Items
         Armor,
         Backpack,
         Misc,
+        Blueprint,
     }
 
     /// <summary>Форма процедурной модели предмета (свою модель можно подставить в ItemDef.Mesh).</summary>
@@ -50,6 +67,7 @@ namespace VoidMall.Items
         Crowbar,
         Drill,
         Flashlight,
+        Torch,
     }
 
     /// <summary>Слот экипировки (GDD §5.1): у каждого — слой брони и слой одежды.</summary>
@@ -130,6 +148,16 @@ namespace VoidMall.Items
         [Tooltip("Сила бура за применение (0…1).")]
         [Min(0f)] public float DrillStrength;
 
+        [Header("Износ и починка")]
+        [Tooltip("Сколько применений выдерживает (удар, применение бура, секунда горения факела). 0 — не изнашивается.")]
+        [Min(0)] public int Uses;
+
+        [Tooltip("Чем чинится на верстаке (до 100%). Пусто — не чинится.")]
+        public List<ItemAmount> RepairCost = new();
+
+        [Tooltip("Электроинструмент: чинить можно только с навыком «Техник».")]
+        public bool Electric;
+
         [Header("Еда и вода")]
         [Tooltip("Ккал.")] public float Calories;
         [Tooltip("Граммы жиров, белков, углеводов — для баланса рациона за сутки.")]
@@ -137,6 +165,12 @@ namespace VoidMall.Items
         public float Protein;
         public float Carbs;
         [Tooltip("Мл воды.")] public float Water;
+
+        [Tooltip("Приготовлено на плите: +рассудок, навык «Повар» прибавляет калорий.")]
+        public bool Cooked;
+
+        [Tooltip("Сколько секунд горит в плите или горелке. 0 — не топливо.")]
+        [Min(0f)] public float FuelSeconds;
 
         [Header("Лекарство")]
         [Tooltip("Что лечит.")]
@@ -172,9 +206,15 @@ namespace VoidMall.Items
         [Tooltip("Контейнер, который при подборе раскладывается в инвентарь (сумка с вещами после смерти).")]
         public bool UnpackOnPickup;
 
+        [Tooltip("Чертёж: ID рецепта, который открывается при чтении (ПКМ).")]
+        public string TeachesRecipe;
+
         public bool IsContainer => ContainerGrid.x > 0 && ContainerGrid.y > 0;
         public bool IsTool => Tool != ToolKind.None;
         public bool IsEquippable => Slot != EquipSlot.None;
         public bool IsConsumable => Category is ItemCategory.Food or ItemCategory.Drink or ItemCategory.Medicine;
+        public bool IsReadable => !string.IsNullOrEmpty(TeachesRecipe);
+        public bool HasWear => Uses > 0;
+        public bool IsRepairable => RepairCost != null && RepairCost.Count > 0;
     }
 }

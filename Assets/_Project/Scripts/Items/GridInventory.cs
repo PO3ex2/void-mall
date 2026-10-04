@@ -66,6 +66,7 @@ namespace VoidMall.Items
         public int Width { get; private set; }
         public int Height { get; private set; }
         public IReadOnlyList<GridPlacement> Items => _items;
+        public IItemCatalog Catalog => _catalog;
 
         /// <summary>Содержимое изменилось.</summary>
         public event Action Changed;

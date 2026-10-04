@@ -9,6 +9,8 @@
         "VoidMall.World",
         "VoidMall.Items",
         "VoidMall.Survival",
+        "VoidMall.Skills",
+        "VoidMall.Crafting",
         "Unity.Mathematics",
         "Unity.Collections",
         "Unity.InputSystem"

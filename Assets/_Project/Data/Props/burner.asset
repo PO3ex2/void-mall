@@ -1,0 +1,37 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3b6d19e156aa5a244bb1c2c0a92dc1a3, type: 3}
+  m_Name: burner
+  m_EditorClassIdentifier: VoidMall.World::VoidMall.World.PropDef
+  _id: prop.burner
+  DisplayName: "\u0422\u0443\u0440\u0438\u0441\u0442\u0438\u0447\u0435\u0441\u043A\u0430\u044F \u0433\u043E\u0440\u0435\u043B\u043A\u0430"
+  Shape: 27
+  Size: {x: 0.3, y: 0.22, z: 0.3}
+  Mesh: {fileID: 0}
+  Material: {fileID: 0}
+  Mass: 3
+  Hardness: 80
+  DisassembleTime: 2
+  Yields:
+  - Material: item.burner
+    Disassembled: 1
+    Broken: 0
+  - Material: material.scrap_metal
+    Disassembled: 0
+    Broken: 1
+  DebrisColor: {r: 0.55, g: 0.57, b: 0.6, a: 1}
+  Sleepable: 0
+  SleepQuality: 1
+  PackUp: 1
+  Station: 4
+  StationSpeed: 0.7
+  StationAutonomous: 1

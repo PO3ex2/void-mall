@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using VoidMall.Console;
 using VoidMall.Core;
+using VoidMall.Skills;
 using VoidMall.World;
 
 namespace VoidMall.Items
@@ -85,7 +86,11 @@ namespace VoidMall.Items
         }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        private static void ResetStatics() => Local = null;
+        private static void ResetStatics()
+        {
+            Local = null;
+            UseBlockers.Clear();
+        }
 
         // ───────────────────────────── Состав ─────────────────────────────
 
@@ -107,7 +112,10 @@ namespace VoidMall.Items
 
         public float TotalWeight() => Pockets.TotalWeight() + Equipment.TotalWeight(Items);
 
-        public float LoadFraction => TotalWeight() / Mathf.Max(1f, CarryCapacity.Value);
+        /// <summary>Лимит веса: настройка мира + навык «Грузчик» (+5 кг за уровень).</summary>
+        public static float Capacity => CarryCapacity.Value + 5f * PlayerSkills.LevelOf(SkillId.Loader);
+
+        public float LoadFraction => TotalWeight() / Mathf.Max(1f, Capacity);
 
         // ───────────────────────────── Изменения ─────────────────────────────
 
@@ -242,11 +250,11 @@ namespace VoidMall.Items
             WorldItems.Instance?.Spawn(stack, origin, camera != null ? camera.transform.forward * 1.5f : Vector3.zero);
         }
 
-        /// <summary>Съесть, выпить, применить (1 штуку).</summary>
         /// <summary>
-        /// Проверка перед использованием (выживание: бинт без кровотечения не тратится). Вернуть текст отказа или null.
+        /// Проверки перед использованием: выживание (бинт без кровотечения не тратится), крафт (чертёж уже изучен).
+        /// Каждая возвращает текст отказа или null. Инвентарь не знает о модулях выше — они сами регистрируются здесь.
         /// </summary>
-        public static System.Func<PlayerInventory, ItemDef, ItemStack, string> UseBlocker;
+        public static readonly List<Func<PlayerInventory, ItemDef, ItemStack, string>> UseBlockers = new();
 
         /// <summary>Почему последнее использование не удалось (для подсказки), null — удалось или не проверялось.</summary>
         public string LastRefusal { get; private set; }
@@ -256,11 +264,15 @@ namespace VoidMall.Items
             var def = Items.Get(stack.Def);
             if (def.IsEquippable)
                 return Equipment.Contains(stack) ? Unequip(stack) : Equip(stack);
-            if (!def.IsConsumable)
+            if (!def.IsConsumable && !def.IsReadable)
                 return false;
-            LastRefusal = UseBlocker?.Invoke(this, def, stack);
-            if (LastRefusal != null)
-                return false;
+            LastRefusal = null;
+            foreach (var blocker in UseBlockers)
+            {
+                LastRefusal = blocker(this, def, stack);
+                if (LastRefusal != null)
+                    return false;
+            }
             var grid = GridOf(stack);
             if (grid == null)
                 return false;
@@ -272,6 +284,28 @@ namespace VoidMall.Items
             Hotbar.Prune(Owns);
             EventBus<ItemConsumedEvent>.Publish(new ItemConsumedEvent { Player = gameObject, Item = def, Spoiled = stack.Spoiled });
             RaiseChanged();
+            return true;
+        }
+
+        /// <summary>
+        /// Износ инструмента: uses применений (удар, применение бура, секунда горения). На нуле предмет ломается и
+        /// исчезает — вернёт true.
+        /// </summary>
+        public bool Wear(ItemStack stack, float uses = 1f)
+        {
+            if (stack == null || ItemSystem.Creative.Value)
+                return false;
+            var def = Items.Get(stack.Def);
+            if (!def.HasWear)
+                return false;
+            stack.Durability -= uses / def.Uses;
+            if (stack.Durability > 0f)
+            {
+                GridOf(stack)?.NotifyChanged();
+                return false;
+            }
+            stack.Durability = 0f;
+            Remove(stack);
             return true;
         }
 
@@ -368,6 +402,9 @@ namespace VoidMall.Items
             foreach (var yield in evt.Def.Yields)
             {
                 int amount = evt.Disassembled ? yield.Disassembled : yield.Broken;
+                // «Аккуратный разбор»: +25% материалов за уровень (только при разборе, не при поломке).
+                if (evt.Disassembled && amount > 0)
+                    amount = Mathf.CeilToInt(amount * (1f + 0.25f * PlayerSkills.LevelOf(SkillId.Salvager)));
                 if (amount <= 0 || !Items.TryGetIndex(yield.Material, out ushort item))
                     continue;
                 var stack = Items.Create(item, amount);

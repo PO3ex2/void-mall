@@ -2,6 +2,7 @@ using System.IO;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Rendering;
+using VoidMall.Core;
 using VoidMall.World;
 
 namespace VoidMall.Editor
@@ -213,6 +214,7 @@ namespace VoidMall.Editor
             CreateMallAssets(catalog);
             PropAssetsSetup.CreatePropAssets();
             ItemAssetsSetup.CreateItemAssets();
+            RecipeAssetsSetup.CreateRecipeAssets();
         }
 
         // ───────────────────────────── Разделы и настройки мира ─────────────────────────────
@@ -226,10 +228,15 @@ namespace VoidMall.Editor
             public readonly bool Service;
             public readonly Color MapColor;
             public readonly float ServiceRetail, ServiceTech, ServiceParking;
+            public readonly CraftStation Station;
+            public readonly float StationChance;
 
             public SectionSpec(string id, string name, SectionLayout layout, string floor, string wall, string facade, string ceiling,
-                float weight, int mask, Color mapColor, bool service = false, float serviceRetail = 0f, float serviceTech = 0f, float serviceParking = 0f)
+                float weight, int mask, Color mapColor, bool service = false, float serviceRetail = 0f, float serviceTech = 0f, float serviceParking = 0f,
+                CraftStation station = CraftStation.None, float stationChance = 0f)
             {
+                Station = station;
+                StationChance = stationChance;
                 ServiceRetail = serviceRetail;
                 ServiceTech = serviceTech;
                 ServiceParking = serviceParking;
@@ -252,16 +259,16 @@ namespace VoidMall.Editor
         private static readonly SectionSpec[] Sections =
         {
             new("section.grocery", "Продукты", SectionLayout.Rows, "block.floor_tile", "block.paint_white", "block.facade_dark", "block.ceiling_tile", 3f, 0b00011, new Color(0.45f, 0.75f, 0.35f)),
-            new("section.pharmacy", "Аптека", SectionLayout.Perimeter, "block.linoleum", "block.paint_mint", "block.facade_light", "block.ceiling_tile", 2f, AllFloors, new Color(0.4f, 0.85f, 0.75f)),
-            new("section.hardware", "Строймаркет", SectionLayout.Warehouse, "block.concrete", "block.paint_gray", "block.facade_dark", "block.ceiling_tile", 2f, 0b00111, new Color(0.9f, 0.55f, 0.2f)),
+            new("section.pharmacy", "Аптека", SectionLayout.Perimeter, "block.linoleum", "block.paint_mint", "block.facade_light", "block.ceiling_tile", 2f, AllFloors, new Color(0.4f, 0.85f, 0.75f), station: CraftStation.Chemistry, stationChance: 0.4f),
+            new("section.hardware", "Строймаркет", SectionLayout.Warehouse, "block.concrete", "block.paint_gray", "block.facade_dark", "block.ceiling_tile", 2f, 0b00111, new Color(0.9f, 0.55f, 0.2f), station: CraftStation.Workbench, stationChance: 0.5f),
             new("section.electronics", "Электроника", SectionLayout.Islands, "block.tile_dark", "block.paint_blue", "block.facade_dark", "block.ceiling_tile", 2f, AllFloors, new Color(0.3f, 0.5f, 0.9f)),
-            new("section.clothing", "Одежда", SectionLayout.Clothing, "block.wood_floor", "block.paint_salmon", "block.facade_light", "block.ceiling_tile", 3f, AllFloors, new Color(0.9f, 0.45f, 0.6f)),
+            new("section.clothing", "Одежда", SectionLayout.Clothing, "block.wood_floor", "block.paint_salmon", "block.facade_light", "block.ceiling_tile", 3f, AllFloors, new Color(0.9f, 0.45f, 0.6f), station: CraftStation.Sewing, stationChance: 0.3f),
             new("section.sports", "Спорттовары", SectionLayout.Rows, "block.linoleum", "block.paint_blue", "block.facade_dark", "block.ceiling_tile", 1.5f, AllFloors, new Color(0.95f, 0.85f, 0.3f)),
             new("section.furniture", "Мебель", SectionLayout.Showroom, "block.carpet", "block.wallpaper", "block.facade_light", "block.ceiling_tile", 1.5f, 0b11100, new Color(0.6f, 0.4f, 0.25f)),
             new("section.toys", "Игрушки", SectionLayout.Rows, "block.tile_checker", "block.paint_salmon", "block.facade_light", "block.ceiling_tile", 1.5f, AllFloors, new Color(0.95f, 0.4f, 0.3f)),
-            new("section.foodcourt", "Фудкорт", SectionLayout.Hall, "block.tile_checker", "block.paint_white", "block.facade_dark", "block.ceiling_tile", 1f, 0b11000, new Color(0.85f, 0.3f, 0.85f)),
+            new("section.foodcourt", "Фудкорт", SectionLayout.Hall, "block.tile_checker", "block.paint_white", "block.facade_dark", "block.ceiling_tile", 1f, 0b11000, new Color(0.85f, 0.3f, 0.85f), station: CraftStation.Cooking, stationChance: 0.6f),
             new("section.empty", "Пустой зал", SectionLayout.Empty, "block.carpet", "block.wallpaper", "block.facade_light", "block.ceiling_tile", 0.6f, AllFloors, new Color(0.85f, 0.8f, 0.5f)),
-            new("section.storage", "Подсобка", SectionLayout.Warehouse, "block.concrete", "block.drywall", "block.facade_dark", "block.concrete", 1f, AllFloors, new Color(0.5f, 0.5f, 0.5f), service: true, serviceRetail: 1f),
+            new("section.storage", "Подсобка", SectionLayout.Warehouse, "block.concrete", "block.drywall", "block.facade_dark", "block.concrete", 1f, AllFloors, new Color(0.5f, 0.5f, 0.5f), service: true, serviceRetail: 1f, station: CraftStation.Workbench, stationChance: 0.2f),
             new("section.tech", "Вентиляционная", SectionLayout.Tech, "block.concrete", "block.concrete", "block.concrete", "block.concrete", 1f, 0, new Color(0.35f, 0.35f, 0.4f), service: true, serviceTech: 1f),
             // Щитовые: всегда — служебная комната ядра на парковке, изредка — подсобки магазинов, пара на техническом этаже.
             new("section.electrical", "Щитовая", SectionLayout.Electrical, "block.tile_dark", "block.paint_gray", "block.facade_dark", "block.concrete", 1f, 0, new Color(0.95f, 0.8f, 0.2f), service: true, serviceRetail: 0.12f, serviceTech: 0.07f, serviceParking: 1f),
@@ -292,6 +299,8 @@ namespace VoidMall.Editor
                 def.ServiceWeightTech = spec.ServiceTech;
                 def.ServiceWeightParking = spec.ServiceParking;
                 def.MapColor = spec.MapColor;
+                def.Station = spec.Station;
+                def.StationChance = spec.StationChance;
                 def.Floor = FindMaterial(catalog, spec.Floor);
                 def.Wall = FindMaterial(catalog, spec.Wall);
                 def.Facade = FindMaterial(catalog, spec.Facade);

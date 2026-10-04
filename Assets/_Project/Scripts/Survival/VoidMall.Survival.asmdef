@@ -8,6 +8,7 @@
         "VoidMall.Player",
         "VoidMall.World",
         "VoidMall.Items",
+        "VoidMall.Skills",
         "Unity.Mathematics",
         "Unity.Collections",
         "Unity.RenderPipelines.Core.Runtime",

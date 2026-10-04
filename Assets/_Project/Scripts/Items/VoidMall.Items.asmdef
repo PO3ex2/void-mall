@@ -6,6 +6,7 @@
         "VoidMall.Net",
         "VoidMall.Console",
         "VoidMall.World",
+        "VoidMall.Skills",
         "Unity.Mathematics",
         "Unity.Collections"
     ],

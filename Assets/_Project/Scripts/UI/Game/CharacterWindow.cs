@@ -6,6 +6,7 @@ using UnityEngine.UIElements;
 using VoidMall.Input;
 using VoidMall.Items;
 using VoidMall.Core;
+using VoidMall.Crafting;
 using VoidMall.Survival;
 
 namespace VoidMall.UI
@@ -33,7 +34,8 @@ namespace VoidMall.UI
         private readonly List<StatusKind> _conditions = new();
         private Label _notice;
         private Label _floorRefusal;
-        private Label _placeholder;
+        private CraftPanel _craftPanel;
+        private SkillsPanel _skillsPanel;
         private readonly List<Button> _tabButtons = new();
         private int _tab;
 
@@ -102,6 +104,10 @@ namespace VoidMall.UI
             UpdatePreview();
             if (_tab == 3)
                 UpdateStateTab();
+            else if (_tab == 2)
+                _craftPanel.Tick();
+            else if (_tab == 1)
+                _skillsPanel.Tick();
         }
 
         private void SetOpen(bool open)
@@ -167,12 +173,11 @@ namespace VoidMall.UI
             tabs.Add(hint);
             _window.Add(tabs);
 
-            _placeholder = new Label { pickingMode = PickingMode.Ignore };
-            _placeholder.style.minHeight = 300f;
-            _placeholder.style.minWidth = 600f;
-            _placeholder.style.unityTextAlign = TextAnchor.MiddleCenter;
-            _placeholder.style.color = ItemVisuals.Muted;
-            _window.Add(_placeholder);
+            _skillsPanel = new SkillsPanel();
+            _window.Add(_skillsPanel);
+            _craftPanel = new CraftPanel();
+            _craftPanel.Bind(null);
+            _window.Add(_craftPanel);
 
             BuildStateTab();
 
@@ -290,14 +295,10 @@ namespace VoidMall.UI
                 _tabButtons[i].style.backgroundColor = i == index ? new Color(0.3f, 0.34f, 0.42f, 1f) : new Color(0.16f, 0.18f, 0.22f, 1f);
             _inventoryTab.style.display = index == 0 ? DisplayStyle.Flex : DisplayStyle.None;
             _stateTab.style.display = index == 3 ? DisplayStyle.Flex : DisplayStyle.None;
-            _placeholder.style.display = index == 1 || index == 2 ? DisplayStyle.Flex : DisplayStyle.None;
+            _skillsPanel.style.display = index == 1 ? DisplayStyle.Flex : DisplayStyle.None;
+            _craftPanel.style.display = index == 2 ? DisplayStyle.Flex : DisplayStyle.None;
+            _craftPanel.MarkDirty();
             _stateTimer = 0f;
-            _placeholder.text = index switch
-            {
-                1 => "Навыки появятся на этапе 10.",
-                2 => "Крафт появится на этапе 10.",
-                _ => string.Empty,
-            };
         }
 
         // ───────────────────────────── Состояние ─────────────────────────────
@@ -464,7 +465,7 @@ namespace VoidMall.UI
             BuildHotbar();
 
             float weight = _inventory.TotalWeight();
-            float capacity = PlayerInventory.CarryCapacity.Value;
+            float capacity = PlayerInventory.Capacity;
             _weight.text = $"Вес: {weight:0.0} / {capacity:0} кг";
             float fraction = weight / Mathf.Max(1f, capacity);
             _weightBar.style.width = Length.Percent(Mathf.Clamp01(fraction) * 100f);
@@ -601,6 +602,14 @@ namespace VoidMall.UI
                 sb.Append($"\nСлот: {ItemVisuals.SlotName(def.Slot)}{(def.Slot != EquipSlot.Backpack ? (def.Layer == EquipLayer.Armor ? " (броня)" : " (одежда)") : "")}");
             if (def.Armor > 0)
                 sb.Append($"\nЗащита: {def.Armor:0}");
+            if (def.HasWear)
+                sb.Append($"\nПрочность: {stack.Durability * 100f:0}%{(def.IsRepairable ? " · чинится на верстаке" + (def.Electric ? " (нужен «Техник»)" : "") : "")}");
+            if (def.FuelSeconds > 0)
+                sb.Append($"\nТопливо для плиты: {def.FuelSeconds:0} с");
+            if (def.IsReadable)
+                sb.Append(PlayerCrafting.Local != null && CraftingSystem.Instance != null && CraftingSystem.Instance.TryGetRecipe(def.TeachesRecipe, out var taught)
+                    ? $"\nОткрывает рецепт: {taught.DisplayName}{(PlayerCrafting.Local.IsLearned(taught) ? " (уже изучен)" : " · ПКМ — изучить")}"
+                    : "\nПКМ — изучить");
             if (def.IsContainer)
                 sb.Append($"\nВместимость: {def.ContainerGrid.x}×{def.ContainerGrid.y}");
             if (!string.IsNullOrEmpty(def.Description))

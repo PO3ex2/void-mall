@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9301737d61c2e3948bfaf4bf2577b054, type: 3}
+  m_Name: sledgehammer
+  m_EditorClassIdentifier: VoidMall.Crafting::VoidMall.Crafting.RecipeDef
+  _id: recipe.sledgehammer
+  Result: {fileID: 11400000, guid: 883095e4eff236b4eb96e544b63f3a0e, type: 2}
+  ResultCount: 1
+  Ingredients:
+  - Item: {fileID: 11400000, guid: 3826e318ff3d3d842bd3d6f17eb9ac85, type: 2}
+    Count: 6
+  - Item: {fileID: 11400000, guid: 8add64b0aa81824449a2d88ee0a8810d, type: 2}
+    Count: 1
+  - Item: {fileID: 11400000, guid: d88f6e21eb26ab54e9ea2b49d496671e, type: 2}
+    Count: 1
+  Station: 1
+  Time: 30
+  Category: 0
+  Blueprint: 1
+  Skill: 0
+  SkillLevel: 0

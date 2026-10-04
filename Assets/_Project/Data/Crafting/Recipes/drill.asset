@@ -1,0 +1,32 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9301737d61c2e3948bfaf4bf2577b054, type: 3}
+  m_Name: drill
+  m_EditorClassIdentifier: VoidMall.Crafting::VoidMall.Crafting.RecipeDef
+  _id: recipe.drill
+  Result: {fileID: 11400000, guid: 248d77018e4990b48be0b490b5e7bd06, type: 2}
+  ResultCount: 1
+  Ingredients:
+  - Item: {fileID: 11400000, guid: 3826e318ff3d3d842bd3d6f17eb9ac85, type: 2}
+    Count: 4
+  - Item: {fileID: 11400000, guid: 72b45c45b372d90479d7b8d45216caac, type: 2}
+    Count: 3
+  - Item: {fileID: 11400000, guid: 344bb588195adc84bb0d1db76fa79dfa, type: 2}
+    Count: 3
+  - Item: {fileID: 11400000, guid: e1bf63fcead3a43468cce1684ab710ba, type: 2}
+    Count: 1
+  Station: 1
+  Time: 45
+  Category: 0
+  Blueprint: 1
+  Skill: 7
+  SkillLevel: 2

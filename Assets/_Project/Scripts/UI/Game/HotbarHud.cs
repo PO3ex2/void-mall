@@ -59,6 +59,9 @@ namespace VoidMall.UI
                 {
                     slot.Add(ItemVisuals.Icon(_inventory.Items.Get(stack.Def), 50f, 50f));
                     slot.Add(ItemVisuals.CountLabel(_inventory.CountOf(stack.Def)));
+                    var wear = ItemVisuals.WearBar(stack, _inventory.Items.Get(stack.Def));
+                    if (wear != null)
+                        slot.Add(wear);
                 }
                 var number = new Label((i + 1).ToString()) { pickingMode = PickingMode.Ignore };
                 number.style.position = Position.Absolute;

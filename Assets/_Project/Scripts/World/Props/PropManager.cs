@@ -798,7 +798,11 @@ namespace VoidMall.World
             return best;
         }
 
-        private ulong _nextSpawnedId = 0xFFFF000000000000UL;
+        private const ulong PlayerMadeIdBase = 0xFFFF000000000000UL;
+        private ulong _nextSpawnedId = PlayerMadeIdBase;
+
+        /// <summary>Проп создан игроком или консолью (не генерацией): на нём нет лута полок.</summary>
+        public static bool IsPlayerMade(ulong id) => id >= PlayerMadeIdBase;
 
         /// <summary>Создать новый проп (не из генерации) — для консоли и, позже, построек игрока.</summary>
         public PropBody SpawnNew(ushort defIndex, Vector3 position, Quaternion rotation)

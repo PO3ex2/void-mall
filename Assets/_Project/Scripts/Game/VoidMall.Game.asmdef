@@ -11,6 +11,8 @@
         "VoidMall.Items",
         "VoidMall.UI",
         "VoidMall.Survival",
+        "VoidMall.Skills",
+        "VoidMall.Crafting",
         "Unity.Mathematics",
         "Unity.InputSystem"
     ],

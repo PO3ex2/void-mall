@@ -114,6 +114,8 @@ namespace VoidMall.Editor
             ProjectSetup.SetReference(itemSystem, "_items", AssetDatabase.LoadAssetAtPath<VoidMall.Items.ItemSet>(ItemAssetsSetup.ItemSetPath));
             ProjectSetup.SetReference(itemSystem, "_loot", AssetDatabase.LoadAssetAtPath<VoidMall.Items.LootTableSet>(ItemAssetsSetup.LootSetPath));
             ProjectSetup.SetReference(itemSystem, "_material", AssetDatabase.LoadAssetAtPath<Material>(WorldAssetsSetup.PropsMaterialPath));
+            var crafting = world.AddComponent<VoidMall.Crafting.CraftingSystem>();
+            ProjectSetup.SetReference(crafting, "_recipes", AssetDatabase.LoadAssetAtPath<VoidMall.Crafting.RecipeSet>(RecipeAssetsSetup.RecipeSetPath));
 
             var playerPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(ProjectSetup.PlayerPrefabPath);
             if (playerPrefab != null)
@@ -127,6 +129,9 @@ namespace VoidMall.Editor
                 var tool = player.AddComponent<VoidMall.Game.ToolController>();
                 player.AddComponent<VoidMall.Game.PropInteractor>();
                 player.AddComponent<VoidMall.Survival.PlayerVitals>();
+                player.AddComponent<VoidMall.Skills.PlayerSkills>();
+                player.AddComponent<VoidMall.Crafting.PlayerCrafting>();
+                player.AddComponent<VoidMall.Game.SkillRules>();
                 ProjectSetup.SetReference(tool, "_outlineMaterial", AssetDatabase.LoadAssetAtPath<Material>(WorldAssetsSetup.OutlineMaterialPath));
                 ProjectSetup.SetReference(tool, "_crackMaterial", AssetDatabase.LoadAssetAtPath<Material>(WorldAssetsSetup.CracksMaterialPath));
                 ProjectSetup.SetReference(tool, "_brushMaterial", AssetDatabase.LoadAssetAtPath<Material>(WorldAssetsSetup.BrushMaterialPath));

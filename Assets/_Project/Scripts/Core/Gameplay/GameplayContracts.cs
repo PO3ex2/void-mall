@@ -74,6 +74,16 @@ namespace VoidMall.Core
         public float Speed;
     }
 
+    /// <summary>Крафтовая станция (None — крафт в руках). Пропы-станции и рецепты ссылаются на неё.</summary>
+    public enum CraftStation : byte
+    {
+        None,
+        Workbench,
+        Sewing,
+        Chemistry,
+        Cooking,
+    }
+
     public enum DeathCause
     {
         Void,

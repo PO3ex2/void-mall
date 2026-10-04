@@ -1,0 +1,21 @@
+{
+    "name": "VoidMall.Crafting",
+    "rootNamespace": "VoidMall.Crafting",
+    "references": [
+        "VoidMall.Core",
+        "VoidMall.Console",
+        "VoidMall.World",
+        "VoidMall.Items",
+        "VoidMall.Skills",
+        "Unity.Mathematics"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

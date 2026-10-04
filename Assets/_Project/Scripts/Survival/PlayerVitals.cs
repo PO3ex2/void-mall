@@ -6,6 +6,7 @@ using VoidMall.Core;
 using VoidMall.Input;
 using VoidMall.Items;
 using VoidMall.Player;
+using VoidMall.Skills;
 using VoidMall.World;
 using Random = UnityEngine.Random;
 
@@ -108,7 +109,7 @@ namespace VoidMall.Survival
             EventBus<DebrisImpactEvent>.Subscribe(OnDebris);
             EventBus<PlayerImpactEvent>.Subscribe(OnImpact);
             EventBus<ItemConsumedEvent>.Subscribe(OnConsumed);
-            PlayerInventory.UseBlocker = WhyCannotUse;
+            PlayerInventory.UseBlockers.Add(WhyCannotUse);
         }
 
         private void OnDisable()
@@ -117,8 +118,7 @@ namespace VoidMall.Survival
             EventBus<DebrisImpactEvent>.Unsubscribe(OnDebris);
             EventBus<PlayerImpactEvent>.Unsubscribe(OnImpact);
             EventBus<ItemConsumedEvent>.Unsubscribe(OnConsumed);
-            if (PlayerInventory.UseBlocker == (Func<PlayerInventory, ItemDef, ItemStack, string>)WhyCannotUse)
-                PlayerInventory.UseBlocker = null;
+            PlayerInventory.UseBlockers.Remove(WhyCannotUse);
             SetInputBlocked(false);
             if (WorldClock.Instance != null)
                 WorldClock.Instance.TimeScale = 1f;
@@ -148,6 +148,7 @@ namespace VoidMall.Survival
             _lastHours = hours;
 
             Model.God = GodMode.Value;
+            Model.Perks = PerksFromSkills();
             _envTimer -= realDt;
             if (_envTimer <= 0f)
             {
@@ -163,6 +164,11 @@ namespace VoidMall.Survival
                 RememberSafePosition();
                 TickGlitch(world, realDt);
                 Model.Tick(realDt, gameHours, _env);
+                // Очки выживания: сон и терпение холода или жары (за игровые часы).
+                if (Sleeping)
+                    PlayerSkills.AwardLocal(Aspect.Survival, 0.5f * gameHours);
+                if (Model.BodyTemperature < 36f || Model.BodyTemperature > 37.4f)
+                    PlayerSkills.AwardLocal(Aspect.Survival, 0.5f * gameHours);
             }
 
             if (Model.Health < _lastHealth - 0.01f)
@@ -280,6 +286,26 @@ namespace VoidMall.Survival
             if (evt.Player != gameObject || IsDead)
                 return;
             Model.Consume(evt.Item, evt.Spoiled);
+            if (evt.Item.Category == ItemCategory.Medicine)
+                PlayerSkills.AwardLocal(Aspect.Survival, 1f);
+            else if (evt.Item.Category is ItemCategory.Food or ItemCategory.Drink)
+                PlayerSkills.AwardLocal(Aspect.Survival, 0.2f);
+        }
+
+        /// <summary>Бонусы навыков к выживанию.</summary>
+        private static VitalsPerks PerksFromSkills()
+        {
+            var perks = VitalsPerks.None;
+            perks.StaminaBonus = 0.1f * PlayerSkills.LevelOf(SkillId.Endurance);
+            perks.StaminaCostMul = 1f - 0.15f * PlayerSkills.LevelOf(SkillId.Athlete);
+            perks.FallDamageMul = 1f - 0.2f * PlayerSkills.LevelOf(SkillId.StrongBones);
+            int surgery = PlayerSkills.LevelOf(SkillId.FieldSurgery);
+            perks.HealBonus = 5f * surgery;
+            perks.SplintHours = 48f - 12f * surgery;
+            perks.CookMul = 1f + 0.15f * PlayerSkills.LevelOf(SkillId.Cook);
+            perks.ComfortWiden = 2f * PlayerSkills.LevelOf(SkillId.Hardening);
+            perks.SanityDrainMul = 1f - 0.15f * PlayerSkills.LevelOf(SkillId.SteadyNerves);
+            return perks;
         }
 
         private string WhyCannotUse(PlayerInventory inventory, ItemDef item, ItemStack stack)

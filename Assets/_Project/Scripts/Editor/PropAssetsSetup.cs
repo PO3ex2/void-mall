@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
+using VoidMall.Core;
 using VoidMall.World;
 
 namespace VoidMall.Editor
@@ -65,6 +66,12 @@ namespace VoidMall.Editor
             new("prop.vent_unit", "Вентустановка", PropShape.VentUnit, 380f, 1300, 14f, MetalDust, ("material.scrap_metal", 12, 6), ("material.wire", 3, 1), ("material.pipe", 2, 1)),
             new("prop.bed", "Кровать", PropShape.Bed, 40f, 250, 5f, WoodDust, ("material.plank", 4, 2), ("material.fabric", 3, 1), ("material.foam", 3, 1), ("material.screws", 4, 1)),
             new("prop.sleeping_bag", "Спальник", PropShape.SleepingBag, 2f, 40, 1f, PaperDust, ("item.sleeping_bag", 1, 0), ("material.fabric", 0, 2)),
+            new("prop.workbench", "Верстак", PropShape.Workbench, 60f, 450, 8f, WoodDust, ("material.plank", 4, 2), ("material.nails", 6, 2), ("material.scrap_metal", 2, 1)),
+            new("prop.sewing_table", "Швейный стол", PropShape.SewingTable, 35f, 300, 6f, MetalDust, ("material.plank", 3, 1), ("material.scrap_metal", 2, 1), ("material.screws", 6, 2)),
+            new("prop.chem_table", "Химстол", PropShape.ChemTable, 45f, 350, 6f, WhiteDust, ("material.plank", 3, 1), ("material.glass_shard", 2, 1), ("material.pipe", 1, 0), ("material.screws", 4, 1)),
+            new("prop.stove", "Кухонная плита", PropShape.Stove, 90f, 700, 10f, WhiteDust, ("material.scrap_metal", 6, 3), ("material.wire", 2, 1), ("material.pipe", 1, 0)),
+            new("prop.burner", "Туристическая горелка", PropShape.Burner, 3f, 80, 2f, MetalDust, ("item.burner", 1, 0), ("material.scrap_metal", 0, 1)),
+            new("prop.barricade", "Баррикада", PropShape.Barricade, 25f, 400, 5f, WoodDust, ("material.plank", 3, 2), ("material.nails", 3, 0)),
         };
 
         /// <summary>На чём можно спать (E): сон сохраняет точку возрождения. Диван — хуже кровати.</summary>
@@ -103,7 +110,16 @@ namespace VoidMall.Editor
                 def.DisassembleTime = spec.DisassembleTime;
                 def.DebrisColor = spec.Debris;
                 def.Sleepable = Sleepable.Contains(spec.Id);
-                def.PackUp = spec.Id == "prop.sleeping_bag";
+                def.PackUp = spec.Id is "prop.sleeping_bag" or "prop.burner";
+                (def.Station, def.StationSpeed, def.StationAutonomous) = spec.Id switch
+                {
+                    "prop.workbench" => (CraftStation.Workbench, 1f, false),
+                    "prop.sewing_table" => (CraftStation.Sewing, 1f, false),
+                    "prop.chem_table" => (CraftStation.Chemistry, 1f, false),
+                    "prop.stove" => (CraftStation.Cooking, 1f, true),
+                    "prop.burner" => (CraftStation.Cooking, 0.7f, true),
+                    _ => (CraftStation.None, 1f, false),
+                };
                 def.SleepQuality = spec.Id == "prop.sofa" ? 0.7f : 1f;
                 def.Yields = new List<PropYield>();
                 foreach (var (material, full, broken) in spec.Yields)
