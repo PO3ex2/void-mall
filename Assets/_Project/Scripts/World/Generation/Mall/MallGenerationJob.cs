@@ -415,7 +415,8 @@ namespace VoidMall.World
 
         /// <summary>
         /// Автоматическая стеклянная дверь во входе магазина — цельный блок на кусок проёма (4×3, 2×3 или 1×3),
-        /// чтобы створки открывались вместе. Проём 4 — одна дверь 4×3 или две 2×3 (по хешу), остальное — жадно 4, 2, 1.
+        /// чтобы створки открывались вместе: жадно 4, 2, 1 (проёмы мола — 2 или 4). Две двери 2×3 рядом не ставим —
+        /// их внутренние створки съехались бы в середину проёма и перекрыли его.
         /// Есть ли в проёме двери — по хешу начала проёма (иначе открытый проход).
         /// </summary>
         private Cell SlidingDoorCell(int2 local, int rel, int level, in MallLevelPlan plan, in MallCellInfo info, int doorHeight)
@@ -435,13 +436,12 @@ namespace VoidMall.World
                 return Cell.Air;
             int along = alongX ? local.x - start.x : local.y - start.y;
             int length = (alongX ? end.x - start.x : end.y - start.y) + 1;
-            bool wide = M.Sliding4 != 0 && Hash.ToFloat01(Hash.Get(Seed, info.Cell.x * 131 + start.x, info.Cell.y * 131 + start.y, level * 7 + 7027)) < 0.65f;
             // Куски проёма от начала: локальная +X блока смотрит вдоль проёма (поворот 0 по X, 3 по Z).
             int pieceStart = 0, width = 1;
             for (int s = 0; s < length; s += width)
             {
                 int rest = length - s;
-                width = wide && rest >= 4 ? 4 : M.Sliding2 != 0 && rest >= 2 ? 2 : 1;
+                width = M.Sliding4 != 0 && rest >= 4 ? 4 : M.Sliding2 != 0 && rest >= 2 ? 2 : 1;
                 if (along < s + width)
                 {
                     pieceStart = s;
