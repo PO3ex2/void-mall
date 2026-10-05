@@ -40,6 +40,7 @@ namespace VoidMall.World
             EscalatorMeshes.Clear();
             _carMesh = null;
             _rampMesh = null;
+            _plazaMesh = _podiumMesh = null;
         }
 
         public static void Build(uint seed, in MallCellInfo info, Transform parent, Material material)
@@ -77,6 +78,74 @@ namespace VoidMall.World
             }
             if (info.HasRamp && !Blocked(info, CellRect(info, new float4(info.RampMin.x, info.RampMin.y, info.RampMin.x + MallPlanner.RampLength, info.RampMin.y + MallPlanner.RampWidth)), 0, 1))
                 BuildRamp(info, parent, material);
+            if (BuildPlazasAndStands(seed, info, parent, material))
+                yield return true;
+        }
+
+        // ───────────────────────────── Площади и стенды (этап 8Б) ─────────────────────────────
+
+        private static readonly Color PlazaPattern = new(0.32f, 0.3f, 0.28f, 0.6f);
+        private static readonly Color PlazaInlay = new(0.72f, 0.62f, 0.42f, 0.7f);
+        private static readonly Color PodiumTop = new(0.12f, 0.12f, 0.13f, 0.85f);
+        private static readonly Color PodiumEdge = new(0.8f, 0.82f, 0.85f, 0.9f);
+
+        private static Mesh _plazaMesh, _podiumMesh;
+
+        /// <summary>
+        /// Круглые площади (узор на полу) и подиумы стендов с машиной на торговых этажах. Фонтан — блоки мира
+        /// (MallGenerationJob.FountainCell), скамейки вокруг площади и машина со столбиками — пропы (PropPlacer).
+        /// </summary>
+        private static bool BuildPlazasAndStands(uint seed, in MallCellInfo info, Transform parent, Material material)
+        {
+            bool built = false;
+            float2 origin = MallLayout.CellOrigin(info.Cell);
+            for (int level = MallLayout.FirstRetailLevel; level < MallLayout.FirstRetailLevel + MallLayout.RetailFloors; level++)
+            {
+                float y = MallLayout.FloorTop(level);
+                if (MallPlanner.RoundPlaza(seed, info, level, out _))
+                {
+                    var plaza = NewChild(parent, $"Plaza {MallLayout.LevelName(level)}");
+                    plaza.transform.localPosition = new Vector3(origin.x + MallPlanner.PlazaCenter.x, y, origin.y + MallPlanner.PlazaCenter.y);
+                    AddRenderer(plaza, PlazaMesh(), material);
+                    built = true;
+                }
+                if (MallPlanner.CarStand(seed, info, level, out float2 center, out bool alongX))
+                {
+                    var podium = NewChild(parent, $"Car Stand {MallLayout.LevelName(level)}");
+                    podium.transform.SetLocalPositionAndRotation(new Vector3(origin.x + center.x, y, origin.y + center.y), Quaternion.Euler(0f, alongX ? 0f : 90f, 0f));
+                    AddRenderer(podium, PodiumMesh(), material);
+                    var box = podium.AddComponent<BoxCollider>();
+                    box.center = new Vector3(0f, MallPlanner.CarStandHeight * 0.5f, 0f);
+                    box.size = new Vector3(MallPlanner.CarStandSize.x, MallPlanner.CarStandHeight, MallPlanner.CarStandSize.y);
+                    built = true;
+                }
+            }
+            return built;
+        }
+
+        private static Mesh PlazaMesh()
+        {
+            if (_plazaMesh != null)
+                return _plazaMesh;
+            Builder.Clear();
+            // Узор в терраццо: тёмная кайма по краю площади, светлая вставка и второе кольцо ближе к центру.
+            Builder.Ring(Vector3.zero, MallPlanner.PlazaRadius - 0.45f, MallPlanner.PlazaRadius, 0f, 0.006f, 48, PlazaPattern, walls: false);
+            Builder.Ring(Vector3.zero, MallPlanner.PlazaRadius - 0.7f, MallPlanner.PlazaRadius - 0.55f, 0f, 0.006f, 48, PlazaInlay, walls: false);
+            Builder.Ring(Vector3.zero, MallPlanner.FountainRadius + 0.5f, MallPlanner.FountainRadius + 0.75f, 0f, 0.006f, 40, PlazaPattern, walls: false);
+            _plazaMesh = Builder.ToMesh("Plaza");
+            return _plazaMesh;
+        }
+
+        private static Mesh PodiumMesh()
+        {
+            if (_podiumMesh != null)
+                return _podiumMesh;
+            Builder.Clear();
+            float hx = MallPlanner.CarStandSize.x * 0.5f, hz = MallPlanner.CarStandSize.y * 0.5f, h = MallPlanner.CarStandHeight;
+            Builder.BoxMinMax(new Vector3(-hx, 0f, -hz), new Vector3(hx, h - 0.02f, hz), PodiumEdge);
+            Builder.BoxMinMax(new Vector3(-hx + 0.05f, h - 0.02f, -hz + 0.05f), new Vector3(hx - 0.05f, h, hz - 0.05f), PodiumTop);
+            _podiumMesh = Builder.ToMesh("Car Stand");
+            return _podiumMesh;
         }
 
         // ───────────────────────────── Ядро: лестница и лифт ─────────────────────────────

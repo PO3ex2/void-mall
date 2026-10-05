@@ -36,6 +36,16 @@ namespace VoidMall.World
         Burner,
         Barricade,
         Crusher,
+        Turnstile,
+        OfficeDesk,
+        OfficeChair,
+        FilingCabinet,
+        WaterCooler,
+        CubicleWall,
+        Stanchion,
+        TrashPile,
+        LootCrate,
+        Pallet,
         Count,
     }
 
@@ -75,6 +85,16 @@ namespace VoidMall.World
             PropShape.Burner => new Vector3(0.3f, 0.22f, 0.3f),
             PropShape.Barricade => new Vector3(1.6f, 1.2f, 0.25f),
             PropShape.Crusher => new Vector3(1.2f, 1.4f, 1f),
+            PropShape.Turnstile => new Vector3(0.9f, 1f, 0.8f),
+            PropShape.OfficeDesk => new Vector3(1.4f, 0.75f, 0.7f),
+            PropShape.OfficeChair => new Vector3(0.6f, 1f, 0.6f),
+            PropShape.FilingCabinet => new Vector3(0.5f, 1.3f, 0.6f),
+            PropShape.WaterCooler => new Vector3(0.35f, 1.3f, 0.35f),
+            PropShape.CubicleWall => new Vector3(1.6f, 1.3f, 0.06f),
+            PropShape.Stanchion => new Vector3(0.3f, 0.95f, 0.3f),
+            PropShape.TrashPile => new Vector3(1.2f, 0.45f, 1f),
+            PropShape.LootCrate => new Vector3(0.8f, 0.6f, 0.6f),
+            PropShape.Pallet => new Vector3(1.2f, 0.15f, 1f),
             _ => Vector3.one,
         };
 
@@ -125,6 +145,19 @@ namespace VoidMall.World
                     break;
                 case PropShape.Checkout:
                     slots.Add(new PropItemSlot { Position = new Vector3(-w / 4f, h, 0f), Size = new Vector3(w / 2f - 0.1f, 0.3f, d - 0.1f) });
+                    break;
+                case PropShape.OfficeDesk:
+                    // На столешнице слева от монитора и справа — мелочь (лут офиса).
+                    slots.Add(new PropItemSlot { Position = new Vector3(-w / 2 + 0.25f, h, -0.05f), Size = new Vector3(0.4f, 0.3f, d - 0.15f) });
+                    slots.Add(new PropItemSlot { Position = new Vector3(w / 2 - 0.25f, h, -0.05f), Size = new Vector3(0.4f, 0.3f, d - 0.15f) });
+                    break;
+                case PropShape.FilingCabinet:
+                    slots.Add(new PropItemSlot { Position = new Vector3(0f, h, 0f), Size = new Vector3(w - 0.05f, 0.3f, d - 0.1f) });
+                    break;
+                case PropShape.Pallet:
+                    // Четыре места на настиле: стопки пеноблоков, доски, мешки цемента.
+                    for (int k = 0; k < 4; k++)
+                        slots.Add(new PropItemSlot { Position = new Vector3((k % 2 == 0 ? -1 : 1) * w / 4f, h, (k < 2 ? -1 : 1) * d / 4f), Size = new Vector3(w / 2f - 0.04f, 0.6f, d / 2f - 0.04f) });
                     break;
             }
         }
@@ -179,6 +212,10 @@ namespace VoidMall.World
                     Add(new Vector3(-w / 2, 0, -0.04f), new Vector3(-w / 2 + 0.05f, h, 0.04f));
                     Add(new Vector3(w / 2 - 0.05f, 0, -0.04f), new Vector3(w / 2, h, 0.04f));
                     Add(new Vector3(-w / 2, h - 0.05f, -0.03f), new Vector3(w / 2, h, 0.03f));
+                    break;
+                case PropShape.Turnstile:
+                    Add(new Vector3(-w / 2, 0, -d / 2), new Vector3(-w / 2 + 0.3f, h, d / 2));
+                    Add(new Vector3(-w / 2 + 0.3f, 0.66f, -0.18f), new Vector3(w / 2, 0.94f, 0.18f));
                     break;
                 case PropShape.Workbench:
                 case PropShape.ChemTable:
@@ -490,6 +527,125 @@ namespace VoidMall.World
                     b.Box(new Vector3(0, h * 0.5f, -d / 2 - 0.02f), new Vector3(w * 1.05f, 0.14f, 0.04f), Wood, Quaternion.Euler(0, 0, 30f));
                     break;
                 }
+                case PropShape.Turnstile:
+                {
+                    // Турникет: тумба слева, трипод из трёх штанг вправо, перегораживает проход до соседней тумбы.
+                    float cab = 0.3f;
+                    b.BoxMinMax(new Vector3(-w / 2, 0, -d / 2), new Vector3(-w / 2 + cab, h - 0.04f, d / 2), Metal);
+                    b.BoxMinMax(new Vector3(-w / 2 - 0.01f, h - 0.04f, -d / 2 - 0.01f), new Vector3(-w / 2 + cab + 0.01f, h, d / 2 + 0.01f), DarkMetal);
+                    b.BoxMinMax(new Vector3(-w / 2 + cab, 0.82f, -0.08f), new Vector3(-w / 2 + cab + 0.06f, 0.94f, 0.08f), DarkMetal);
+                    float hub = -w / 2 + cab + 0.06f;
+                    b.BoxMinMax(new Vector3(hub, 0.86f, -0.025f), new Vector3(w / 2, 0.91f, 0.025f), Metal);
+                    b.Box(new Vector3(hub + 0.18f, 0.72f, 0.12f), new Vector3(0.4f, 0.05f, 0.05f), Metal, Quaternion.Euler(-35f, -30f, 0f));
+                    b.Box(new Vector3(hub + 0.18f, 0.72f, -0.12f), new Vector3(0.4f, 0.05f, 0.05f), Metal, Quaternion.Euler(35f, 30f, 0f));
+                    b.BoxMinMax(new Vector3(-w / 2 + 0.05f, h - 0.03f, -0.12f), new Vector3(-w / 2 + 0.25f, h + 0.01f, -0.02f), new Color(0.2f, 0.75f, 0.3f, 0.8f));
+                    break;
+                }
+                case PropShape.OfficeDesk:
+                {
+                    // Офисный стол: столешница, тумба с ящиками, монитор с подставкой, клавиатура.
+                    b.BoxMinMax(new Vector3(-w / 2, h - 0.04f, -d / 2), new Vector3(w / 2, h, d / 2), White);
+                    b.BoxMinMax(new Vector3(-w / 2, 0, -d / 2 + 0.05f), new Vector3(-w / 2 + 0.04f, h - 0.04f, d / 2 - 0.05f), DarkMetal);
+                    b.BoxMinMax(new Vector3(w / 2 - 0.45f, 0, -d / 2 + 0.05f), new Vector3(w / 2, h - 0.04f, d / 2 - 0.05f), White);
+                    for (int i = 0; i < 3; i++)
+                        b.BoxMinMax(new Vector3(w / 2 - 0.4f, 0.1f + i * 0.21f, -d / 2 + 0.03f), new Vector3(w / 2 - 0.05f, 0.27f + i * 0.21f, -d / 2 + 0.06f), Metal);
+                    b.BoxMinMax(new Vector3(-0.08f, h, d / 2 - 0.25f), new Vector3(0.08f, h + 0.02f, d / 2 - 0.1f), DarkMetal);
+                    b.BoxMinMax(new Vector3(-0.02f, h, d / 2 - 0.2f), new Vector3(0.02f, h + 0.15f, d / 2 - 0.16f), DarkMetal);
+                    b.BoxMinMax(new Vector3(-0.28f, h + 0.12f, d / 2 - 0.2f), new Vector3(0.28f, h + 0.46f, d / 2 - 0.16f), DarkMetal);
+                    b.BoxMinMax(new Vector3(-0.26f, h + 0.14f, d / 2 - 0.205f), new Vector3(0.26f, h + 0.44f, d / 2 - 0.2f), new Color(0.08f, 0.1f, 0.12f, 0.9f));
+                    b.BoxMinMax(new Vector3(-0.22f, h, -0.05f), new Vector3(0.22f, h + 0.02f, 0.1f), DarkMetal);
+                    break;
+                }
+                case PropShape.OfficeChair:
+                {
+                    // Офисное кресло: крестовина, газлифт, сиденье, спинка.
+                    b.BoxMinMax(new Vector3(-w / 2 + 0.05f, 0.04f, -0.03f), new Vector3(w / 2 - 0.05f, 0.08f, 0.03f), DarkMetal);
+                    b.BoxMinMax(new Vector3(-0.03f, 0.04f, -d / 2 + 0.05f), new Vector3(0.03f, 0.08f, d / 2 - 0.05f), DarkMetal);
+                    b.BoxMinMax(new Vector3(-0.03f, 0.08f, -0.03f), new Vector3(0.03f, 0.42f, 0.03f), Metal);
+                    b.BoxMinMax(new Vector3(-w / 2 + 0.04f, 0.42f, -d / 2 + 0.04f), new Vector3(w / 2 - 0.04f, 0.5f, d / 2 - 0.06f), Fabric);
+                    b.BoxMinMax(new Vector3(-w / 2 + 0.06f, 0.55f, d / 2 - 0.08f), new Vector3(w / 2 - 0.06f, h, d / 2 - 0.02f), Fabric);
+                    b.BoxMinMax(new Vector3(-0.03f, 0.46f, d / 2 - 0.1f), new Vector3(0.03f, 0.6f, d / 2 - 0.06f), DarkMetal);
+                    break;
+                }
+                case PropShape.FilingCabinet:
+                {
+                    // Шкаф для документов: четыре ящика с ручками.
+                    var cabinetPaint = new Color(0.6f, 0.62f, 0.6f, 0.4f);
+                    b.BoxMinMax(new Vector3(-w / 2, 0, -d / 2), new Vector3(w / 2, h, d / 2), cabinetPaint);
+                    for (int i = 0; i < 4; i++)
+                    {
+                        float y0 = 0.05f + i * (h - 0.1f) / 4f;
+                        float y1 = y0 + (h - 0.1f) / 4f - 0.03f;
+                        b.BoxMinMax(new Vector3(-w / 2 + 0.03f, y0, -d / 2 - 0.015f), new Vector3(w / 2 - 0.03f, y1, -d / 2), cabinetPaint);
+                        b.BoxMinMax(new Vector3(-0.08f, (y0 + y1) * 0.5f - 0.015f, -d / 2 - 0.04f), new Vector3(0.08f, (y0 + y1) * 0.5f + 0.015f, -d / 2 - 0.015f), DarkMetal);
+                    }
+                    break;
+                }
+                case PropShape.WaterCooler:
+                {
+                    // Кулер: белый корпус, кранчики, голубая бутыль сверху.
+                    b.BoxMinMax(new Vector3(-w / 2, 0, -d / 2), new Vector3(w / 2, h * 0.68f, d / 2), White);
+                    b.BoxMinMax(new Vector3(-0.08f, h * 0.45f, -d / 2 - 0.04f), new Vector3(-0.03f, h * 0.5f, -d / 2), new Color(0.2f, 0.35f, 0.9f, 0.6f));
+                    b.BoxMinMax(new Vector3(0.03f, h * 0.45f, -d / 2 - 0.04f), new Vector3(0.08f, h * 0.5f, -d / 2), new Color(0.9f, 0.2f, 0.2f, 0.6f));
+                    b.BoxMinMax(new Vector3(-w / 2 + 0.04f, h * 0.68f, -d / 2 + 0.04f), new Vector3(w / 2 - 0.04f, h, d / 2 - 0.04f), new Color(0.45f, 0.65f, 0.9f, 0.9f));
+                    break;
+                }
+                case PropShape.CubicleWall:
+                    // Перегородка кабинки: тканевая панель в алюминиевой раме.
+                    b.BoxMinMax(new Vector3(-w / 2, 0.05f, -d / 2), new Vector3(w / 2, h, d / 2), new Color(0.42f, 0.45f, 0.5f, 0.05f));
+                    b.BoxMinMax(new Vector3(-w / 2 - 0.01f, h - 0.03f, -d / 2 - 0.01f), new Vector3(w / 2 + 0.01f, h + 0.01f, d / 2 + 0.01f), Metal);
+                    b.BoxMinMax(new Vector3(-w / 2, 0, -d / 2 - 0.01f), new Vector3(w / 2, 0.05f, d / 2 + 0.01f), DarkMetal);
+                    break;
+                case PropShape.Stanchion:
+                    // Столбик ограждения стенда: тяжёлое основание, хромированная стойка, бархатный шнур вбок.
+                    b.BoxMinMax(new Vector3(-w / 2, 0, -d / 2), new Vector3(w / 2, 0.05f, d / 2), DarkMetal);
+                    b.BoxMinMax(new Vector3(-0.025f, 0.05f, -0.025f), new Vector3(0.025f, h, 0.025f), Metal);
+                    b.BoxMinMax(new Vector3(-0.04f, h - 0.04f, -0.04f), new Vector3(0.04f, h, 0.04f), Metal);
+                    b.BoxMinMax(new Vector3(0.025f, h - 0.12f, -0.015f), new Vector3(w / 2 + 0.35f, h - 0.09f, 0.015f), new Color(0.6f, 0.08f, 0.1f, 0.1f));
+                    break;
+                case PropShape.TrashPile:
+                {
+                    // Куча мусора: мешки, коробки, бумага — заброшенный вид.
+                    var bag = new Color(0.08f, 0.08f, 0.09f, 0.3f);
+                    b.Box(new Vector3(-w * 0.2f, h * 0.35f, -d * 0.1f), new Vector3(w * 0.45f, h * 0.7f, d * 0.5f), bag, Quaternion.Euler(0f, 20f, 8f));
+                    b.Box(new Vector3(w * 0.22f, h * 0.3f, d * 0.15f), new Vector3(w * 0.38f, h * 0.6f, d * 0.42f), bag, Quaternion.Euler(0f, -35f, -6f));
+                    b.Box(new Vector3(w * 0.05f, h * 0.2f, -d * 0.3f), new Vector3(w * 0.3f, h * 0.4f, d * 0.25f), Cardboard, Quaternion.Euler(0f, 50f, 0f));
+                    b.Box(new Vector3(-w * 0.32f, 0.02f, d * 0.3f), new Vector3(w * 0.25f, 0.02f, d * 0.2f), White, Quaternion.Euler(0f, 15f, 0f));
+                    b.Box(new Vector3(w * 0.35f, 0.02f, -d * 0.32f), new Vector3(w * 0.2f, 0.02f, d * 0.25f), White, Quaternion.Euler(0f, -40f, 0f));
+                    break;
+                }
+                case PropShape.LootCrate:
+                {
+                    // Деревянный ящик с лутом: доски, рёбра жёсткости, маркировка. Внутри — пенопласт (частицы при поломке).
+                    var crate = new Color(0.62f, 0.48f, 0.3f, 0.15f);
+                    b.BoxMinMax(new Vector3(-w / 2 + 0.02f, 0.02f, -d / 2 + 0.02f), new Vector3(w / 2 - 0.02f, h - 0.02f, d / 2 - 0.02f), crate);
+                    for (int i = 0; i < 2; i++)
+                    {
+                        float x = i == 0 ? -w / 2 : w / 2 - 0.05f;
+                        b.BoxMinMax(new Vector3(x, 0, -d / 2), new Vector3(x + 0.05f, h, d / 2), Wood);
+                    }
+                    b.BoxMinMax(new Vector3(-w / 2, 0, -d / 2), new Vector3(w / 2, 0.05f, d / 2), Wood);
+                    b.BoxMinMax(new Vector3(-w / 2, h - 0.05f, -d / 2), new Vector3(w / 2, h, d / 2), Wood);
+                    b.Box(new Vector3(0f, h * 0.5f, -d / 2 - 0.005f), new Vector3(w * 0.9f, 0.05f, 0.01f), Wood, Quaternion.Euler(0f, 0f, 30f));
+                    b.BoxMinMax(new Vector3(-0.12f, h * 0.55f, -d / 2 - 0.012f), new Vector3(0.12f, h * 0.75f, -d / 2 - 0.006f), new Color(0.15f, 0.15f, 0.15f, 0.1f));
+                    break;
+                }
+                case PropShape.Pallet:
+                {
+                    // Поддон: три бруса и настил из досок.
+                    var pallet = new Color(0.66f, 0.55f, 0.38f, 0.1f);
+                    for (int i = 0; i < 3; i++)
+                    {
+                        float z = -d / 2 + i * (d - 0.1f) / 2f;
+                        b.BoxMinMax(new Vector3(-w / 2, 0, z), new Vector3(w / 2, h - 0.03f, z + 0.1f), pallet);
+                    }
+                    for (int i = 0; i < 5; i++)
+                    {
+                        float x = -w / 2 + i * (w - 0.12f) / 4f;
+                        b.BoxMinMax(new Vector3(x, h - 0.03f, -d / 2), new Vector3(x + 0.12f, h, d / 2), pallet);
+                    }
+                    break;
+                }
                 case PropShape.Crusher:
                 {
                     // Дробилка-компрессор: станина, корпус с валками, бункер сверху, лоток выдачи спереди, мотор сбоку.
@@ -516,6 +672,9 @@ namespace VoidMall.World
         public ushort Def;
         public Vector3 Position;
         public float Yaw;
+
+        /// <summary>Наклон вокруг поперечной оси до поворота (−90 — стеллаж лежит лицом вниз; 0 — стоит).</summary>
+        public float Pitch;
         public ulong Id;
     }
 

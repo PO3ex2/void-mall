@@ -15,6 +15,7 @@ namespace VoidMall.Tests
             "prop.shelf", "prop.fridge", "prop.checkout", "prop.display_table", "prop.clothes_rack", "prop.table", "prop.chair",
             "prop.pallet_rack", "prop.box_stack", "prop.car", "prop.cabinet", "prop.boiler", "prop.bench", "prop.planter",
             "prop.sofa", "prop.cardboard_box", "prop.plastic_crate", "prop.trash_bin", "prop.switchboard", "prop.cable_reel", "prop.vent_unit", "prop.bed", "prop.sleeping_bag", "prop.workbench", "prop.sewing_table", "prop.chem_table", "prop.stove", "prop.burner", "prop.barricade", "prop.crusher",
+            "prop.turnstile", "prop.office_desk", "prop.office_chair", "prop.filing_cabinet", "prop.water_cooler", "prop.cubicle_wall", "prop.stanchion", "prop.trash_pile", "prop.loot_crate", "prop.pallet",
         };
 
         private PropSet _set;
@@ -87,13 +88,13 @@ namespace VoidMall.Tests
                 var boxes = new List<float4>();
                 foreach (var p in props)
                 {
-                    Vector3 size = _registry.Size(p.Def);
-                    bool swap = Mathf.Abs(Mathf.Repeat(p.Yaw, 180f) - 90f) < 1f;
-                    float2 half = (swap ? new float2(size.z, size.x) : new float2(size.x, size.z)) * 0.5f;
-                    float2 c = new(p.Position.x, p.Position.z);
+                    Footprint(p, out float2 c, out float2 half);
                     Assert.That(c.x - half.x, Is.GreaterThanOrEqualTo(origin.x - 0.01f));
                     Assert.That(c.y + half.y, Is.LessThanOrEqualTo(origin.y + MallLayout.CellSize + 0.01f));
-                    Assert.That(p.Position.y, Is.EqualTo(MallLayout.FloorTop(level)));
+                    // На полу; лежачий стеллаж поднят на полглубины, машина стенда — на подиуме.
+                    float lift = p.Position.y - MallLayout.FloorTop(level);
+                    float expected = p.Pitch != 0f ? _registry.Size(p.Def).z * 0.5f : p.Def == _ids.Car && level >= MallLayout.FirstRetailLevel ? MallPlanner.CarStandHeight : 0f;
+                    Assert.That(lift, Is.EqualTo(expected).Within(0.001f), $"level {level}: высота {_registry.Get(p.Def).Id}");
                     var box = new float4(c - half + 0.01f, c + half - 0.01f);
                     foreach (var other in boxes)
                         Assert.That(box.x < other.z && other.x < box.z && box.y < other.w && other.y < box.w, Is.False,
@@ -101,6 +102,27 @@ namespace VoidMall.Tests
                     boxes.Add(box);
                 }
             }
+        }
+
+        /// <summary>След пропа на полу — как его считает PropPlacer (лежачий, повёрнутый не на 90°, обычный).</summary>
+        private void Footprint(in PropSpawn p, out float2 center, out float2 half)
+        {
+            Vector3 size = _registry.Size(p.Def);
+            center = new float2(p.Position.x, p.Position.z);
+            bool swap = Mathf.Abs(Mathf.Repeat(p.Yaw, 180f) - 90f) < 1f;
+            if (p.Pitch != 0f)
+            {
+                Vector3 back = Quaternion.Euler(0f, p.Yaw, 0f) * Vector3.back;
+                center += new float2(back.x, back.z) * size.y * 0.5f;
+                half = (swap ? new float2(size.y, size.x) : new float2(size.x, size.y)) * 0.5f;
+                return;
+            }
+            if (Mathf.Abs(Mathf.Repeat(p.Yaw, 90f)) > 1f && Mathf.Abs(Mathf.Repeat(p.Yaw, 90f) - 90f) > 1f)
+            {
+                half = math.length(new float2(size.x, size.z)) * 0.5f * 0.7f;
+                return;
+            }
+            half = (swap ? new float2(size.z, size.x) : new float2(size.x, size.z)) * 0.5f;
         }
 
         private List<PropSpawn> Place(uint seed, int2 cell, int level)

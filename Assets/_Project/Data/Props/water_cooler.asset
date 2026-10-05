@@ -1,0 +1,37 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3b6d19e156aa5a244bb1c2c0a92dc1a3, type: 3}
+  m_Name: water_cooler
+  m_EditorClassIdentifier: VoidMall.World::VoidMall.World.PropDef
+  _id: prop.water_cooler
+  DisplayName: "\u041A\u0443\u043B\u0435\u0440"
+  Shape: 34
+  Size: {x: 0.35, y: 1.3, z: 0.35}
+  Mesh: {fileID: 0}
+  Material: {fileID: 0}
+  Mass: 15
+  Hardness: 120
+  DisassembleTime: 3
+  Yields:
+  - Material: material.plastic
+    Disassembled: 3
+    Broken: 1
+  - Material: material.wire
+    Disassembled: 1
+    Broken: 0
+  DebrisColor: {r: 0.8, g: 0.8, b: 0.78, a: 1}
+  Sleepable: 0
+  SleepQuality: 1
+  PackUp: 0
+  Station: 0
+  StationSpeed: 1
+  StationAutonomous: 0

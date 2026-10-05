@@ -79,6 +79,53 @@ namespace VoidMall.World
             Box((from + to) * 0.5f + down * thickness * 0.5f, new Vector3(width, thickness, length), color, rotation);
         }
 
+        /// <summary>Четырёхугольник a-b-c-d, лицом по нормали (обход подбирается сам).</summary>
+        public void Quad(Vector3 a, Vector3 b, Vector3 c, Vector3 d, Vector3 normal, Color color)
+        {
+            int start = _positions.Count;
+            _positions.Add(a);
+            _positions.Add(b);
+            _positions.Add(c);
+            _positions.Add(d);
+            for (int i = 0; i < 4; i++)
+            {
+                _normals.Add(normal);
+                _colors.Add(color);
+            }
+            bool flip = Vector3.Dot(Vector3.Cross(b - a, c - a), normal) < 0f;
+            if (flip)
+            {
+                _indices.Add(start); _indices.Add(start + 2); _indices.Add(start + 1);
+                _indices.Add(start); _indices.Add(start + 3); _indices.Add(start + 2);
+            }
+            else
+            {
+                _indices.Add(start); _indices.Add(start + 1); _indices.Add(start + 2);
+                _indices.Add(start); _indices.Add(start + 2); _indices.Add(start + 3);
+            }
+        }
+
+        /// <summary>
+        /// Кольцо вокруг вертикальной оси от y0 до y1: верх и (если walls) внешняя и внутренняя стенки —
+        /// бортик чаши фонтана; с нулевой высотой и без стенок — узор на полу или водная гладь.
+        /// </summary>
+        public void Ring(Vector3 center, float inner, float outer, float y0, float y1, int segments, Color color, bool walls = true)
+        {
+            for (int i = 0; i < segments; i++)
+            {
+                float a0 = i * Mathf.PI * 2f / segments, a1 = (i + 1) * Mathf.PI * 2f / segments;
+                var d0 = new Vector3(Mathf.Cos(a0), 0f, Mathf.Sin(a0));
+                var d1 = new Vector3(Mathf.Cos(a1), 0f, Mathf.Sin(a1));
+                Vector3 top = Vector3.up * y1, bottom = Vector3.up * y0;
+                Quad(center + d0 * inner + top, center + d0 * outer + top, center + d1 * outer + top, center + d1 * inner + top, Vector3.up, color);
+                if (!walls)
+                    continue;
+                Vector3 mid = (d0 + d1).normalized;
+                Quad(center + d0 * outer + bottom, center + d1 * outer + bottom, center + d1 * outer + top, center + d0 * outer + top, mid, color);
+                Quad(center + d0 * inner + bottom, center + d0 * inner + top, center + d1 * inner + top, center + d1 * inner + bottom, -mid, color);
+            }
+        }
+
         public Mesh ToMesh(string name)
         {
             var mesh = new Mesh { name = name };

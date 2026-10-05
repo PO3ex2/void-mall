@@ -73,6 +73,17 @@ namespace VoidMall.Editor
             new("prop.burner", "Туристическая горелка", PropShape.Burner, 3f, 80, 2f, MetalDust, ("item.burner", 1, 0), ("material.scrap_metal", 0, 1)),
             new("prop.barricade", "Баррикада", PropShape.Barricade, 25f, 400, 5f, WoodDust, ("material.plank", 3, 2), ("material.nails", 3, 0)),
             new("prop.crusher", "Дробилка", PropShape.Crusher, 150f, 900, 10f, MetalDust, ("material.scrap_metal", 6, 3), ("material.pipe", 2, 1), ("material.wire", 2, 1)),
+            // Этап 8Б: вход в мол, офисы, стенд с машиной, заброшенный вид, техэтаж.
+            new("prop.turnstile", "Турникет", PropShape.Turnstile, 90f, 600, 8f, MetalDust, ("material.scrap_metal", 5, 2), ("material.pipe", 2, 1), ("material.wire", 1, 0)),
+            new("prop.office_desk", "Офисный стол", PropShape.OfficeDesk, 30f, 250, 5f, WoodDust, ("material.plank", 3, 1), ("material.screws", 4, 1), ("material.wire", 1, 0), ("material.plastic", 2, 1)),
+            new("prop.office_chair", "Офисное кресло", PropShape.OfficeChair, 9f, 120, 3f, PaperDust, ("material.fabric", 2, 1), ("material.foam", 1, 1), ("material.scrap_metal", 1, 0)),
+            new("prop.filing_cabinet", "Шкаф для документов", PropShape.FilingCabinet, 45f, 400, 5f, MetalDust, ("material.scrap_metal", 4, 2), ("material.cardboard", 3, 2)),
+            new("prop.water_cooler", "Кулер", PropShape.WaterCooler, 15f, 120, 3f, WhiteDust, ("material.plastic", 3, 1), ("material.wire", 1, 0)),
+            new("prop.cubicle_wall", "Перегородка", PropShape.CubicleWall, 15f, 150, 3f, PaperDust, ("material.fabric", 2, 1), ("material.scrap_metal", 1, 0)),
+            new("prop.stanchion", "Столбик ограждения", PropShape.Stanchion, 6f, 100, 2f, MetalDust, ("material.scrap_metal", 1, 0), ("material.fabric", 1, 0)),
+            new("prop.trash_pile", "Куча мусора", PropShape.TrashPile, 10f, 40, 2f, PaperDust, ("material.cardboard", 2, 1), ("material.plastic", 2, 1)),
+            new("prop.loot_crate", "Ящик с лутом", PropShape.LootCrate, 35f, 140, 4f, new Color(0.95f, 0.95f, 0.93f), ("material.plank", 2, 1), ("material.nails", 3, 1)),
+            new("prop.pallet", "Поддон", PropShape.Pallet, 20f, 200, 3f, WoodDust, ("material.plank", 3, 1), ("material.nails", 4, 1)),
         };
 
         /// <summary>На чём можно спать (E): сон сохраняет точку возрождения. Диван — хуже кровати.</summary>

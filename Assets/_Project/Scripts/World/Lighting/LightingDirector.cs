@@ -53,6 +53,10 @@ namespace VoidMall.World
         private static readonly int SkylightId = Shader.PropertyToID("_VM_Skylight");
         private static readonly int EmergencyWaveId = Shader.PropertyToID("_VM_EmergencyWave");
         private static readonly int TimeId = Shader.PropertyToID("_VM_Time");
+        private static readonly int FieldCellsId = Shader.PropertyToID("_VM_FieldCells");
+        private static readonly int FieldCountId = Shader.PropertyToID("_VM_FieldCount");
+
+        private readonly Vector4[] _fieldCells = new Vector4[9];
 
         private struct Slot
         {
@@ -162,6 +166,8 @@ namespace VoidMall.World
             Shader.SetGlobalFloat(SkylightId, _skylight);
             Shader.SetGlobalFloat(EmergencyWaveId, _emergencyWave);
             Shader.SetGlobalFloat(TimeId, _time);
+
+            UpdateField(world);
 
             float darkness = math.saturate(_wave);
             Color ambient = Color.Lerp(_dayAmbient, _nightAmbient, darkness);
@@ -289,7 +295,7 @@ namespace VoidMall.World
                 slot.Fade = Mathf.MoveTowards(slot.Fade, slot.Assigned ? 1f : 0f, fadeStep);
                 LampKind kind = slot.Fade > 0f ? KindAt(world, slot.Lamp) : LampKind.None;
                 float intensity = kind == LampKind.None ? 0f
-                    : LampRules.Intensity(world.Seed, slot.Lamp, kind, _wave, _skylight, _emergencyWave, _time) * slot.Fade;
+                    : LampRules.Intensity(world.Seed, slot.Lamp, kind, _wave, _skylight, _emergencyWave, _time, InField(world, slot.Lamp)) * slot.Fade;
                 if (intensity <= 0.001f)
                 {
                     slot.Light.enabled = false;
@@ -360,6 +366,26 @@ namespace VoidMall.World
             return LampRules.LampIntensity(seed, cell, _wave, 0f) > 0f || LampRules.LampIntensity(seed, cell, _wave, 0.37f) > 0f ? 1f : 0f;
         }
 
+        private static bool InField(ChunkManager world, int3 cell) =>
+            world.GetCellInfo(new int2(cell.x >> MallLayout.CellShift, cell.z >> MallLayout.CellShift)).Biome == MallBiome.AnomalyField;
+
+        /// <summary>Ячейки поля аномалий 3×3 вокруг камеры — шейдеру (там лампы мерцают чаще).</summary>
+        private void UpdateField(ChunkManager world)
+        {
+            Vector3 eye = ViewerPosition();
+            int2 center = MallLayout.CellOf(eye);
+            int count = 0;
+            for (int dz = -1; dz <= 1; dz++)
+            for (int dx = -1; dx <= 1; dx++)
+            {
+                int2 cell = center + new int2(dx, dz);
+                if (world.GetCellInfo(cell).Biome == MallBiome.AnomalyField)
+                    _fieldCells[count++] = new Vector4(cell.x, cell.y, 0f, 0f);
+            }
+            Shader.SetGlobalVectorArray(FieldCellsId, _fieldCells);
+            Shader.SetGlobalFloat(FieldCountId, count);
+        }
+
         private static LampKind KindAt(ChunkManager world, int3 cell)
         {
             Cell value = world.GetCell(cell);
@@ -395,7 +421,7 @@ namespace VoidMall.World
             foreach (var cell in _sampleLamps)
             {
                 LampKind kind = KindAt(world, cell);
-                float intensity = LampRules.Intensity(world.Seed, cell, kind, _wave, _skylight, _emergencyWave, _time);
+                float intensity = LampRules.Intensity(world.Seed, cell, kind, _wave, _skylight, _emergencyWave, _time, InField(world, cell));
                 if (intensity <= 0f)
                     continue;
                 float range = kind == LampKind.Emergency ? _emergencyRange : kind == LampKind.Skylight ? _skylightRange : _lampRange;

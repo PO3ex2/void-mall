@@ -56,6 +56,7 @@ namespace VoidMall.Editor
             new() { Id = "recipe.burner", Result = "item.burner", Station = Bench, Time = 20f, Category = RecipeCategory.Stations, Ingredients = new[] { ("material.scrap_metal", 3), ("material.pipe", 1), ("material.screws", 4) }, Skill = SkillId.Technician, Level = 1 },
             new() { Id = "recipe.table", Result = "item.table", Station = Bench, Time = 12f, Category = RecipeCategory.Building, Ingredients = new[] { ("material.plank", 4), ("material.nails", 6) } },
             new() { Id = "recipe.shelf", Result = "item.shelf", Station = Bench, Time = 16f, Category = RecipeCategory.Building, Ingredients = new[] { ("material.scrap_metal", 4), ("material.screws", 8) } },
+            new() { Id = "recipe.planks", Result = "item.block.planks", Count = 4, Station = Bench, Time = 10f, Category = RecipeCategory.Blocks, Ingredients = new[] { ("material.plank", 2), ("material.nails", 4) } },
             new() { Id = "recipe.block_wood", Result = "item.block.wood", Count = 4, Station = Bench, Time = 4f, Category = RecipeCategory.Blocks, Ingredients = new[] { ("material.plank", 2) } },
             new() { Id = "recipe.block_metal", Result = "item.block.metal", Count = 2, Station = Bench, Time = 6f, Category = RecipeCategory.Blocks, Ingredients = new[] { ("material.scrap_metal", 3) } },
             new() { Id = "recipe.door", Result = "item.door", Station = Bench, Time = 20f, Category = RecipeCategory.Building, Ingredients = new[] { ("material.plank", 4), ("material.nails", 6), ("material.screws", 2) } },
@@ -85,6 +86,7 @@ namespace VoidMall.Editor
             new() { Id = "recipe.crush_terrazzo", Result = "material.concrete_rubble", Count = 2, Station = Crush, Time = 4f, Category = RecipeCategory.Materials, Ingredients = new[] { ("item.block.terrazzo", 1) } },
             new() { Id = "recipe.crush_tile", Result = "material.concrete_rubble", Count = 1, Station = Crush, Time = 3f, Category = RecipeCategory.Materials, Ingredients = new[] { ("item.block.floor_tile", 1) } },
             new() { Id = "recipe.compress_concrete", Result = "item.block.concrete", Count = 1, Station = Crush, Time = 6f, Category = RecipeCategory.Blocks, Ingredients = new[] { ("material.concrete_rubble", 3) } },
+            new() { Id = "recipe.compress_concrete_cement", Result = "item.block.concrete", Count = 2, Station = Crush, Time = 8f, Category = RecipeCategory.Blocks, Ingredients = new[] { ("material.concrete_rubble", 3), ("material.cement", 1) } },
 
             // ── Плита и горелка ──
             new() { Id = "recipe.dish_noodles_meat", Result = "item.dish_noodles_meat", Station = Cook, Time = 30f, Category = RecipeCategory.Food, Ingredients = new[] { ("item.noodles", 1), ("item.canned_meat", 1), ("item.water_bottle", 1) } },

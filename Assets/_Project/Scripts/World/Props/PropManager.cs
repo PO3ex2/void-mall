@@ -31,6 +31,9 @@ namespace VoidMall.World
 
         public static PropManager Instance { get; private set; }
 
+        /// <summary>Материал частиц пыли (облако при поломке, пенопласт из ящика).</summary>
+        public Material DustMaterial => _dustMaterial;
+
         public PropRegistry Props { get; private set; }
         public int LiveCount => _live.Count;
         public int LoadedBuckets => _buckets.Count;
@@ -279,7 +282,7 @@ namespace VoidMall.World
                             bucket.Ids.Add(spawn.Id);
                         continue;
                     }
-                    var body = Spawn(spawn.Def, spawn.Id, spawn.Position, Quaternion.Euler(0f, spawn.Yaw, 0f), _root);
+                    var body = Spawn(spawn.Def, spawn.Id, spawn.Position, Quaternion.Euler(spawn.Pitch, spawn.Yaw, 0f), _root);
                     bucket.Ids.Add(spawn.Id);
                     budget--;
                     if (System.Diagnostics.Stopwatch.GetTimestamp() > deadline)

@@ -13,6 +13,7 @@ namespace VoidMall.World
         public ushort Cabinet, Boiler, Bench, Planter, Sofa, CardboardBox, PlasticCrate, TrashBin;
         public ushort Switchboard, CableReel, VentUnit, Bed;
         public ushort Workbench, SewingTable, ChemTable, Stove, Crusher;
+        public ushort Turnstile, OfficeDesk, OfficeChair, FilingCabinet, WaterCooler, CubicleWall, Stanchion, TrashPile, LootCrate, Pallet;
 
         public ushort StationProp(CraftStation station) => station switch
         {
@@ -53,6 +54,16 @@ namespace VoidMall.World
             ChemTable = props.IndexOf("prop.chem_table"),
             Stove = props.IndexOf("prop.stove"),
             Crusher = props.IndexOf("prop.crusher"),
+            Turnstile = props.IndexOf("prop.turnstile"),
+            OfficeDesk = props.IndexOf("prop.office_desk"),
+            OfficeChair = props.IndexOf("prop.office_chair"),
+            FilingCabinet = props.IndexOf("prop.filing_cabinet"),
+            WaterCooler = props.IndexOf("prop.water_cooler"),
+            CubicleWall = props.IndexOf("prop.cubicle_wall"),
+            Stanchion = props.IndexOf("prop.stanchion"),
+            TrashPile = props.IndexOf("prop.trash_pile"),
+            LootCrate = props.IndexOf("prop.loot_crate"),
+            Pallet = props.IndexOf("prop.pallet"),
         };
     }
 
@@ -64,6 +75,12 @@ namespace VoidMall.World
     public static class PropPlacer
     {
         private const int Salt = 8000;
+
+        /// <summary>
+        /// Зазор между мебелью в рядах и вдоль стен. Вплотную нельзя: соседи спят кинематикой, и проснувшийся проп,
+        /// зажатый ими с двух сторон, не сдвинуть (крайний в ряду тянулся, средний — нет).
+        /// </summary>
+        public const float Gap = 0.04f;
 
         private struct Context
         {
@@ -106,7 +123,12 @@ namespace VoidMall.World
             }
             else if (kind == LevelKind.Retail)
             {
+                // Особые места раньше обычной мебели галерей — им нужно своё место.
+                PlaceEntrance(ctx, plan, output);
+                PlacePlaza(ctx, plan, output);
+                PlaceCarStand(ctx, plan, output);
                 PlaceGalleryFurniture(ctx, plan, output);
+                GalleryTrash(ctx, plan, output);
             }
 
             for (int i = 1; i < plan.Rooms.Length; i++)
@@ -121,6 +143,12 @@ namespace VoidMall.World
                         TryAdd(ctx, plan, i, ctx.Ids.BoxStack, Center(room.Rect) + new float2(0.5f, 0.5f), 0f, output);
                     continue;
                 }
+                if (room.Has(RoomFlags.Corridor))
+                {
+                    Corridor(ctx, plan, i, h, output);
+                    continue;
+                }
+                int roomStart = output.Count;
                 SectionLayout layout = sections[room.Section].Layout;
                 // Крафтовая станция у стены — раньше остальной мебели, чтобы ей хватило места.
                 var section = sections[room.Section];
@@ -169,6 +197,8 @@ namespace VoidMall.World
                         Scatter(ctx, plan, i, ctx.Ids.CardboardBox, 2, h ^ 0x9ABCu, output);
                         break;
                     }
+                    case SectionLayout.Office: Office(ctx, plan, i, h, output); break;
+                    case SectionLayout.Construction: Construction(ctx, plan, i, h, output); break;
                     case SectionLayout.Electrical:
                     {
                         // Щитовая: главный щит у самой длинной стены (позже — кандидат в рабочий щиток), по остальным
@@ -183,6 +213,12 @@ namespace VoidMall.World
                         break;
                     }
                 }
+                // Ящики с лутом — на техническом этаже (GDD §2.6), кроме склада стройматериалов (там свои).
+                if (plan.Level == MallLayout.TechLevel && layout != SectionLayout.Construction && h % 5 < 3)
+                    Scatter(ctx, plan, i, ctx.Ids.LootCrate, 1 + (int)((h >> 6) % 2), h ^ 0xC4A7u, output);
+                if (info.Biome == MallBiome.Empty)
+                    Thin(ctx, i, roomStart, output);
+                Abandon(ctx, plan, i, layout, h, output);
             }
 
             for (int i = start; i < output.Count; i++)
@@ -190,6 +226,253 @@ namespace VoidMall.World
                 var spawn = output[i];
                 spawn.Id = MakeId(info.Cell, plan.Level, i - start);
                 output[i] = spawn;
+            }
+        }
+
+        /// <summary>Доля мебели, что остаётся в комнатах пустого биома (GDD §2.9).</summary>
+        public const float EmptyBiomeKeep = 0.3f;
+
+        /// <summary>Пустой биом: из мебели комнаты остаётся около трети, ряды с прорехами — как после выноса.</summary>
+        private static void Thin(in Context ctx, int room, int from, List<PropSpawn> output)
+        {
+            int write = from;
+            for (int read = from; read < output.Count; read++)
+            {
+                uint h = Hash.Get(ctx.Seed, ctx.Info.Cell.x, ctx.Info.Cell.y, Salt + 50000 + ctx.Level * 4096 + room * 64 + (read - from));
+                if (Hash.ToFloat01(h) < EmptyBiomeKeep)
+                    output[write++] = output[read];
+            }
+            output.RemoveRange(write, output.Count - write);
+        }
+
+        // ───────────────────────────── Особые места (этап 8Б) ─────────────────────────────
+
+        /// <summary>Вход в мол: ряд турникетов поперёк западной галереи и две кассы по краям (фасад — в плане).</summary>
+        private static void PlaceEntrance(in Context ctx, in MallLevelPlan plan, List<PropSpawn> output)
+        {
+            if (!ctx.Info.HasEntrance || ctx.Level != MallLayout.FirstRetailLevel)
+                return;
+            float z = MallPlanner.EntranceTurnstileZ;
+            for (int i = 0; i < 4; i++)
+                TryAdd(ctx, plan, 0, ctx.Ids.Turnstile, new float2(4.2f + i * 1.6f, z), 0f, output);
+            TryAdd(ctx, plan, 0, ctx.Ids.Checkout, new float2(1.9f, z + 1f), 90f, output);
+            TryAdd(ctx, plan, 0, ctx.Ids.Checkout, new float2(12.1f, z + 1f), 270f, output);
+        }
+
+        /// <summary>Круглая площадь: место под фонтан занято, вокруг — кольцо скамеек и кадок.</summary>
+        private static void PlacePlaza(in Context ctx, in MallLevelPlan plan, List<PropSpawn> output)
+        {
+            if (!MallPlanner.RoundPlaza(ctx.Seed, ctx.Info, ctx.Level, out bool fountain))
+                return;
+            float2 c = MallPlanner.PlazaCenter;
+            for (int i = 0; i < 8; i++)
+            {
+                // Скамейки — по диагоналям (там нет прохода вдоль галерей), кадки — между ними.
+                float angle = (i * 45f + 45f) * Mathf.Deg2Rad;
+                float2 dir = new(math.cos(angle), math.sin(angle));
+                bool bench = i % 2 == 0;
+                float radius = bench ? MallPlanner.PlazaBenchRadius : MallPlanner.PlazaBenchRadius + 0.3f;
+                if (!bench && !fountain)
+                    continue;
+                ushort kind = bench ? ctx.Ids.Bench : ctx.Ids.Planter;
+                float yaw = bench ? (i % 4 == 0 ? 45f : 135f) : 0f;
+                TryAddLoose(ctx, plan, 0, kind, c + dir * radius, yaw, output);
+            }
+            // Чаша фонтана (структура) — после кольца: квадрат вокруг неё накрыл бы скамейки на диагоналях.
+            if (fountain)
+            {
+                float r = MallPlanner.FountainRadius + 0.2f;
+                ctx.Occupied.Add(new float4(c - r, c + r));
+            }
+        }
+
+        /// <summary>Стенд с машиной: машина на подиуме (подиум — структура), столбики ограждения по углам.</summary>
+        private static void PlaceCarStand(in Context ctx, in MallLevelPlan plan, List<PropSpawn> output)
+        {
+            if (!MallPlanner.CarStand(ctx.Seed, ctx.Info, ctx.Level, out float2 center, out bool alongX))
+                return;
+            float2 half = (alongX ? MallPlanner.CarStandSize : MallPlanner.CarStandSize.yx) * 0.5f;
+            ctx.Occupied.Add(new float4(center - half - 0.6f, center + half + 0.6f));
+            output.Add(new PropSpawn { Def = ctx.Ids.Car, Position = new Vector3(ctx.Origin.x + center.x, ctx.FloorY + MallPlanner.CarStandHeight, ctx.Origin.y + center.y), Yaw = alongX ? 90f : 0f });
+            for (int i = 0; i < 4; i++)
+            {
+                float2 corner = center + new float2((i & 1) == 0 ? -1f : 1f, (i & 2) == 0 ? -1f : 1f) * (half + 0.35f);
+                output.Add(new PropSpawn { Def = ctx.Ids.Stanchion, Position = new Vector3(ctx.Origin.x + corner.x, ctx.FloorY, ctx.Origin.y + corner.y), Yaw = (i & 1) == 0 ? 0f : 180f });
+            }
+        }
+
+        /// <summary>Пропа с произвольным поворотом: занятость по описанной окружности (без проверки плиток пола под углом).</summary>
+        private static bool TryAddLoose(in Context ctx, in MallLevelPlan plan, int room, ushort kind, float2 local, float yaw, List<PropSpawn> output)
+        {
+            Vector3 size = ctx.Props.Size(kind);
+            float radius = math.length(new float2(size.x, size.z)) * 0.5f;
+            int2 tile = (int2)math.floor(local);
+            if (math.any(tile < 0) || math.any(tile >= MallLayout.CellSize))
+                return false;
+            int index = MallLevelPlan.Index(tile.x, tile.y);
+            if (plan.Tiles[index] != (byte)Tile.Open || plan.RoomIds[index] != room)
+                return false;
+            float4 box = new(local - radius * 0.7f, local + radius * 0.7f);
+            foreach (var other in ctx.Occupied)
+                if (box.x < other.z && other.x < box.z && box.y < other.w && other.y < box.w)
+                    return false;
+            ctx.Occupied.Add(box);
+            float2 world = ctx.Origin + local;
+            output.Add(new PropSpawn { Def = kind, Position = new Vector3(world.x, ctx.FloorY, world.y), Yaw = yaw });
+            return true;
+        }
+
+        /// <summary>Служебный коридор-тупик: коробки, урна, иногда куча мусора — и стена в конце.</summary>
+        private static void Corridor(in Context ctx, in MallLevelPlan plan, int room, uint h, List<PropSpawn> output)
+        {
+            int4 r = plan.Rooms[room].Rect;
+            bool alongX = r.z - r.x > r.w - r.y;
+            float2 far = alongX ? new float2(r.z - 0.6f, (r.y + r.w) * 0.5f) : new float2((r.x + r.z) * 0.5f, r.w - 0.6f);
+            TryAdd(ctx, plan, room, ctx.Ids.CardboardBox, far, (h >> 4) % 4 * 90f, output);
+            // Остальное — вдоль одной стены, чтобы по коридору можно было пройти до конца.
+            float a0 = alongX ? r.x : r.y, a1 = alongX ? r.z : r.w;
+            float side = (h & 1) == 0 ? (alongX ? r.y + 0.3f : r.x + 0.3f) : (alongX ? r.w - 0.3f : r.z - 0.3f);
+            ushort[] kinds = { ctx.Ids.CardboardBox, ctx.Ids.TrashBin, ctx.Ids.CardboardBox };
+            for (int k = 0; k < kinds.Length; k++)
+            {
+                float a = math.lerp(a0 + 2f, a1 - 2f, (k + 0.5f) / kinds.Length);
+                TryAdd(ctx, plan, room, kinds[k], alongX ? new float2(a, side) : new float2(side, a), 0f, output);
+            }
+        }
+
+        /// <summary>
+        /// Офис: в вытянутом — коридор посередине и кабинки по бокам (перегородки, стол с креслом в каждой),
+        /// в обычном — сетка столов с креслами; у стены шкаф для документов и кулер.
+        /// </summary>
+        private static void Office(in Context ctx, in MallLevelPlan plan, int room, uint h, List<PropSpawn> output)
+        {
+            int4 r = plan.Rooms[room].Rect;
+            bool alongX = r.z - r.x >= r.w - r.y;
+            float length = alongX ? r.z - r.x : r.w - r.y, width = alongX ? r.w - r.y : r.z - r.x;
+            AgainstWall(ctx, plan, room, ctx.Ids.FilingCabinet, output);
+            AgainstWall(ctx, plan, room, ctx.Ids.WaterCooler, output);
+
+            if (length >= width * 2f && width >= 6f)
+            {
+                // Кабинки: шаг 2.4 вдоль, по обе стороны от прохода шириной ~1.6.
+                float a0 = alongX ? r.x : r.y, b0 = alongX ? r.y : r.x, b1 = alongX ? r.w : r.z;
+                int count = (int)((length - 1f) / 2.4f);
+                for (int side = 0; side < 2; side++)
+                for (int k = 0; k < count; k++)
+                {
+                    float a = a0 + 0.8f + k * 2.4f;
+                    float deskB = side == 0 ? b0 + 0.45f : b1 - 0.45f;
+                    float chairB = side == 0 ? b0 + 1.25f : b1 - 1.25f;
+                    float wallB = side == 0 ? b0 + (width - 1.6f) * 0.25f : b1 - (width - 1.6f) * 0.25f;
+                    float deskYaw = alongX ? (side == 0 ? 180f : 0f) : (side == 0 ? 270f : 90f);
+                    float2 wall = alongX ? new float2(a, wallB) : new float2(wallB, a);
+                    float2 desk = alongX ? new float2(a + 1.2f, deskB) : new float2(deskB, a + 1.2f);
+                    float2 chair = alongX ? new float2(a + 1.2f, chairB) : new float2(chairB, a + 1.2f);
+                    TryAdd(ctx, plan, room, ctx.Ids.CubicleWall, wall, alongX ? 90f : 0f, output);
+                    if (TryAdd(ctx, plan, room, ctx.Ids.OfficeDesk, desk, deskYaw, output))
+                        TryAdd(ctx, plan, room, ctx.Ids.OfficeChair, chair, deskYaw + 180f, output);
+                }
+                return;
+            }
+
+            // Открытый офис: столы смотрят мониторами в одну сторону, кресла за ними.
+            const float pitchX = 2.4f, pitchZ = 2.6f, margin = 1.5f;
+            if (r.z - r.x < margin * 2f + 1.4f || r.w - r.y < margin * 2f + 1.4f)
+            {
+                AgainstWall(ctx, plan, room, ctx.Ids.OfficeDesk, output);
+                return;
+            }
+            int nx = (int)((r.z - r.x - margin * 2f) / pitchX) + 1;
+            int nz = (int)((r.w - r.y - margin * 2f) / pitchZ) + 1;
+            float sx = (r.x + r.z) * 0.5f - (nx - 1) * pitchX * 0.5f;
+            float sz = (r.y + r.w) * 0.5f - (nz - 1) * pitchZ * 0.5f;
+            for (int iz = 0; iz < nz; iz++)
+            for (int ix = 0; ix < nx; ix++)
+            {
+                float2 desk = new(sx + ix * pitchX, sz + iz * pitchZ);
+                if (TryAdd(ctx, plan, room, ctx.Ids.OfficeDesk, desk, 0f, output))
+                    TryAdd(ctx, plan, room, ctx.Ids.OfficeChair, desk + new float2(0f, -0.75f), 180f, output);
+            }
+        }
+
+        /// <summary>Склад стройматериалов: поддоны рядами (товары на них — лут раздела), ящики с лутом, коробки.</summary>
+        private static void Construction(in Context ctx, in MallLevelPlan plan, int room, uint h, List<PropSpawn> output)
+        {
+            Grid(ctx, plan, room, ctx.Ids.Pallet, 2.2f, 2f, 1.4f, h, output);
+            Scatter(ctx, plan, room, ctx.Ids.LootCrate, 2, h ^ 0x71u, output);
+            Scatter(ctx, plan, room, ctx.Ids.BoxStack, 1, h ^ 0x72u, output);
+        }
+
+        /// <summary>Доли комнат с поваленным стеллажом и с кучей мусора: в обычном моле и в пустом биоме.</summary>
+        public const float FallenShelfChance = 0.2f, FallenShelfChanceEmpty = 0.6f;
+        public const float TrashChance = 0.15f, TrashChanceEmpty = 0.5f;
+
+        /// <summary>Заброшенный вид (GDD §2.6): поваленный стеллаж (товар рассыпан рядом — ShelfLoot) и кучи мусора.</summary>
+        private static void Abandon(in Context ctx, in MallLevelPlan plan, int room, SectionLayout layout, uint h, List<PropSpawn> output)
+        {
+            bool empty = ctx.Info.Biome == MallBiome.Empty;
+            bool shelves = layout is SectionLayout.Rows or SectionLayout.Perimeter or SectionLayout.Clothing or SectionLayout.Warehouse;
+            if (shelves && Hash.ToFloat01(Hash.Get(h, 0xFA11)) < (empty ? FallenShelfChanceEmpty : FallenShelfChance))
+            {
+                int4 r = plan.Rooms[room].Rect;
+                for (int attempt = 0; attempt < 6; attempt++)
+                {
+                    uint ha = Hash.Get(h, 0xFA12 + attempt);
+                    float2 p = new(math.lerp(r.x + 1.5f, r.z - 1.5f, Hash.ToFloat01(ha)), math.lerp(r.y + 1.5f, r.w - 1.5f, Hash.ToFloat01(Hash.Get(ha, 1))));
+                    if (TryAddLying(ctx, plan, room, ctx.Ids.Shelf, p, (ha >> 4) % 4 * 90f, output))
+                        break;
+                }
+            }
+            if (Hash.ToFloat01(Hash.Get(h, 0x7A54)) < (empty ? TrashChanceEmpty : TrashChance))
+                Scatter(ctx, plan, room, ctx.Ids.TrashPile, empty ? 2 : 1, h ^ 0x7A55u, output);
+        }
+
+        /// <summary>
+        /// Стеллаж лицом вниз (Pitch −90): на полу занимает ширину × высоту, опора поднята на полглубины,
+        /// верх лежит в сторону −Z (в кадре поворота). local — центр следа на полу.
+        /// </summary>
+        private static bool TryAddLying(in Context ctx, in MallLevelPlan plan, int room, ushort kind, float2 local, float yaw, List<PropSpawn> output)
+        {
+            Vector3 size = ctx.Props.Size(kind);
+            bool swap = Mathf.Abs(Mathf.Repeat(yaw, 180f) - 90f) < 1f;
+            float2 half = (swap ? new float2(size.y, size.x) : new float2(size.x, size.y)) * 0.5f;
+            int2 min = (int2)math.floor(local - half + 0.02f);
+            int2 max = (int2)math.floor(local + half - 0.02f);
+            if (min.x < 0 || min.y < 0 || max.x >= MallLayout.CellSize || max.y >= MallLayout.CellSize)
+                return false;
+            for (int z = min.y; z <= max.y; z++)
+            for (int x = min.x; x <= max.x; x++)
+            {
+                int index = MallLevelPlan.Index(x, z);
+                if (plan.Tiles[index] != (byte)Tile.Open || plan.RoomIds[index] != room)
+                    return false;
+            }
+            if (InAnomaly(ctx, ctx.Origin + local, math.length(half)))
+                return false;
+            float4 box = new(local - half - Gap, local + half + Gap);
+            foreach (var other in ctx.Occupied)
+                if (box.x < other.z && other.x < box.z && box.y < other.w && other.y < box.w)
+                    return false;
+            ctx.Occupied.Add(box);
+            Vector3 back = Quaternion.Euler(0f, yaw, 0f) * Vector3.back;
+            Vector3 pivot = new Vector3(ctx.Origin.x + local.x, ctx.FloorY + size.z * 0.5f, ctx.Origin.y + local.y) - back * (size.y * 0.5f);
+            output.Add(new PropSpawn { Def = kind, Position = pivot, Yaw = yaw, Pitch = -90f });
+            return true;
+        }
+
+        /// <summary>Пустой биом: в галереях больше мусора у скамеек.</summary>
+        private static void GalleryTrash(in Context ctx, in MallLevelPlan plan, List<PropSpawn> output)
+        {
+            if (ctx.Info.Biome != MallBiome.Empty)
+                return;
+            for (int axis = 0; axis < 2; axis++)
+            for (int along = 24; along < MallLayout.CellSize; along += 12)
+            {
+                uint h = Hash.Get(ctx.Seed, ctx.Info.Cell.x, ctx.Info.Cell.y, Salt + 7000 + ctx.Level * 64 + axis * 32 + along);
+                if (Hash.ToFloat01(h) >= 0.35f)
+                    continue;
+                float across = 2.5f + Hash.ToFloat01(Hash.Get(h, 1)) * 9f;
+                TryAdd(ctx, plan, 0, ctx.Ids.TrashPile, axis == 0 ? new float2(along, across) : new float2(across, along), (h >> 8) % 4 * 90f, output);
             }
         }
 
@@ -201,6 +484,7 @@ namespace VoidMall.World
             int4 r = plan.Rooms[room].Rect;
             bool alongX = r.z - r.x >= r.w - r.y;
             float depth = ctx.Props.Size(kind).z;
+            unit = math.max(unit, ctx.Props.Size(kind).x + Gap);
             float a0 = alongX ? r.x : r.y, a1 = alongX ? r.z : r.w;
             float b0 = alongX ? r.y : r.x, b1 = alongX ? r.w : r.z;
             float margin = 1.8f;
@@ -215,8 +499,8 @@ namespace VoidMall.World
                     if (units > 6 && u % 5 == 4)
                         continue; // поперечный проход
                     float a = start + (u + 0.5f) * unit;
-                    float2 front = alongX ? new float2(a, b - depth * 0.5f) : new float2(b - depth * 0.5f, a);
-                    float2 back = alongX ? new float2(a, b + depth * 0.5f) : new float2(b + depth * 0.5f, a);
+                    float2 front = alongX ? new float2(a, b - (depth + Gap) * 0.5f) : new float2(b - (depth + Gap) * 0.5f, a);
+                    float2 back = alongX ? new float2(a, b + (depth + Gap) * 0.5f) : new float2(b + (depth + Gap) * 0.5f, a);
                     float yaw = alongX ? 0f : 90f;
                     TryAdd(ctx, plan, room, kind, front, yaw, output);
                     TryAdd(ctx, plan, room, kind, back, yaw + 180f, output);
@@ -284,11 +568,12 @@ namespace VoidMall.World
             {
                 bool alongX = side < 2;
                 float a0 = alongX ? r.x : r.y, a1 = alongX ? r.z : r.w;
-                int units = (int)((a1 - a0 - 1f) / size.x);
-                float start = (a0 + a1) * 0.5f - units * size.x * 0.5f;
+                float step = size.x + Gap;
+                int units = (int)((a1 - a0 - 1f) / step);
+                float start = (a0 + a1) * 0.5f - units * step * 0.5f;
                 for (int u = 0; u < units; u++)
                 {
-                    float a = start + (u + 0.5f) * size.x;
+                    float a = start + (u + 0.5f) * step;
                     float2 position;
                     float yaw;
                     int2 wall;

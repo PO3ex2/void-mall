@@ -28,6 +28,9 @@ namespace VoidMall.Items
         /// <summary>Доля стеллажей, разграбленных подчистую.</summary>
         private const float LootedChance = 0.15f;
 
+        /// <summary>В пустом биоме (GDD §2.9): доля полок, где осталась одна находка, остальные пусты.</summary>
+        private const float EmptyBiomeFindChance = 0.05f;
+
         /// <summary>Доля испорченной еды на полках: съесть можно, но вдвое меньше калорий и отравление.</summary>
         private const float SpoiledChance = 0.25f;
 
@@ -140,6 +143,11 @@ namespace VoidMall.Items
             // Заполненность этого стеллажа: часть разграблена, остальные от «пара банок» до «почти полный».
             if (Hash.ToFloat01(Hash.Get(seed, 1)) < LootedChance)
                 return;
+            // Пустой биом: почти всё вынесено — изредка одна находка на полку, поэтому лут там ценен.
+            bool emptyBiome = ChunkManager.Instance != null
+                && ChunkManager.Instance.GetCellInfo(MallLayout.CellOf(prop.transform.position)).Biome == MallBiome.Empty;
+            if (emptyBiome && Hash.ToFloat01(Hash.Get(seed, 12)) >= EmptyBiomeFindChance)
+                return;
             float shelfFill = math.lerp(0.25f, 1.3f, Hash.ToFloat01(Hash.Get(seed, 2)));
             float worldAmount = ChunkManager.Instance != null && ChunkManager.Instance.Settings != null ? ChunkManager.Instance.Settings.LootAmount : 1f;
             float chance = math.saturate(table.Fill * shelfFill * worldAmount * LootScale.Value);
@@ -147,10 +155,12 @@ namespace VoidMall.Items
             var shelf = new Shelf { Prop = prop };
             for (int slot = 0; slot < _slots.Count; slot++)
             {
+                if (emptyBiome && shelf.Items.Count > 0)
+                    break;
                 if (memory != null && memory.Taken.Contains(slot))
                     continue;
                 // Шаг 1: есть ли тут вообще что-то.
-                if (Hash.ToFloat01(Hash.Get(seed, slot, 3)) >= chance)
+                if (!emptyBiome && Hash.ToFloat01(Hash.Get(seed, slot, 3)) >= chance)
                     continue;
                 // Шаг 2: что именно (несколько попыток подобрать то, что влезает на это место).
                 var place = _slots[slot];
@@ -181,6 +191,12 @@ namespace VoidMall.Items
                     });
                     break;
                 }
+            }
+            // Поваленный стеллаж (заброшенный вид): товар рассыпан по полу рядом, а не лежит на полках.
+            if (prop.transform.up.y < 0.5f)
+            {
+                ScatterOnFloor(prop, shelf, seed);
+                return;
             }
             if (shelf.Items.Count > 0)
             {
@@ -221,7 +237,51 @@ namespace VoidMall.Items
 
         private void OnPropWoken(PropBody prop) => Spill(prop);
 
-        private void OnPropRemoved(PropBody prop, PropRemoveReason reason) => Spill(prop);
+        private void OnPropRemoved(PropBody prop, PropRemoveReason reason)
+        {
+            Spill(prop);
+            if (reason == PropRemoveReason.Broken && prop.Def.Shape == PropShape.LootCrate)
+                BreakCrate(prop);
+        }
+
+        /// <summary>Товары поваленного стеллажа — физическими предметами на полу вокруг него (один раз за сессию).</summary>
+        private void ScatterOnFloor(PropBody prop, Shelf shelf, uint seed)
+        {
+            Memory(prop.Id).Spilled = true;
+            var items = WorldItems.Instance;
+            if (items == null)
+                return;
+            Bounds bounds = prop.Bounds;
+            for (int i = 0; i < shelf.Items.Count; i++)
+            {
+                float u = Hash.ToFloat01(Hash.Get(seed, i, 21)) * 2f - 1f, v = Hash.ToFloat01(Hash.Get(seed, i, 22)) * 2f - 1f;
+                var position = new Vector3(bounds.center.x + u * (bounds.extents.x + 0.6f), bounds.min.y + 0.15f, bounds.center.z + v * (bounds.extents.z + 0.6f));
+                var rotation = Quaternion.Euler(0f, Hash.ToFloat01(Hash.Get(seed, i, 23)) * 360f, 0f);
+                items.Spawn(CreateStack(shelf.Items[i]), position + Vector3.up * 0.4f, Vector3.zero, rotation, tumble: true);
+            }
+        }
+
+        /// <summary>Ящик с лутом разбит: высыпается 2–4 вещи из таблицы «crate» и облако пенопластового наполнителя.</summary>
+        private void BreakCrate(PropBody prop)
+        {
+            var system = ItemSystem.Instance;
+            Bounds bounds = prop.Bounds;
+            if (PropManager.Instance != null)
+                DustFx.Burst(PropManager.Instance.DustMaterial, bounds, 260, new Color(0.97f, 0.97f, 0.95f, 1f), new Color(0.9f, 0.9f, 0.88f, 0.8f));
+            var table = system?.Loot?.ForSection("crate");
+            if (table == null || WorldItems.Instance == null)
+                return;
+            uint seed = (uint)(prop.Id ^ (prop.Id >> 32)) ^ 0xC4A7E5u;
+            int count = 2 + (int)(Hash.Get(seed, 1) % 3);
+            for (int i = 0; i < count; i++)
+            {
+                if (!table.Roll(Hash.Get(seed, i, 2), out var def, out int amount) || !system.Items.TryGetIndex(def.Id, out ushort index))
+                    continue;
+                var stack = system.Items.Create(index, amount);
+                Vector3 velocity = new Vector3(Hash.ToFloat01(Hash.Get(seed, i, 3)) - 0.5f, 1.2f, Hash.ToFloat01(Hash.Get(seed, i, 4)) - 0.5f) * 2.5f;
+                WorldItems.Instance.Spawn(stack, bounds.center + Vector3.up * 0.2f, velocity);
+            }
+        }
 
         /// <summary>
         /// Полку сдвинули или сломали: каждый товар становится физическим предметом ровно там, где стоял, и дальше

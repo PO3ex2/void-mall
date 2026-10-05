@@ -27,7 +27,7 @@ namespace VoidMall.World
                 ? MallLayout.Kind(level) switch { LevelKind.Parking => "парковка", LevelKind.Tech => "служебный коридор", _ => "галерея" }
                 : room.Has(RoomFlags.Stairwell) ? "лестничная клетка" : world.Sections.Defs[room.Section].DisplayName;
             string flags = room.Has(RoomFlags.Dark) ? ", тёмная" : string.Empty;
-            return $"Этаж {MallLayout.LevelName(level)} · {place}{flags} (комната {roomId}, {_plan.TileAt(local.x, local.y)}) · ячейка ({cell.x}, {cell.y})";
+            return $"Этаж {MallLayout.LevelName(level)} · {place}{flags} (комната {roomId}, {_plan.TileAt(local.x, local.y)}) · ячейка ({cell.x}, {cell.y}), {world.GetCellInfo(cell).Biome.DisplayName()}";
         }
 
         private static void EnsurePlan(ChunkManager world, int2 cell, int level)

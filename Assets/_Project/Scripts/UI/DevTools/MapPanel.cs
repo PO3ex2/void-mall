@@ -64,7 +64,7 @@ namespace VoidMall.UI
             _marker.style.borderBottomLeftRadius = _marker.style.borderBottomRightRadius = 4f;
             _image.Add(_marker);
 
-            var legend = new Label("жёлтый — лестница, голубой — лифт, чёрный — пустота атриума, фиолетовый — аномалия; цвета комнат — разделы")
+            var legend = new Label("жёлтый — лестница, голубой — лифт, чёрный — пустота атриума, фиолетовый — аномалия; цвета комнат — разделы; блёклые ячейки — пустые разделы, сиреневые — поле аномалий")
             {
                 pickingMode = PickingMode.Ignore,
             };
@@ -101,7 +101,7 @@ namespace VoidMall.UI
                 _seed = world.Seed;
                 _texture = LayoutPreview.Render(world.Seed, world.AnomalyFrequency, world.Sections, cell, RadiusCells, level, _texture);
                 _image.image = _texture;
-                _title.text = $"Этаж {MallLayout.LevelName(level)} · ячейка ({cell.x}, {cell.y}) · [F6] закрыть";
+                _title.text = $"Этаж {MallLayout.LevelName(level)} · ячейка ({cell.x}, {cell.y}), {world.GetCellInfo(cell).Biome.DisplayName()} · [F6] закрыть";
             }
 
             // Маркер: X — слева направо, Z — снизу вверх (координата top отсчитывается сверху).

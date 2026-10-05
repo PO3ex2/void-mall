@@ -9,6 +9,23 @@ float _VM_Skylight;
 float _VM_EmergencyWave;
 float _VM_Time;
 
+// Ячейки поля аномалий вокруг камеры (x, z — номер макроячейки): там лампы мерцают чаще (FieldFlickerLampChance).
+float4 _VM_FieldCells[9];
+float _VM_FieldCount;
+
+bool VM_InField(int3 cell)
+{
+    int2 macro = int2(cell.x >> 6, cell.z >> 6);
+    for (int i = 0; i < 9; i++)
+    {
+        if (i >= (int)_VM_FieldCount)
+            break;
+        if ((int)_VM_FieldCells[i].x == macro.x && (int)_VM_FieldCells[i].y == macro.y)
+            return true;
+    }
+    return false;
+}
+
 uint VM_Rotl(uint v, int c) { return (v << c) | (v >> (32 - c)); }
 uint VM_Round(uint h, uint v) { h += v * 3266489917u; return VM_Rotl(h, 17) * 668265263u; }
 uint VM_Avalanche(uint h)
@@ -61,7 +78,7 @@ float VM_LampIntensity(int3 cell)
     float on = 1;
     if (margin > -0.03)
         on = VM_Flicker(lamp, _VM_Time, 14.0);
-    if (roll < 0.05 + 0.08)
+    if (roll < 0.05 + (VM_InField(cell) ? 0.35 : 0.08))
         on *= VM_Flicker(lamp ^ 0x9E3779B9u, _VM_Time, 7.0);
     return on;
 }

@@ -107,6 +107,27 @@ namespace VoidMall.World
             return world.RegenerateColumn(column) ? $"Колонна ({column.x}, {column.y}) перегенерируется." : "Колонна не загружена.";
         }
 
+        [ConsoleCommand("biome", "Биом ячейки под игроком и карта биомов 9×9 вокруг (Н — обычный, П — пустой, А — поле аномалий).")]
+        private static string Biome()
+        {
+            if (!TryGetWorld(out var world, out var error))
+                return error;
+            int2 center = MallLayout.CellOf(PlayerPosition());
+            var sb = new System.Text.StringBuilder();
+            sb.Append($"Ячейка ({center.x}, {center.y}): {world.GetCellInfo(center).Biome.DisplayName()}\n");
+            for (int dz = 4; dz >= -4; dz--)
+            {
+                for (int dx = -4; dx <= 4; dx++)
+                {
+                    var biome = world.GetCellInfo(center + new int2(dx, dz)).Biome;
+                    char c = biome switch { MallBiome.Empty => 'П', MallBiome.AnomalyField => 'А', _ => 'Н' };
+                    sb.Append(dx == 0 && dz == 0 ? '[' : ' ').Append(c).Append(dx == 0 && dz == 0 ? ']' : ' ');
+                }
+                sb.Append('\n');
+            }
+            return sb.ToString().TrimEnd();
+        }
+
         private struct AnomalyEntry
         {
             public string Kind;

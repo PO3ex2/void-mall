@@ -113,6 +113,11 @@ namespace VoidMall.Editor
             new("fblock.sliding_door_1", "Автоматическая дверь 1×3", MaterialKind.Functional, BlockPattern.Glass, 300, placeable: false, function: FunctionalKind.SlidingDoor, size: new Vector3Int(1, 3, 1)),
             new("fblock.sliding_door_2", "Автоматическая дверь 2×3", MaterialKind.Functional, BlockPattern.Glass, 500, placeable: false, function: FunctionalKind.SlidingDoor, size: new Vector3Int(2, 3, 1)),
             new("fblock.sliding_door_4", "Автоматическая дверь 4×3", MaterialKind.Functional, BlockPattern.Glass, 900, placeable: false, function: FunctionalKind.SlidingDoor, size: new Vector3Int(4, 3, 1)),
+            // Этап 8Б: стройматериалы с технического этажа.
+            new("block.foam_concrete", "Пеноблок", MaterialKind.Block, BlockPattern.Concrete, 350, tint: new Color(1.12f, 1.12f, 1.08f)),
+            new("block.planks", "Дощатый настил", MaterialKind.Block, BlockPattern.Wood, 300, tint: new Color(1.25f, 1.15f, 1f)),
+            // Вода фонтана: непрозрачная гладь (прозрачная на уровне пола просвечивала потолок этажа ниже); пока с коллизией.
+            new("block.water", "Вода", MaterialKind.Block, BlockPattern.Glass, 40, placeable: false, tint: new Color(0.3f, 0.52f, 0.68f)),
         };
 
         /// <summary>Блок пола → его гладкий двойник.</summary>
@@ -291,6 +296,10 @@ namespace VoidMall.Editor
             new("section.tech", "Вентиляционная", SectionLayout.Tech, "block.concrete", "block.concrete", "block.concrete", "block.concrete", 1f, 0, new Color(0.35f, 0.35f, 0.4f), service: true, serviceTech: 1f, station: CraftStation.Crusher, stationChance: 0.3f),
             // Щитовые: всегда — служебная комната ядра на парковке, изредка — подсобки магазинов, пара на техническом этаже.
             new("section.electrical", "Щитовая", SectionLayout.Electrical, "block.tile_dark", "block.paint_gray", "block.facade_dark", "block.concrete", 1f, 0, new Color(0.95f, 0.8f, 0.2f), service: true, serviceRetail: 0.12f, serviceTech: 0.07f, serviceParking: 1f),
+            // Офисы — закулисье магазинов: внутренние комнаты квартала без витрины (GDD §2.9).
+            new("section.office", "Офис", SectionLayout.Office, "block.carpet", "block.drywall", "block.facade_light", "block.ceiling_tile", 1f, 0, new Color(0.55f, 0.65f, 0.8f), service: true, serviceRetail: 2.5f),
+            // Склад стройматериалов на техническом этаже: поддоны с пеноблоками, досками и цементом.
+            new("section.construction", "Склад стройматериалов", SectionLayout.Construction, "block.concrete", "block.concrete", "block.concrete", "block.concrete", 1f, 0, new Color(0.75f, 0.6f, 0.45f), service: true, serviceTech: 0.5f, station: CraftStation.Crusher, stationChance: 0.25f),
         };
 
         private static void CreateMallAssets(MaterialCatalog catalog)

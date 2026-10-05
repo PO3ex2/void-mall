@@ -28,6 +28,16 @@ namespace VoidMall.World
         public const int AtriumAlongMax = 46;
         public const int AtriumLaneWidth = 3;
 
+        /// <summary>Линия фасада входа в мол поперёк западной галереи (z ячейки) и ряд турникетов перед ним.</summary>
+        public const int EntranceZ = 17;
+        public const float EntranceTurnstileZ = 20.5f;
+
+        /// <summary>Доля ячеек со входом в мол в глубине (у старта — всегда).</summary>
+        public const float EntranceChance = 0.03f;
+
+        /// <summary>Тупики: стена поперёк отрезка галереи (на уровень и полосу) и служебный коридор между магазинами.</summary>
+        public const float DeadEndChance = 0.1f, CorridorChance = 0.3f;
+
         public const int RampLength = 20;
         public const int RampWidth = 4;
 
@@ -41,7 +51,7 @@ namespace VoidMall.World
 
         public static MallCellInfo GetCellInfo(uint seed, float anomalyFrequency, int2 cell)
         {
-            var info = new MallCellInfo { Cell = cell };
+            var info = new MallCellInfo { Cell = cell, Biome = BiomeOf(seed, anomalyFrequency, cell) };
             CoreOf(seed, cell, out info.Rotation, out info.CoreOffset, out info.CoreRect);
             info.AtriumX = Hash.Get(seed, cell.x, cell.y, SaltCell + 1) % 100 < 45;
             info.AtriumZ = Hash.Get(seed, cell.x, cell.y, SaltCell + 2) % 100 < 45;
@@ -59,6 +69,10 @@ namespace VoidMall.World
                 info.HasRamp = true;
                 info.RampMin = new int2(x0, z0);
             }
+
+            int2 spawn = SpawnCell(seed, anomalyFrequency);
+            info.NearSpawn = math.all(math.abs(cell - spawn) <= 1);
+            info.HasEntrance = cell.Equals(spawn) || Hash.ToFloat01(Hash.Get(seed, cell.x, cell.y, SaltCell + 50)) < EntranceChance;
 
             PlaceAnomaly(seed, anomalyFrequency, ref info);
             AdoptBigAbyss(seed, anomalyFrequency, ref info);
@@ -115,6 +129,115 @@ namespace VoidMall.World
             info.AnomalyCenter = MallLayout.CellOrigin(cell) + BlockToCell(new float2(u, v), info.Rotation);
         }
 
+        // ───────────────────────────── Биомы ─────────────────────────────
+
+        /// <summary>Шаг решётки центров пятен биомов, ячеек: пятна выходят по 1–6 ячеек, в среднем около четырёх.</summary>
+        public const int BiomeSiteSpacing = 2;
+
+        /// <summary>Доли биомов по центрам пятен: пустые — самые частые, поле аномалий — редкое.</summary>
+        public const float BiomeEmptyShare = 0.5f, BiomeFieldShare = 0.1f;
+
+        private const int SaltBiome = 7300;
+
+        /// <summary>
+        /// Биом ячейки: Вороной по центрам на решётке BiomeSiteSpacing со случайным сдвигом, биом центра — по хешу.
+        /// Ячейка старта и её соседи — всегда обычный мол (на старте должно быть что взять).
+        /// </summary>
+        public static MallBiome BiomeOf(uint seed, float anomalyFrequency, int2 cell)
+        {
+            int2 spawn = SpawnCell(seed, anomalyFrequency);
+            if (math.all(math.abs(cell - spawn) <= 1))
+                return MallBiome.Normal;
+            int2 block = (int2)math.floor((float2)cell / BiomeSiteSpacing);
+            float2 p = (float2)cell + 0.5f;
+            float best = float.MaxValue;
+            uint winner = 0;
+            for (int dz = -1; dz <= 1; dz++)
+            for (int dx = -1; dx <= 1; dx++)
+            {
+                int2 b = block + new int2(dx, dz);
+                uint h = Hash.Get(seed, b.x, b.y, SaltBiome);
+                float2 site = (float2)(b * BiomeSiteSpacing) + new float2(Hash.ToFloat01(h), Hash.ToFloat01(Hash.Get(h, 1))) * BiomeSiteSpacing;
+                float d = math.distancesq(p, site);
+                if (d < best)
+                {
+                    best = d;
+                    winner = Hash.Get(h, 2);
+                }
+            }
+            float r = Hash.ToFloat01(winner);
+            return r < BiomeFieldShare ? MallBiome.AnomalyField
+                : r < BiomeFieldShare + BiomeEmptyShare ? MallBiome.Empty
+                : MallBiome.Normal;
+        }
+
+        /// <summary>Множитель частоты аномалий и маркеров в биоме.</summary>
+        public static float BiomeAnomalyMul(MallBiome biome) => biome switch
+        {
+            MallBiome.Empty => 0.5f,
+            MallBiome.AnomalyField => 3.5f,
+            _ => 1f,
+        };
+
+        /// <summary>Ячейка старта: первая к востоку от начала координат (y = 0) без выреза. Биом там всегда обычный.</summary>
+        public static int2 SpawnCell(uint seed, float anomalyFrequency)
+        {
+            for (int x = 0; x < 64; x++)
+                if (RollAnomalyRaw(seed, anomalyFrequency, new int2(x, 0)) != AnomalyKind.Cutout)
+                    return new int2(x, 0);
+            return int2.zero;
+        }
+
+
+        // ───────────────────────────── Площади и стенды ─────────────────────────────
+
+        /// <summary>Круглая площадь на пересечении галерей (центр — колонна (7, 7)): доля уровней и доля с фонтаном.</summary>
+        public const float RoundPlazaChance = 0.25f, FountainChance = 0.5f;
+
+        /// <summary>Радиусы (по центрам клеток): узор пола, бортик фонтана (внешний), вода, кольцо скамеек.</summary>
+        public const float PlazaRadius = 6.4f, FountainRadius = 3.9f, FountainWaterRadius = 3f, PlazaBenchRadius = 5.2f;
+
+        public static readonly float2 PlazaCenter = new(7f, 7f);
+
+        /// <summary>Стенд с машиной в галерее: доля уровней, размер подиума (вдоль, поперёк), высота.</summary>
+        public const float CarStandChance = 0.06f;
+        public static readonly float2 CarStandSize = new(6f, 3.6f);
+        public const float CarStandHeight = 0.3f;
+
+        /// <summary>Круглая площадь на этом торговом уровне (fountain — с фонтаном вокруг колонны).</summary>
+        public static bool RoundPlaza(uint seed, in MallCellInfo info, int level, out bool fountain)
+        {
+            fountain = false;
+            if (MallLayout.Kind(level) != LevelKind.Retail)
+                return false;
+            uint h = Hash.Get(seed, info.Cell.x, info.Cell.y, SaltCell + 80 + level);
+            if (Hash.ToFloat01(h) >= RoundPlazaChance)
+                return false;
+            fountain = Hash.ToFloat01(Hash.Get(h, 1)) < FountainChance;
+            return true;
+        }
+
+        /// <summary>
+        /// Стенд с машиной: подиум посреди отрезка галереи между площадью и атриумом (вдоль 36…42 — там не бывает
+        /// ни тупиков, ни атриума другой полосы). Полоса с атриумом не подходит.
+        /// </summary>
+        public static bool CarStand(uint seed, in MallCellInfo info, int level, out float2 center, out bool alongX)
+        {
+            center = default;
+            alongX = false;
+            if (MallLayout.Kind(level) != LevelKind.Retail || info.NearSpawn)
+                return false;
+            uint h = Hash.Get(seed, info.Cell.x, info.Cell.y, SaltCell + 90 + level);
+            if (Hash.ToFloat01(h) >= CarStandChance)
+                return false;
+            alongX = (h >> 20) % 2 == 0;
+            if (alongX ? info.AtriumX : info.AtriumZ)
+                alongX = !alongX;
+            if (alongX ? info.AtriumX : info.AtriumZ)
+                return false;
+            center = alongX ? new float2(39f, 7f) : new float2(7f, 39f);
+            return true;
+        }
         // ───────────────────────────── Размеры бездн и котлованов ─────────────────────────────
 
         /// <summary>Радиус чаши котлована: зона (с кромкой) от 13 до 30 м в поперечнике, всегда внутри квартала.</summary>
@@ -129,8 +252,11 @@ namespace VoidMall.World
         /// <summary>Шаг решётки узлов, где может родиться большая бездна.</summary>
         public const int BigAnomalySpacing = 3;
 
-        /// <summary>Своя аномалия ячейки — только по броску, без учёта соседей.</summary>
-        private static AnomalyKind RollAnomaly(uint seed, float frequency, int2 cell)
+        /// <summary>Своя аномалия ячейки — только по броску, без учёта соседей (частота с поправкой на биом ячейки).</summary>
+        private static AnomalyKind RollAnomaly(uint seed, float frequency, int2 cell) =>
+            RollAnomalyRaw(seed, frequency * BiomeAnomalyMul(BiomeOf(seed, frequency, cell)), cell);
+
+        private static AnomalyKind RollAnomalyRaw(uint seed, float frequency, int2 cell)
         {
             float roll = Hash.ToFloat01(Hash.Get(seed, cell.x, cell.y, SaltCell + 20));
             // В узлах решётки бездна чаще — только там она бывает огромной.
@@ -259,7 +385,7 @@ namespace VoidMall.World
             for (int kind = 1; kind <= 2; kind++)
             {
                 int2 cell = info.Cell;
-                if (Hash.ToFloat01(Hash.Get(seed, cell.x, cell.y, SaltCell + 30 + kind)) >= 0.12f * frequency)
+                if (Hash.ToFloat01(Hash.Get(seed, cell.x, cell.y, SaltCell + 30 + kind)) >= 0.12f * frequency * BiomeAnomalyMul(info.Biome))
                     continue;
                 uint h = Hash.Get(seed, cell.x, cell.y, SaltCell + 40 + kind);
                 int level = (int)(h % MallLayout.LevelCount);
@@ -286,15 +412,8 @@ namespace VoidMall.World
         /// </summary>
         public static float3 FindSpawn(uint seed, float anomalyFrequency)
         {
-            for (int x = 0; x < 64; x++)
-            {
-                var info = GetCellInfo(seed, anomalyFrequency, new int2(x, 0));
-                if (info.Anomaly == AnomalyKind.Cutout)
-                    continue;
-                float2 origin = MallLayout.CellOrigin(info.Cell);
-                return new float3(origin.x + 2.5f, MallLayout.FloorTop(MallLayout.FirstRetailLevel), origin.y + 24.5f);
-            }
-            return new float3(2.5f, MallLayout.FloorTop(MallLayout.FirstRetailLevel), 24.5f);
+            float2 origin = MallLayout.CellOrigin(SpawnCell(seed, anomalyFrequency));
+            return new float3(origin.x + 2.5f, MallLayout.FloorTop(MallLayout.FirstRetailLevel), origin.y + 24.5f);
         }
 
         // ───────────────────────────── План уровня ─────────────────────────────
@@ -326,7 +445,7 @@ namespace VoidMall.World
             {
                 BuildBlock(seed, info, level, kind, ref plan, tiles, rooms);
                 CopyBlock(info, tiles, rooms, ref plan, coreOnly: false);
-                BuildGalleries(info, level, ref plan);
+                BuildGalleries(seed, info, level, ref plan);
             }
             AssignSections(seed, info, level, sections, ref plan);
 
@@ -363,6 +482,26 @@ namespace VoidMall.World
             bool anchor = kind == LevelKind.Retail && style % 100 < 18;
             Partition(seed, info.Cell, new int4(1, 13, Block - 1, Block - 1), stripOnly: false, maxSide: anchor ? 999 : 20, salt + 3000, leaves, splits);
 
+            // Служебный коридор-тупик (GDD §2.9): от самого широкого магазина южной полосы отрезаем 2 клетки и стену.
+            int corridor = -1;
+            if (kind == LevelKind.Retail && Hash.ToFloat01(Hash.Get(seed, info.Cell.x, info.Cell.y, salt + 6000)) < CorridorChance)
+            {
+                int widest = -1;
+                for (int i = 0; i < leaves.Length; i++)
+                {
+                    int4 r = leaves[i];
+                    if (r.y == 1 && r.w == 12 && r.z - r.x >= 9 && (widest < 0 || r.z - r.x > leaves[widest].z - leaves[widest].x))
+                        widest = i;
+                }
+                if (widest >= 0)
+                {
+                    int4 r = leaves[widest];
+                    leaves[widest] = new int4(r.x, r.y, r.z - 3, r.w);
+                    leaves.Add(new int4(r.z - 2, r.y, r.z, r.w));
+                    corridor = leaves.Length - 1;
+                }
+            }
+
             for (int i = 0; i < leaves.Length; i++)
             {
                 int4 r = leaves[i];
@@ -381,6 +520,18 @@ namespace VoidMall.World
             // Двери в стенах-разрезах BSP.
             for (int i = 0; i < splits.Length; i++)
                 PlaceDoor(seed, info.Cell, salt + 5000 + i, splits[i], tiles, rooms);
+            // Коридор — тупик: дверь разреза, попавшая на его боковую стену, снова становится стеной.
+            if (corridor >= 0)
+            {
+                int4 cr = leaves[corridor];
+                for (int z = cr.y; z < cr.w; z++)
+                {
+                    if (tiles[B(cr.x - 1, z)] == (byte)Tile.Door)
+                        tiles[B(cr.x - 1, z)] = (byte)Tile.Wall;
+                    if (cr.z < Block && tiles[B(cr.z, z)] == (byte)Tile.Door)
+                        tiles[B(cr.z, z)] = (byte)Tile.Wall;
+                }
+            }
 
             // Комнаты, к которым прилегают стены и фасады (для материалов).
             for (int z = 0; z < Block; z++)
@@ -401,6 +552,15 @@ namespace VoidMall.World
             {
                 int roomIndex = 1 + i;
                 var room = plan.Rooms[roomIndex];
+                if (i == corridor)
+                {
+                    // Вход в коридор — проём (иногда с дверью) прямо в фасаде, витрины нет.
+                    for (int x = room.Rect.x; x < room.Rect.z; x++)
+                        tiles[B(x, 0)] = (byte)Tile.Door;
+                    room.Flags |= RoomFlags.Service | RoomFlags.Corridor;
+                    plan.Rooms[roomIndex] = room;
+                    continue;
+                }
                 uint hr = Hash.Get(seed, info.Cell.x, info.Cell.y, SaltRoom + level * 256 + roomIndex);
                 // Закрытыми (рольставни) бывают только небольшие магазины.
                 int area = (room.Rect.z - room.Rect.x) * (room.Rect.w - room.Rect.y);
@@ -611,11 +771,17 @@ namespace VoidMall.World
             }
         }
 
-        private static void BuildGalleries(in MallCellInfo info, int level, ref MallLevelPlan plan)
+        private static void BuildGalleries(uint seed, in MallCellInfo info, int level, ref MallLevelPlan plan)
         {
+            // Колонна на перекрёстке; на уровне с фонтаном её место занимает фонтан.
+            bool fountain = RoundPlaza(seed, info, level, out bool hasFountain) && hasFountain;
             for (int z = 6; z <= 7; z++)
             for (int x = 6; x <= 7; x++)
-                plan.Tiles[MallLevelPlan.Index(x, z)] = (byte)Tile.Pillar;
+                plan.Tiles[MallLevelPlan.Index(x, z)] = (byte)(fountain ? Tile.Open : Tile.Pillar);
+
+            BuildDeadEnds(seed, info, level, ref plan);
+            if (info.HasEntrance && level == MallLayout.FirstRetailLevel)
+                BuildEntrance(ref plan);
 
             int floor = MallLayout.RetailFloor(level);
             if (floor < 0)
@@ -624,6 +790,49 @@ namespace VoidMall.World
                 BuildAtrium(ref plan, floor, alongX: true);
             if (info.AtriumZ)
                 BuildAtrium(ref plan, floor, alongX: false);
+        }
+
+        /// <summary>
+        /// Вход в мол: поперёк западной галереи — фасад со стеклом и двумя автодверями 4×3 (в проёме галереи двери
+        /// есть всегда), перед ним ряд турникетов и касс (PropPlacer). За дверями — такой же мол.
+        /// </summary>
+        private static void BuildEntrance(ref MallLevelPlan plan)
+        {
+            for (int x = 0; x < Band; x++)
+            {
+                Tile t = x == 0 || x == Band - 1 ? Tile.FacadeWall
+                    : (x >= 2 && x < 6) || (x >= 8 && x < 12) ? Tile.FacadeDoor
+                    : Tile.FacadeGlass;
+                plan.Tiles[MallLevelPlan.Index(x, EntranceZ)] = (byte)t;
+            }
+        }
+
+        /// <summary>
+        /// Тупик в галерее: поперёк отрезка между площадями — глухая стена или ряд рольставен (их можно поддеть ломом).
+        /// Не больше одного на полосу и уровень, поэтому обе половины отрезка остаются связаны со своими площадями.
+        /// Не у старта, не поперёк атриума и не у входа в мол.
+        /// </summary>
+        private static void BuildDeadEnds(uint seed, in MallCellInfo info, int level, ref MallLevelPlan plan)
+        {
+            if (info.NearSpawn)
+                return;
+            for (int axis = 0; axis < 2; axis++)
+            {
+                uint h = Hash.Get(seed, info.Cell.x, info.Cell.y, SaltCell + 60 + level * 2 + axis);
+                if (Hash.ToFloat01(h) >= DeadEndChance)
+                    continue;
+                // Вне площади (0…13) и атриума (31…46): 18…28 или 50…60.
+                int along = (h >> 8) % 2 == 0 ? 18 + (int)((h >> 9) % 11) : 50 + (int)((h >> 9) % 11);
+                if (axis == 1 && info.HasEntrance && level == MallLayout.FirstRetailLevel && along < 30)
+                    continue;
+                bool shutter = (h >> 16) % 2 == 0;
+                for (int across = 0; across < Band; across++)
+                {
+                    Tile t = !shutter ? Tile.Wall : across == 0 || across == Band - 1 ? Tile.FacadeWall : Tile.Shutter;
+                    int index = axis == 0 ? MallLevelPlan.Index(along, across) : MallLevelPlan.Index(across, along);
+                    plan.Tiles[index] = (byte)t;
+                }
+            }
         }
 
         /// <summary>

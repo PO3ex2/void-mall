@@ -27,6 +27,9 @@ namespace VoidMall.World
         public const float DeadLampChance = 0.05f;
         public const float FlickerLampChance = 0.08f;
 
+        /// <summary>То же в поле аномалий (GDD §2.9): лампы там мерцают в несколько раз чаще.</summary>
+        public const float FieldFlickerLampChance = 0.35f;
+
         /// <summary>Ширина зоны мерцания вокруг фазы отключения группы (доля волны).</summary>
         public const float TransitionWidth = 0.03f;
         public const float EmergencyFlickerWidth = 0.06f;
@@ -90,7 +93,7 @@ namespace VoidMall.World
             Hash.ToFloat01(Hash.Get(seed, group.x, group.y, group.z, SaltDark)) < DarkGroupChance;
 
         /// <summary>Множитель яркости обычной лампы (0…1).</summary>
-        public static float LampIntensity(uint seed, int3 cell, float wave, float time)
+        public static float LampIntensity(uint seed, int3 cell, float wave, float time, bool field = false)
         {
             int3 group = GroupOf(cell);
             if (IsDarkGroup(seed, group))
@@ -107,14 +110,14 @@ namespace VoidMall.World
             float on = 1f;
             if (margin > -TransitionWidth)
                 on = Flicker(lamp, time, 14f);
-            if (roll < DeadLampChance + FlickerLampChance)
+            if (roll < DeadLampChance + (field ? FieldFlickerLampChance : FlickerLampChance))
                 on *= Flicker(lamp ^ 0x9E3779B9u, time, 7f);
             return on;
         }
 
-        public static float Intensity(uint seed, int3 cell, LampKind kind, float wave, float skylight, float emergencyWave, float time) => kind switch
+        public static float Intensity(uint seed, int3 cell, LampKind kind, float wave, float skylight, float emergencyWave, float time, bool field = false) => kind switch
         {
-            LampKind.Lamp => LampIntensity(seed, cell, wave, time),
+            LampKind.Lamp => LampIntensity(seed, cell, wave, time, field),
             LampKind.Emergency => EmergencyIntensity(seed, cell, emergencyWave, time),
             LampKind.Skylight => skylight,
             _ => 0f,

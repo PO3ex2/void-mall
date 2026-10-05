@@ -52,6 +52,7 @@ namespace VoidMall.World
                         Color32 color = TileColor(plan, sections, x, z, level);
                         if (InAnomaly(info, level, origin + new float2(x + 0.5f, z + 0.5f)))
                             color = Color32.Lerp(color, Anomaly, 0.6f);
+                        color = BiomeTint(color, info.Biome);
                         pixels[(cx * MallLayout.CellSize + x) + (cz * MallLayout.CellSize + z) * size] = color;
                     }
                 }
@@ -99,6 +100,26 @@ namespace VoidMall.World
                 color *= 0.55f;
             color.a = 1f;
             return color;
+        }
+
+        private static readonly Color32 FieldTint = new(170, 120, 220, 255);
+
+        /// <summary>Биом на карте: пустые разделы блёклые, поле аномалий сиреневое.</summary>
+        private static Color32 BiomeTint(Color32 color, MallBiome biome)
+        {
+            switch (biome)
+            {
+                case MallBiome.Empty:
+                {
+                    byte gray = (byte)((color.r + color.g + color.b) / 3);
+                    var flat = new Color32(gray, gray, gray, 255);
+                    return Color32.Lerp(color, flat, 0.65f);
+                }
+                case MallBiome.AnomalyField:
+                    return Color32.Lerp(color, FieldTint, 0.35f);
+                default:
+                    return color;
+            }
         }
 
         private static bool InAnomaly(in MallCellInfo info, int level, float2 world) =>

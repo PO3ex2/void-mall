@@ -1,0 +1,37 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3b6d19e156aa5a244bb1c2c0a92dc1a3, type: 3}
+  m_Name: trash_pile
+  m_EditorClassIdentifier: VoidMall.World::VoidMall.World.PropDef
+  _id: prop.trash_pile
+  DisplayName: "\u041A\u0443\u0447\u0430 \u043C\u0443\u0441\u043E\u0440\u0430"
+  Shape: 37
+  Size: {x: 1.2, y: 0.45, z: 1}
+  Mesh: {fileID: 0}
+  Material: {fileID: 0}
+  Mass: 10
+  Hardness: 40
+  DisassembleTime: 2
+  Yields:
+  - Material: material.cardboard
+    Disassembled: 2
+    Broken: 1
+  - Material: material.plastic
+    Disassembled: 2
+    Broken: 1
+  DebrisColor: {r: 0.65, g: 0.55, b: 0.4, a: 1}
+  Sleepable: 0
+  SleepQuality: 1
+  PackUp: 0
+  Station: 0
+  StationSpeed: 1
+  StationAutonomous: 0

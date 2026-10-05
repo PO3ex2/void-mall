@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2c4dae1c006d83a4d9bf27f1c5e1d607, type: 3}
+  m_Name: construction
+  m_EditorClassIdentifier: VoidMall.World::VoidMall.World.SectionDef
+  _id: section.construction
+  DisplayName: "\u0421\u043A\u043B\u0430\u0434 \u0441\u0442\u0440\u043E\u0439\u043C\u0430\u0442\u0435\u0440\u0438\u0430\u043B\u043E\u0432"
+  Weight: 1
+  MapColor: {r: 0.75, g: 0.6, b: 0.45, a: 1}
+  Layout: 11
+  Floor: {fileID: 11400000, guid: a2c7f07c96722bf4ba743217c2f0fa80, type: 2}
+  Wall: {fileID: 11400000, guid: a2c7f07c96722bf4ba743217c2f0fa80, type: 2}
+  Facade: {fileID: 11400000, guid: a2c7f07c96722bf4ba743217c2f0fa80, type: 2}
+  Ceiling: {fileID: 11400000, guid: a2c7f07c96722bf4ba743217c2f0fa80, type: 2}
+  RetailFloorMask: 0
+  Service: 1
+  ServiceWeightRetail: 0
+  ServiceWeightTech: 0.5
+  ServiceWeightParking: 0
+  Station: 5
+  StationChance: 0.25

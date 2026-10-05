@@ -80,6 +80,7 @@ namespace VoidMall.Editor
             new() { Id = "material.foam", Name = "Поролон", Category = ItemCategory.Material, Shape = ItemShape.Pack, Size = new(0.3f, 0.08f, 0.25f), Weight = 0.05f, Stack = 20, Tint = new(0.95f, 0.88f, 0.5f) },
             new() { Id = "material.pipe", Name = "Труба", Category = ItemCategory.Material, Shape = ItemShape.Pipe, Size = new(0.8f, 0.05f, 0.05f), Grid = new(3, 1), Weight = 1.2f, Stack = 10, Tint = Steel },
             new() { Id = "material.concrete_rubble", Name = "Бетонная крошка", Description = "Из копания массивов. Перфоратор наращивает ею бетон.", Category = ItemCategory.Material, Shape = ItemShape.Pile, Size = new(0.25f, 0.12f, 0.2f), Weight = 0.3f, Stack = 50, Tint = new(0.6f, 0.6f, 0.62f), Smooth = "smooth.concrete" },
+            new() { Id = "material.cement", Name = "Мешок цемента", Description = "С технического этажа. На компрессоре цемент и крошка дают вдвое больше бетонных блоков.", Category = ItemCategory.Material, Shape = ItemShape.Bag, Size = new(0.4f, 0.12f, 0.6f), Grid = new(2, 2), Weight = 5f, Stack = 10, Tint = new(0.75f, 0.73f, 0.68f) },
             new() { Id = "material.soil", Name = "Грунт", Description = "Перфоратор наращивает им грунт.", Category = ItemCategory.Material, Shape = ItemShape.Bag, Size = new(0.25f, 0.2f, 0.15f), Weight = 0.3f, Stack = 50, Tint = new(0.45f, 0.34f, 0.22f), Smooth = "smooth.soil" },
 
             // ── Еда и напитки ──
@@ -166,6 +167,10 @@ namespace VoidMall.Editor
             ("section.storage", 0.3f, new[] { ("material.chemicals", 2f, 1, 1), ("item.gas_canister", 1f, 1, 1), ("item.blueprint_sledgehammer", 0.2f, 1, 1), ("item.blueprint_drill", 0.15f, 1, 1), ("item.sleeping_bag", 0.8f, 1, 1), ("material.cardboard", 6f, 1, 4), ("material.nails", 3f, 5, 20), ("material.screws", 3f, 5, 20), ("item.canned_beans", 3f, 1, 3), ("item.water_bottle", 3f, 1, 2), ("material.plank", 4f, 1, 3), ("item.hammer", 1f, 1, 1), ("item.flashlight", 1f, 1, 1), ("item.hiking_backpack", 0.3f, 1, 1) }),
             ("section.tech", 0.25f, new[] { ("material.wire", 8f, 1, 4), ("material.pipe", 6f, 1, 2), ("material.scrap_metal", 6f, 1, 3), ("item.flashlight", 2f, 1, 1), ("item.crowbar", 1f, 1, 1), ("item.gloves_work", 2f, 1, 1), ("item.hard_hat", 1f, 1, 1) }),
             ("section.electrical", 0.3f, new[] { ("material.wire", 10f, 1, 4), ("material.fuse", 8f, 1, 4), ("material.electrical_tape", 6f, 1, 2), ("material.screws", 4f, 5, 20), ("item.flashlight", 2f, 1, 1), ("item.gloves_work", 2f, 1, 1), ("item.crowbar", 1f, 1, 1), ("item.hard_hat", 1f, 1, 1) }),
+            ("section.office", 0.3f, new[] { ("material.cardboard", 6f, 1, 3), ("material.plastic", 4f, 1, 2), ("material.electrical_tape", 4f, 1, 1), ("material.wire", 4f, 1, 2), ("material.fuse", 2f, 1, 1), ("material.screws", 2f, 5, 15), ("item.flashlight", 1.5f, 1, 1), ("item.crackers", 3f, 1, 1), ("item.chocolate", 3f, 1, 2), ("item.soda", 3f, 1, 1), ("item.water_bottle", 3f, 1, 1), ("item.painkillers", 1f, 1, 1) }),
+            ("section.construction", 0.7f, new[] { ("item.block.foam_concrete", 10f, 4, 16), ("material.plank", 8f, 2, 8), ("material.cement", 6f, 1, 2), ("material.nails", 4f, 10, 40), ("material.screws", 2f, 10, 30), ("item.hammer", 0.6f, 1, 1), ("item.gloves_work", 1f, 1, 1), ("item.hard_hat", 0.6f, 1, 1) }),
+            // Ящики с лутом (разбить): не раздел, а свой ключ таблицы.
+            ("crate", 1f, new[] { ("item.canned_beans", 5f, 1, 3), ("item.canned_meat", 4f, 1, 2), ("item.water_bottle", 5f, 1, 2), ("item.bandage", 4f, 1, 2), ("item.painkillers", 2f, 1, 1), ("item.flashlight", 2f, 1, 1), ("item.gas_canister", 1.5f, 1, 1), ("material.fuse", 3f, 1, 2), ("material.wire", 3f, 1, 3), ("material.electrical_tape", 2f, 1, 1), ("material.nails", 3f, 10, 30), ("item.crowbar", 0.8f, 1, 1), ("item.hammer", 0.8f, 1, 1), ("item.blueprint_drill", 0.3f, 1, 1), ("item.blueprint_padded_vest", 0.3f, 1, 1), ("item.hiking_backpack", 0.4f, 1, 1) }),
             ("", 0.2f, new[] { ("material.cardboard", 4f, 1, 2), ("material.plastic", 4f, 1, 2), ("item.water_bottle", 2f, 1, 1), ("item.chips", 2f, 1, 1) }),
         };
 
@@ -210,6 +215,7 @@ namespace VoidMall.Editor
                 def.PlacesBlock = material;
                 EditorUtility.SetDirty(def);
                 set.Items.Add(def);
+                byId["item.block." + shortId] = def;
             }
             // Цена починки ссылается на другие предметы — второй проход, когда все созданы.
             foreach (var spec in Specs)

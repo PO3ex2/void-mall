@@ -35,4 +35,6 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 779612a68598fe1459005d95c86ff05b, type: 2}
   - {fileID: 11400000, guid: 843d4d0681e05a945a051f799bbbae74, type: 2}
   - {fileID: 11400000, guid: 9ab2636b2c77bf446bffb9deae687d1b, type: 2}
+  - {fileID: 11400000, guid: b1c3f1fcc3ad06f448e77f60e1749150, type: 2}
+  - {fileID: 11400000, guid: b3f6fb56c40d40a44820a0ccf10036a3, type: 2}
   SectionWeights: []

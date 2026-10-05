@@ -60,6 +60,9 @@ namespace VoidMall.World
         Empty = 1 << 3,
         Service = 1 << 4,
         Stairwell = 1 << 5,
+
+        /// <summary>Служебный коридор-тупик между магазинами (GDD §2.9): узкий, кончается стеной.</summary>
+        Corridor = 1 << 6,
     }
 
     /// <summary>Комната плана. Индекс 0 — общественная зона (галерея, коридор, парковка).</summary>
@@ -87,6 +90,32 @@ namespace VoidMall.World
         Cutout,
     }
 
+    /// <summary>
+    /// Биом макроячейки (GDD §2.9): чем заполнена ячейка на всех уровнях. Соседние ячейки сливаются в пятна.
+    /// Мутный лес (этап 12Б) встанет сюда же отдельным значением.
+    /// </summary>
+    public enum MallBiome : byte
+    {
+        /// <summary>Обычный мол: мебель, лут, аномалии с базовой частотой.</summary>
+        Normal,
+
+        /// <summary>Пустые разделы — самый частый биом: мебели мало, полки пусты, аномалий вдвое меньше.</summary>
+        Empty,
+
+        /// <summary>Поле аномалий: аномалии и маркеры в несколько раз чаще, туман и мерцание ламп.</summary>
+        AnomalyField,
+    }
+
+    public static class MallBiomeNames
+    {
+        public static string DisplayName(this MallBiome biome) => biome switch
+        {
+            MallBiome.Empty => "пустые разделы",
+            MallBiome.AnomalyField => "поле аномалий",
+            _ => "обычный мол",
+        };
+    }
+
     /// <summary>Объём-маркер аномалии без геометрии (эффекты в шейдере).</summary>
     public enum AnomalyMarkerKind : byte
     {
@@ -106,6 +135,8 @@ namespace VoidMall.World
     {
         public int2 Cell;
 
+        public MallBiome Biome;
+
         /// <summary>Поворот квартала (0…3, по 90°): ядро прижато к одной из четырёх сторон.</summary>
         public int Rotation;
 
@@ -117,6 +148,12 @@ namespace VoidMall.World
 
         /// <summary>Атриум в галерее вдоль X (южная полоса) и вдоль Z (западная полоса).</summary>
         public bool AtriumX, AtriumZ;
+
+        /// <summary>Вход в мол на первом этаже (GDD §2.9): стеклянный фасад с автодверями поперёк западной галереи, турникеты, кассы.</summary>
+        public bool HasEntrance;
+
+        /// <summary>Ячейка старта или её сосед: всегда обычный биом, без тупиков.</summary>
+        public bool NearSpawn;
 
         public bool HasRamp;
 
