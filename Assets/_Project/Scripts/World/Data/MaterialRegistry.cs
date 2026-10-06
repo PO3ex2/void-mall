@@ -21,6 +21,9 @@ namespace VoidMall.World
         public MaterialKind Kind;
         public MaterialFlags Flags;
         public ushort TextureLayer;
+
+        /// <summary>Слой текстуры боковых граней (±X, ±Z); у большинства — как TextureLayer.</summary>
+        public ushort SideLayer;
         public int Hardness;
         public LampKind Lamp;
 
@@ -80,6 +83,7 @@ namespace VoidMall.World
                     Kind = def.Kind,
                     Flags = flags,
                     TextureLayer = textureLayers[i],
+                    SideLayer = def.SideMaterial != null && def.SideMaterial.RuntimeIndex >= 0 ? textureLayers[def.SideMaterial.RuntimeIndex] : textureLayers[i],
                     Hardness = def.Hardness,
                     Lamp = def.Lamp,
                     SmoothVariant = def.SmoothVariant != null && def.SmoothVariant.RuntimeIndex >= 0 ? (ushort)def.SmoothVariant.RuntimeIndex : (ushort)0,

@@ -211,6 +211,8 @@ namespace VoidMall.Items
             var world = ChunkManager.Instance;
             if (system?.Loot == null || world == null || world.Sections == null)
                 return system?.Loot?.Default;
+            if (prop.Def.Shape == PropShape.ImpulseRack)
+                return system.Loot.ForSection("impulse");
             Vector3 p = prop.transform.position;
             int2 cell = MallLayout.CellOf(p);
             int level = MallLayout.LevelAtFeet(p.y + 0.1f);
@@ -242,6 +244,33 @@ namespace VoidMall.Items
             Spill(prop);
             if (reason == PropRemoveReason.Broken && prop.Def.Shape == PropShape.LootCrate)
                 BreakCrate(prop);
+        }
+
+        private readonly HashSet<ulong> _openedRegisters = new();
+
+        /// <summary>Кассовый аппарат на этой стойке уже вскрыт (за сессию).</summary>
+        public bool IsRegisterOpened(ulong propId) => _openedRegisters.Contains(propId);
+
+        /// <summary>Вскрыть кассовый аппарат ломом: 1–2 вещи из таблицы «register» выпадают с прилавка. false — уже вскрыт.</summary>
+        public bool OpenRegister(PropBody prop)
+        {
+            if (!_openedRegisters.Add(prop.Id))
+                return false;
+            var system = ItemSystem.Instance;
+            var table = system?.Loot?.ForSection("register");
+            if (table == null || WorldItems.Instance == null)
+                return true;
+            uint seed = (uint)(prop.Id ^ (prop.Id >> 32)) ^ 0x5E61u;
+            int count = 1 + (int)(Hash.Get(seed, 1) % 2);
+            Vector3 top = prop.transform.position + Vector3.up * (prop.Def.Size.y + 0.2f);
+            for (int i = 0; i < count; i++)
+            {
+                if (!table.Roll(Hash.Get(seed, i, 2), out var def, out int amount) || !system.Items.TryGetIndex(def.Id, out ushort index))
+                    continue;
+                Vector3 velocity = new Vector3(Hash.ToFloat01(Hash.Get(seed, i, 3)) - 0.5f, 0.6f, Hash.ToFloat01(Hash.Get(seed, i, 4)) - 0.5f) * 1.5f;
+                WorldItems.Instance.Spawn(system.Items.Create(index, amount), top, velocity);
+            }
+            return true;
         }
 
         /// <summary>Товары поваленного стеллажа — физическими предметами на полу вокруг него (один раз за сессию).</summary>
@@ -317,6 +346,7 @@ namespace VoidMall.Items
             _shelves.Clear();
             _cellShelves.Clear();
             _memory.Clear();
+            _openedRegisters.Clear();
             _planLevel = -1;
             _dirtyAll = true;
         }

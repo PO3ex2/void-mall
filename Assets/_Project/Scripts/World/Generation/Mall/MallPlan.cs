@@ -149,6 +149,9 @@ namespace VoidMall.World
         /// <summary>Атриум в галерее вдоль X (южная полоса) и вдоль Z (западная полоса).</summary>
         public bool AtriumX, AtriumZ;
 
+        /// <summary>Балкон-проём вдоль полосы (только где нет атриума): этажи видно друг с друга.</summary>
+        public bool BalconyX, BalconyZ;
+
         /// <summary>Вход в мол на первом этаже (GDD §2.9): стеклянный фасад с автодверями поперёк западной галереи, турникеты, кассы.</summary>
         public bool HasEntrance;
 

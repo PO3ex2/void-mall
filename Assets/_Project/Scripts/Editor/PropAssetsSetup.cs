@@ -84,6 +84,8 @@ namespace VoidMall.Editor
             new("prop.trash_pile", "Куча мусора", PropShape.TrashPile, 10f, 40, 2f, PaperDust, ("material.cardboard", 2, 1), ("material.plastic", 2, 1)),
             new("prop.loot_crate", "Ящик с лутом", PropShape.LootCrate, 35f, 140, 4f, new Color(0.95f, 0.95f, 0.93f), ("material.plank", 2, 1), ("material.nails", 3, 1)),
             new("prop.pallet", "Поддон", PropShape.Pallet, 20f, 200, 3f, WoodDust, ("material.plank", 3, 1), ("material.nails", 4, 1)),
+            new("prop.impulse_rack", "Стойка у кассы", PropShape.ImpulseRack, 12f, 120, 3f, MetalDust, ("material.scrap_metal", 2, 1), ("material.screws", 3, 1)),
+            new("prop.work_light", "Строительная лампа", PropShape.WorkLight, 18f, 200, 4f, MetalDust, ("item.car_battery", 1, 0), ("material.scrap_metal", 2, 1), ("material.wire", 2, 1)),
         };
 
         /// <summary>На чём можно спать (E): сон сохраняет точку возрождения. Диван — хуже кровати.</summary>

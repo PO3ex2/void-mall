@@ -374,7 +374,7 @@ namespace VoidMall.World
                 {
                     Position = local,
                     Normal = normal,
-                    Uv = new float4(uv, info.TextureLayer, AoToOcclusion(ao)),
+                    Uv = new float4(uv, axis == 1 ? info.TextureLayer : info.SideLayer, AoToOcclusion(ao)),
                 });
             }
 
@@ -413,11 +413,19 @@ namespace VoidMall.World
                 ShapeVertex a = ShapeVertices[range.x + i];
                 if (a.Cull >= 0)
                 {
-                    int3 normal = new(FaceNormals[a.Cull * 3], FaceNormals[a.Cull * 3 + 1], FaceNormals[a.Cull * 3 + 2]);
+                    bool partial = a.Cull >= BlockShapes.PartialCull;
+                    int direction = partial ? a.Cull - BlockShapes.PartialCull : a.Cull;
+                    int3 normal = new(FaceNormals[direction * 3], FaceNormals[direction * 3 + 1], FaceNormals[direction * 3 + 2]);
                     if (ChunkOrigin.y + position.y + normal.y < 0)
                         continue;
                     Cell neighbor = Sample(position + normal);
-                    if (neighbor.Material != 0)
+                    // Частичная грань прячется только за таким же соседом: та же форма, поворот и материал.
+                    if (partial)
+                    {
+                        if (neighbor.Material == cell.Material && neighbor.Value == cell.Value && (neighbor.Meta & 31) == (cell.Meta & 31))
+                            continue;
+                    }
+                    else if (neighbor.Material != 0)
                     {
                         MaterialInfo neighborInfo = Materials[neighbor.Material];
                         bool solidFull = neighborInfo.IsOpaque && (neighborInfo.Kind != MaterialKind.Block || neighbor.Value == 0);

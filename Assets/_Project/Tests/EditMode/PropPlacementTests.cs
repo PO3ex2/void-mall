@@ -15,7 +15,7 @@ namespace VoidMall.Tests
             "prop.shelf", "prop.fridge", "prop.checkout", "prop.display_table", "prop.clothes_rack", "prop.table", "prop.chair",
             "prop.pallet_rack", "prop.box_stack", "prop.car", "prop.cabinet", "prop.boiler", "prop.bench", "prop.planter",
             "prop.sofa", "prop.cardboard_box", "prop.plastic_crate", "prop.trash_bin", "prop.switchboard", "prop.cable_reel", "prop.vent_unit", "prop.bed", "prop.sleeping_bag", "prop.workbench", "prop.sewing_table", "prop.chem_table", "prop.stove", "prop.burner", "prop.barricade", "prop.crusher",
-            "prop.turnstile", "prop.office_desk", "prop.office_chair", "prop.filing_cabinet", "prop.water_cooler", "prop.cubicle_wall", "prop.stanchion", "prop.trash_pile", "prop.loot_crate", "prop.pallet",
+            "prop.turnstile", "prop.office_desk", "prop.office_chair", "prop.filing_cabinet", "prop.water_cooler", "prop.cubicle_wall", "prop.stanchion", "prop.trash_pile", "prop.loot_crate", "prop.pallet", "prop.impulse_rack", "prop.work_light",
         };
 
         private PropSet _set;

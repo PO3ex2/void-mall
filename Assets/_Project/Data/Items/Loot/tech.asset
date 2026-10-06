@@ -15,6 +15,10 @@ MonoBehaviour:
   Section: section.tech
   Fill: 0.25
   Entries:
+  - Item: {fileID: 11400000, guid: 6197875116698e7418c9e8add1785455, type: 2}
+    Weight: 1.5
+    Min: 1
+    Max: 1
   - Item: {fileID: 11400000, guid: 72b45c45b372d90479d7b8d45216caac, type: 2}
     Weight: 8
     Min: 1

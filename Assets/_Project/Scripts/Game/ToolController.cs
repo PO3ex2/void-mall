@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -44,7 +45,7 @@ namespace VoidMall.Game
         private InputAction _scroll;
         private readonly InputAction[] _slots = new InputAction[Hotbar.Size];
 
-        private float _actionTimer;
+        private SwingTimer _swing;
         private bool _hasTarget;
         private VoxelHit _target;
         private bool _hasDrillTarget;
@@ -216,31 +217,23 @@ namespace VoidMall.Game
         /// <summary>Удар ЛКМ (удержание): по пропу или блоку, сила — от инструмента (или руки).</summary>
         private void HandleStriking(ItemDef item)
         {
-            if (!_primary.IsPressed())
-            {
-                _actionTimer = 0f;
-                return;
-            }
-            _actionTimer -= Time.deltaTime;
-            if (_actionTimer > 0f)
-                return;
             bool striker = item != null && (item.Tool == ToolKind.Hammer || item.Tool == ToolKind.Sledgehammer || item.Tool == ToolKind.Crowbar);
-            float power = 1f + 0.15f * PlayerSkills.LevelOf(SkillId.Wrecker);
             float interval = striker ? item.SwingInterval : 0.45f;
             var vitals = PlayerVitals.Local;
             if (vitals != null)
                 interval *= vitals.Model.SwingMultiplier;
+            // Перезарядка не сбрасывается при отпускании кнопки: частые клики не бьют быстрее удержания.
+            bool hasVictim = (_propTarget != null && PropManager.Instance != null) || _hasTarget;
+            if (!_swing.Tick(_primary.IsPressed() && hasVictim, Time.deltaTime, interval))
+                return;
+            float power = 1f + 0.15f * PlayerSkills.LevelOf(SkillId.Wrecker);
             if (_propTarget != null && PropManager.Instance != null)
             {
-                _actionTimer = interval;
                 PropManager.Instance.Damage(_propTarget, Mathf.RoundToInt((striker ? item.PropDamage : HandDamage.Value) * power));
                 if (striker)
                     WearActive();
                 return;
             }
-            if (!_hasTarget)
-                return;
-            _actionTimer = interval;
             if (item == null)
                 TryCutHands(_target.Value.Material);
             Send(new DamageBlockCommand { Position = _target.Cell, Amount = Mathf.RoundToInt((striker ? item.BlockDamage : HandDamage.Value) * power) });
@@ -408,15 +401,8 @@ namespace VoidMall.Game
         {
             bool dig = _primary.IsPressed();
             bool add = _secondary.IsPressed() && !dig;
-            if (!dig && !add)
-            {
-                _actionTimer = 0f;
+            if (!_swing.Tick((dig || add) && _hasDrillTarget, Time.deltaTime, drill.SwingInterval))
                 return;
-            }
-            _actionTimer -= Time.deltaTime;
-            if (_actionTimer > 0f || !_hasDrillTarget)
-                return;
-            _actionTimer = drill.SwingInterval;
 
             ushort material = 0;
             if (add)
@@ -562,22 +548,53 @@ namespace VoidMall.Game
                 _cracks.gameObject.SetActive(false);
                 return;
             }
-            Vector3 center = new Vector3(_target.Cell.x, _target.Cell.y, _target.Cell.z) + Vector3.one * 0.5f;
+            // Функциональный блок (дверь, ворота) — рамка и трещины на весь блок, урон копится в его якоре.
+            TargetBounds(out Vector3 center, out Vector3 size, out int3 damageCell);
             _outline.position = center;
-            float damage = DamageFraction();
+            _outline.localScale = size;
+            float damage = DamageFraction(damageCell);
             _cracks.gameObject.SetActive(damage > 0f);
             if (damage > 0f)
             {
                 _cracks.position = center;
-                _cracks.localScale = Vector3.one * 1.004f;
+                _cracks.localScale = size * 1.004f;
                 _crackInstance.SetFloat(DamageId, damage);
             }
         }
 
-        private float DamageFraction()
+        private static readonly List<int3> FootprintCells = new();
+
+        private void TargetBounds(out Vector3 center, out Vector3 size, out int3 damageCell)
+        {
+            damageCell = _target.Cell;
+            center = new Vector3(_target.Cell.x, _target.Cell.y, _target.Cell.z) + Vector3.one * 0.5f;
+            size = Vector3.one;
+            var info = World.GetInfo(_target.Value.Material);
+            if (info.Kind != MaterialKind.Functional)
+                return;
+            int3 anchor = FunctionalCells.AnchorOf(_target.Cell, _target.Value);
+            damageCell = anchor;
+            FunctionalCells.Footprint(anchor, info.FunctionalSize, FunctionalCells.Yaw(World.GetCell(anchor).Meta), FootprintCells);
+            int3 min = anchor, max = anchor;
+            foreach (var cell in FootprintCells)
+            {
+                min = math.min(min, cell);
+                max = math.max(max, cell);
+            }
+            center = ((float3)min + (float3)(max + 1)) * 0.5f;
+            size = (float3)(max + 1 - min);
+        }
+
+        private float TargetDamage()
+        {
+            TargetBounds(out _, out _, out int3 cell);
+            return DamageFraction(cell);
+        }
+
+        private float DamageFraction(int3 cell)
         {
             int hardness = World.GetInfo(_target.Value.Material).Hardness;
-            return hardness > 0 ? Mathf.Clamp01(World.GetDamage(_target.Cell) / (float)hardness) : 0f;
+            return hardness > 0 ? Mathf.Clamp01(World.GetDamage(cell) / (float)hardness) : 0f;
         }
 
         private static Mesh BuildWireCube()
@@ -668,7 +685,7 @@ namespace VoidMall.Game
             string target = _propTarget != null && PropManager.Instance != null
                 ? $"{_propTarget.Def.DisplayName}  {(1f - PropManager.Instance.Health(_propTarget)) * 100f:0}%"
                 : _hasTarget
-                ? $"{World.Materials.Get(_target.Value.Material).DisplayName}  {DamageFraction() * 100f:0}%"
+                ? $"{World.Materials.Get(_target.Value.Material).DisplayName}  {TargetDamage() * 100f:0}%"
                 : "—";
             string creative = ItemSystem.Creative.Value ? "   [творчество]" : "";
             string text = _messageTime > 0f && !string.IsNullOrEmpty(_message)

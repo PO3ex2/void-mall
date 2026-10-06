@@ -1,0 +1,49 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9d82c1d3ec8293645bea9e08775ed601, type: 3}
+  m_Name: register
+  m_EditorClassIdentifier: VoidMall.Items::VoidMall.Items.LootTable
+  Section: register
+  Fill: 1
+  Entries:
+  - Item: {fileID: 11400000, guid: 666ae40e498eb974ea32466bd1bdf432, type: 2}
+    Weight: 5
+    Min: 1
+    Max: 2
+  - Item: {fileID: 11400000, guid: e1bf63fcead3a43468cce1684ab710ba, type: 2}
+    Weight: 4
+    Min: 1
+    Max: 2
+  - Item: {fileID: 11400000, guid: 72b45c45b372d90479d7b8d45216caac, type: 2}
+    Weight: 3
+    Min: 1
+    Max: 2
+  - Item: {fileID: 11400000, guid: 6d27093780e8f354cbecc8d311808bf3, type: 2}
+    Weight: 4
+    Min: 1
+    Max: 2
+  - Item: {fileID: 11400000, guid: df859174ac7f7c84fa81f9e58d589411, type: 2}
+    Weight: 2
+    Min: 1
+    Max: 1
+  - Item: {fileID: 11400000, guid: 7abc83b8fa88c1e4ca6d2e6e7ae94cd7, type: 2}
+    Weight: 2
+    Min: 3
+    Max: 10
+  - Item: {fileID: 11400000, guid: e7940399c5261904b8b484b38cb28bb8, type: 2}
+    Weight: 0.3
+    Min: 1
+    Max: 1
+  - Item: {fileID: 11400000, guid: 4ace75e8191681c43bbb7f552acb0490, type: 2}
+    Weight: 0.2
+    Min: 1
+    Max: 1

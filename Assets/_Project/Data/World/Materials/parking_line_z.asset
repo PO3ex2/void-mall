@@ -22,6 +22,7 @@ MonoBehaviour:
   Pattern: 21
   Tint: {r: 1, g: 1, b: 1, a: 1}
   SmoothVariant: {fileID: 11400000, guid: 2fe5bf050aef4e940be60959b0b7e058, type: 2}
+  SideMaterial: {fileID: 0}
   Lamp: 0
   Emission: 0
   Function: 0

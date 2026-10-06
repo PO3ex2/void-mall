@@ -102,7 +102,7 @@ namespace VoidMall.World
             for (int level = MallLayout.FirstRetailLevel; level < MallLayout.FirstRetailLevel + MallLayout.RetailFloors; level++)
             {
                 float y = MallLayout.FloorTop(level);
-                if (MallPlanner.RoundPlaza(seed, info, level, out _))
+                if (MallPlanner.RoundPlaza(seed, info, level, out _) && !MallPlanner.PlazaWell(seed, info, level))
                 {
                     var plaza = NewChild(parent, $"Plaza {MallLayout.LevelName(level)}");
                     plaza.transform.localPosition = new Vector3(origin.x + MallPlanner.PlazaCenter.x, y, origin.y + MallPlanner.PlazaCenter.y);

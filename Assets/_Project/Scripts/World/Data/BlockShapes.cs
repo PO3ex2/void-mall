@@ -19,6 +19,8 @@ namespace VoidMall.World
         RoundInner,
         Post,
         HalfWall,
+        /// <summary>Тонкая панель 10 см по центру клетки (витрины, стеклянные ограждения).</summary>
+        Pane,
         Count,
     }
 
@@ -60,6 +62,7 @@ namespace VoidMall.World
             BlockShape.RoundInner => "Круглый скос (внутрь)",
             BlockShape.Post => "Столб",
             BlockShape.HalfWall => "Стенка в полблока",
+            BlockShape.Pane => "Тонкая панель",
             _ => "Блок",
         };
 
@@ -158,7 +161,11 @@ namespace VoidMall.World
             float3 n = Tilt(RotateYaw(v.Normal, yaw), up);
             int cull = v.Cull;
             if (cull >= 0)
-                cull = DirectionIndex(Tilt(RotateYaw(Directions[cull], yaw), up));
+            {
+                bool partial = cull >= PartialCull;
+                int direction = DirectionIndex(Tilt(RotateYaw(Directions[partial ? cull - PartialCull : cull], yaw), up));
+                cull = partial ? direction + PartialCull : direction;
+            }
             return new ShapeVertex { Position = p + 0.5f, Normal = n, Cull = cull };
         }
 
@@ -205,6 +212,7 @@ namespace VoidMall.World
             Prism(_base[(int)BlockShape.RoundInner], ArcProfile(convex: false));
             Box(_base[(int)BlockShape.Post], new float3(0.35f, 0f, 0.35f), new float3(0.65f, 1f, 0.65f));
             Box(_base[(int)BlockShape.HalfWall], new float3(0f, 0f, 0.5f), new float3(1f, 1f, 1f));
+            Box(_base[(int)BlockShape.Pane], new float3(0f, 0f, 0.45f), new float3(1f, 1f, 0.55f));
 
             // Внутренний угол: высоко по задней (+Z) и правой (+X) кромкам, низко в переднем левом углу — «ендова».
             var inner = _base[(int)BlockShape.SlopeInner];
@@ -325,7 +333,10 @@ namespace VoidMall.World
             list.Add(new ShapeVertex { Position = c, Normal = normal, Cull = cull });
         }
 
-        /// <summary>Многоугольник лежит на грани клетки и закрывает её целиком → индекс грани, иначе −1.</summary>
+        /// <summary>Cull ≥ PartialCull — грань на границе клетки, но не во всю (направление = Cull − PartialCull).</summary>
+        public const int PartialCull = 6;
+
+        /// <summary>Многоугольник лежит на грани клетки: во всю → индекс грани, частично → PartialCull + индекс, иначе −1.</summary>
         private static int CullDirection(float3[] points)
         {
             for (int axis = 0; axis < 3; axis++)
@@ -346,8 +357,9 @@ namespace VoidMall.World
                         var q = points[(i + 1) % points.Length];
                         area += p[u] * q[v] - q[u] * p[v];
                     }
+                    // На грани клетки, но не во всю: прячется только за таким же соседом (панель к панели, полублок к полублоку).
                     if (math.abs(math.abs(area) * 0.5f - 1f) > 1e-3f)
-                        return -1;
+                        return PartialCull + axis * 2 + (plane > 0.5f ? 0 : 1);
                     return axis * 2 + (plane > 0.5f ? 0 : 1);
                 }
             }

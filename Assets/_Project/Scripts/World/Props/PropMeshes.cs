@@ -46,6 +46,8 @@ namespace VoidMall.World
         TrashPile,
         LootCrate,
         Pallet,
+        ImpulseRack,
+        WorkLight,
         Count,
     }
 
@@ -95,6 +97,8 @@ namespace VoidMall.World
             PropShape.TrashPile => new Vector3(1.2f, 0.45f, 1f),
             PropShape.LootCrate => new Vector3(0.8f, 0.6f, 0.6f),
             PropShape.Pallet => new Vector3(1.2f, 0.15f, 1f),
+            PropShape.ImpulseRack => new Vector3(0.8f, 1.3f, 0.4f),
+            PropShape.WorkLight => new Vector3(0.8f, 1.9f, 0.8f),
             _ => Vector3.one,
         };
 
@@ -154,6 +158,12 @@ namespace VoidMall.World
                 case PropShape.FilingCabinet:
                     slots.Add(new PropItemSlot { Position = new Vector3(0f, h, 0f), Size = new Vector3(w - 0.05f, 0.3f, d - 0.1f) });
                     break;
+                case PropShape.ImpulseRack:
+                    // Стойка у кассы: три полочки по два места — шоколад, чипсы, газировка.
+                    for (int level = 0; level < 3; level++)
+                    for (int k = 0; k < 2; k++)
+                        slots.Add(new PropItemSlot { Position = new Vector3((k - 0.5f) * w / 2f, 0.35f + level * 0.32f + 0.02f, 0f), Size = new Vector3(w / 2f - 0.06f, 0.28f, d - 0.06f) });
+                    break;
                 case PropShape.Pallet:
                     // Четыре места на настиле: стопки пеноблоков, доски, мешки цемента.
                     for (int k = 0; k < 4; k++)
@@ -212,6 +222,22 @@ namespace VoidMall.World
                     Add(new Vector3(-w / 2, 0, -0.04f), new Vector3(-w / 2 + 0.05f, h, 0.04f));
                     Add(new Vector3(w / 2 - 0.05f, 0, -0.04f), new Vector3(w / 2, h, 0.04f));
                     Add(new Vector3(-w / 2, h - 0.05f, -0.03f), new Vector3(w / 2, h, 0.03f));
+                    break;
+                case PropShape.WorkLight:
+                    Add(new Vector3(-0.32f, 0, -0.32f), new Vector3(0.32f, 1.6f, 0.32f));
+                    Add(new Vector3(-0.22f, 1.6f, -0.12f), new Vector3(0.22f, 1.9f, 0.24f));
+                    break;
+                case PropShape.ImpulseRack:
+                    // Как у стеллажа: коллизия по полкам, иначе товары внутри сплошной коробки выталкивает при пробуждении.
+                    Add(new Vector3(-w / 2, 0, d / 2 - 0.03f), new Vector3(w / 2, h, d / 2));
+                    Add(new Vector3(-w / 2, 0, -d / 2), new Vector3(-w / 2 + 0.03f, h - 0.15f, d / 2));
+                    Add(new Vector3(w / 2 - 0.03f, 0, -d / 2), new Vector3(w / 2, h - 0.15f, d / 2));
+                    Add(new Vector3(-w / 2, 0, -d / 2), new Vector3(w / 2, 0.05f, d / 2));
+                    for (int i = 0; i < 3; i++)
+                    {
+                        float y = 0.33f + i * 0.32f;
+                        Add(new Vector3(-w / 2, y, -d / 2), new Vector3(w / 2, y + 0.02f, d / 2));
+                    }
                     break;
                 case PropShape.Turnstile:
                     Add(new Vector3(-w / 2, 0, -d / 2), new Vector3(-w / 2 + 0.3f, h, d / 2));
@@ -628,6 +654,42 @@ namespace VoidMall.World
                     b.BoxMinMax(new Vector3(-w / 2, h - 0.05f, -d / 2), new Vector3(w / 2, h, d / 2), Wood);
                     b.Box(new Vector3(0f, h * 0.5f, -d / 2 - 0.005f), new Vector3(w * 0.9f, 0.05f, 0.01f), Wood, Quaternion.Euler(0f, 0f, 30f));
                     b.BoxMinMax(new Vector3(-0.12f, h * 0.55f, -d / 2 - 0.012f), new Vector3(0.12f, h * 0.75f, -d / 2 - 0.006f), new Color(0.15f, 0.15f, 0.15f, 0.1f));
+                    break;
+                }
+                case PropShape.WorkLight:
+                {
+                    // Строительная лампа: тренога, стойка, прожектор с решёткой; у ноги — автомобильный аккумулятор и кабель.
+                    var housing = new Color(0.95f, 0.75f, 0.1f, 0.4f);
+                    for (int i = 0; i < 3; i++)
+                    {
+                        float a = i * 120f * Mathf.Deg2Rad;
+                        var foot = new Vector3(Mathf.Sin(a) * 0.32f, 0f, Mathf.Cos(a) * 0.32f);
+                        b.Slab(new Vector3(0f, 0.75f, 0f), foot, 0.035f, 0.035f, DarkMetal);
+                    }
+                    b.BoxMinMax(new Vector3(-0.02f, 0.7f, -0.02f), new Vector3(0.02f, 1.62f, 0.02f), Metal);
+                    b.Box(new Vector3(0f, 1.75f, 0.06f), new Vector3(0.42f, 0.3f, 0.16f), housing, Quaternion.Euler(32f, 0f, 0f));
+                    b.Box(new Vector3(0f, 1.7f, 0.14f), new Vector3(0.36f, 0.24f, 0.02f), new Color(1f, 0.98f, 0.85f, 0.95f), Quaternion.Euler(32f, 0f, 0f));
+                    b.BoxMinMax(new Vector3(0.18f, 0f, -0.32f), new Vector3(0.42f, 0.2f, -0.14f), new Color(0.12f, 0.12f, 0.13f, 0.3f));
+                    b.BoxMinMax(new Vector3(0.22f, 0.2f, -0.3f), new Vector3(0.26f, 0.24f, -0.26f), new Color(0.8f, 0.1f, 0.1f, 0.5f));
+                    b.BoxMinMax(new Vector3(0.34f, 0.2f, -0.3f), new Vector3(0.38f, 0.24f, -0.26f), DarkMetal);
+                    b.Slab(new Vector3(0.24f, 0.22f, -0.28f), new Vector3(0f, 0.7f, 0f), 0.015f, 0.015f, DarkMetal);
+                    break;
+                }
+                case PropShape.ImpulseRack:
+                {
+                    // Стойка с мелочью у кассы: каркас, три наклонные полочки, табличка сверху.
+                    var rack = new Color(0.8f, 0.15f, 0.12f, 0.45f);
+                    b.BoxMinMax(new Vector3(-w / 2, 0, d / 2 - 0.03f), new Vector3(w / 2, h - 0.15f, d / 2), Metal);
+                    b.BoxMinMax(new Vector3(-w / 2, 0, -d / 2), new Vector3(-w / 2 + 0.03f, h - 0.15f, d / 2), Metal);
+                    b.BoxMinMax(new Vector3(w / 2 - 0.03f, 0, -d / 2), new Vector3(w / 2, h - 0.15f, d / 2), Metal);
+                    b.BoxMinMax(new Vector3(-w / 2, 0, -d / 2), new Vector3(w / 2, 0.05f, d / 2), DarkMetal);
+                    for (int i = 0; i < 3; i++)
+                    {
+                        float y = 0.33f + i * 0.32f;
+                        b.BoxMinMax(new Vector3(-w / 2, y, -d / 2), new Vector3(w / 2, y + 0.02f, d / 2), Metal);
+                        b.BoxMinMax(new Vector3(-w / 2, y, -d / 2 - 0.01f), new Vector3(w / 2, y + 0.06f, -d / 2 + 0.01f), DarkMetal);
+                    }
+                    b.BoxMinMax(new Vector3(-w / 2, h - 0.15f, -0.02f), new Vector3(w / 2, h, 0.02f), rack);
                     break;
                 }
                 case PropShape.Pallet:

@@ -13,7 +13,7 @@ namespace VoidMall.World
         public ushort Cabinet, Boiler, Bench, Planter, Sofa, CardboardBox, PlasticCrate, TrashBin;
         public ushort Switchboard, CableReel, VentUnit, Bed;
         public ushort Workbench, SewingTable, ChemTable, Stove, Crusher;
-        public ushort Turnstile, OfficeDesk, OfficeChair, FilingCabinet, WaterCooler, CubicleWall, Stanchion, TrashPile, LootCrate, Pallet;
+        public ushort Turnstile, OfficeDesk, OfficeChair, FilingCabinet, WaterCooler, CubicleWall, Stanchion, TrashPile, LootCrate, Pallet, ImpulseRack, WorkLight;
 
         public ushort StationProp(CraftStation station) => station switch
         {
@@ -64,6 +64,8 @@ namespace VoidMall.World
             TrashPile = props.IndexOf("prop.trash_pile"),
             LootCrate = props.IndexOf("prop.loot_crate"),
             Pallet = props.IndexOf("prop.pallet"),
+            ImpulseRack = props.IndexOf("prop.impulse_rack"),
+            WorkLight = props.IndexOf("prop.work_light"),
         };
     }
 
@@ -121,6 +123,10 @@ namespace VoidMall.World
             {
                 PlaceCars(ctx, plan, output);
             }
+            else if (kind == LevelKind.Tech)
+            {
+                PlaceWorkLights(ctx, plan, output);
+            }
             else if (kind == LevelKind.Retail)
             {
                 // Особые места раньше обычной мебели галерей — им нужно своё место.
@@ -152,6 +158,8 @@ namespace VoidMall.World
                 SectionLayout layout = sections[room.Section].Layout;
                 // Крафтовая станция у стены — раньше остальной мебели, чтобы ей хватило места.
                 var section = sections[room.Section];
+                if (room.Has(RoomFlags.Storefront))
+                    Checkouts(ctx, plan, i, layout, output);
                 if (section.Station != CraftStation.None && Hash.ToFloat01(Hash.Get(h, 0x57A7)) < section.StationChance)
                     AgainstWall(ctx, plan, i, ctx.Ids.StationProp(section.Station), output);
                 switch (layout)
@@ -213,6 +221,9 @@ namespace VoidMall.World
                         break;
                     }
                 }
+                // Техэтаж без ламп: в комнатах — строительные лампы на аккумуляторах (раньше мебели раздела не успели — ставим сейчас).
+                if (plan.Level == MallLayout.TechLevel && h % 10 < 7)
+                    Scatter(ctx, plan, i, ctx.Ids.WorkLight, 1, h ^ 0x11A7u, output);
                 // Ящики с лутом — на техническом этаже (GDD §2.6), кроме склада стройматериалов (там свои).
                 if (plan.Level == MallLayout.TechLevel && layout != SectionLayout.Construction && h % 5 < 3)
                     Scatter(ctx, plan, i, ctx.Ids.LootCrate, 1 + (int)((h >> 6) % 2), h ^ 0xC4A7u, output);
@@ -262,7 +273,8 @@ namespace VoidMall.World
         /// <summary>Круглая площадь: место под фонтан занято, вокруг — кольцо скамеек и кадок.</summary>
         private static void PlacePlaza(in Context ctx, in MallLevelPlan plan, List<PropSpawn> output)
         {
-            if (!MallPlanner.RoundPlaza(ctx.Seed, ctx.Info, ctx.Level, out bool fountain))
+            // Над фонтаном — круглый проём, скамеек там нет.
+            if (!MallPlanner.RoundPlaza(ctx.Seed, ctx.Info, ctx.Level, out bool fountain) || MallPlanner.PlazaWell(ctx.Seed, ctx.Info, ctx.Level))
                 return;
             float2 c = MallPlanner.PlazaCenter;
             for (int i = 0; i < 8; i++)
@@ -301,6 +313,23 @@ namespace VoidMall.World
             }
         }
 
+        /// <summary>
+        /// Можно ли ставить на плитку: открытый пол или пустота балкона на первом торговом этаже (там пол есть,
+        /// открыт только потолок). Пустота атриума не годится — там низ эскалаторов.
+        /// </summary>
+        private static bool IsFloor(in Context ctx, in MallLevelPlan plan, int index)
+        {
+            byte tile = plan.Tiles[index];
+            if (tile == (byte)Tile.Open)
+                return true;
+            if (tile != (byte)Tile.AtriumVoid || MallLayout.RetailFloor(ctx.Level) != 0)
+                return false;
+            int x = index % MallLevelPlan.Size, z = index / MallLevelPlan.Size;
+            bool atriumX = ctx.Info.AtriumX && x >= MallPlanner.AtriumAlongMin - 1 && x <= MallPlanner.AtriumAlongMax && z < MallLayout.Band;
+            bool atriumZ = ctx.Info.AtriumZ && z >= MallPlanner.AtriumAlongMin - 1 && z <= MallPlanner.AtriumAlongMax && x < MallLayout.Band;
+            return !atriumX && !atriumZ;
+        }
+
         /// <summary>Пропа с произвольным поворотом: занятость по описанной окружности (без проверки плиток пола под углом).</summary>
         private static bool TryAddLoose(in Context ctx, in MallLevelPlan plan, int room, ushort kind, float2 local, float yaw, List<PropSpawn> output)
         {
@@ -310,7 +339,7 @@ namespace VoidMall.World
             if (math.any(tile < 0) || math.any(tile >= MallLayout.CellSize))
                 return false;
             int index = MallLevelPlan.Index(tile.x, tile.y);
-            if (plan.Tiles[index] != (byte)Tile.Open || plan.RoomIds[index] != room)
+            if (!IsFloor(ctx, plan, index) || plan.RoomIds[index] != room)
                 return false;
             float4 box = new(local - radius * 0.7f, local + radius * 0.7f);
             foreach (var other in ctx.Occupied)
@@ -320,6 +349,81 @@ namespace VoidMall.World
             float2 world = ctx.Origin + local;
             output.Add(new PropSpawn { Def = kind, Position = new Vector3(world.x, ctx.FloorY, world.y), Yaw = yaw });
             return true;
+        }
+
+        /// <summary>
+        /// Кассы (GDD §2.9) у витрины со входом: в крупных магазинах — ряд стоек поперёк выхода с проходами между ними
+        /// и стойками с мелочью за ними, в мелких — одна касса сбоку от двери. Ставятся раньше мебели раздела.
+        /// </summary>
+        private static void Checkouts(in Context ctx, in MallLevelPlan plan, int room, SectionLayout layout, List<PropSpawn> output)
+        {
+            int4 r = plan.Rooms[room].Rect;
+            // Сторона фасада с дверью: 0 — −Z, 1 — +Z, 2 — −X, 3 — +X (вовнутрь — противоположное направление).
+            int side = -1;
+            float doorSum = 0f;
+            int doors = 0;
+            for (int s = 0; s < 4 && side < 0; s++)
+            {
+                bool alongX = s < 2;
+                int a0 = alongX ? r.x : r.y, a1 = alongX ? r.z : r.w;
+                for (int a = a0; a < a1; a++)
+                {
+                    int2 t = s switch { 0 => new int2(a, r.y - 1), 1 => new int2(a, r.w), 2 => new int2(r.x - 1, a), _ => new int2(r.z, a) };
+                    if (t.x < 0 || t.y < 0 || t.x >= MallLayout.CellSize || t.y >= MallLayout.CellSize)
+                        continue;
+                    if (plan.TileAt(t.x, t.y) == Tile.FacadeDoor)
+                    {
+                        doorSum += a + 0.5f;
+                        doors++;
+                    }
+                }
+                if (doors > 0)
+                    side = s;
+            }
+            if (side < 0)
+                return;
+            float door = doorSum / doors;
+            bool sideAlongX = side < 2;
+            float wall = side switch { 0 => r.y, 1 => r.w, 2 => r.x, _ => r.z };
+            float inward = side is 0 or 2 ? 1f : -1f;
+            float sideMin = sideAlongX ? r.x : r.y, sideMax = sideAlongX ? r.z : r.w;
+            int area = (r.z - r.x) * (r.w - r.y);
+            bool big = area >= 260 || (layout is SectionLayout.Rows or SectionLayout.Warehouse && area >= 140);
+            float2 At(float along, float depth) => sideAlongX ? new float2(along, wall + inward * depth) : new float2(wall + inward * depth, along);
+
+            if (big)
+            {
+                // Стойки поперёк выхода (длинной стороной вглубь), шаг 2.4 — между ними проходы 1.5 м.
+                int count = math.clamp((int)((sideMax - sideMin - 4f) / 2.4f), 2, 6);
+                float start = math.clamp(door - (count - 1) * 1.2f, sideMin + 1.6f, sideMax - 1.6f - (count - 1) * 2.4f);
+                float yaw = sideAlongX ? 90f : 0f;
+                float rackYaw = side switch { 0 => 180f, 1 => 0f, 2 => 270f, _ => 90f };
+                for (int k = 0; k < count; k++)
+                {
+                    float along = start + k * 2.4f;
+                    if (TryAdd(ctx, plan, room, ctx.Ids.Checkout, At(along, 2.3f), yaw, output))
+                        TryAdd(ctx, plan, room, ctx.Ids.ImpulseRack, At(along, 3.9f), rackYaw, output);
+                }
+                return;
+            }
+            // Мелкий магазин: одна касса вдоль фасада, сбоку от двери (с той стороны, где больше места).
+            float offset = door - sideMin > sideMax - door ? -2.6f : 2.6f;
+            TryAdd(ctx, plan, room, ctx.Ids.Checkout, At(door + offset, 1.6f), sideAlongX ? 0f : 90f, output);
+        }
+
+        /// <summary>Технический этаж без ламп: в его коридорах-галереях через каждые 16 м — строительная лампа у стены (через раз).</summary>
+        private static void PlaceWorkLights(in Context ctx, in MallLevelPlan plan, List<PropSpawn> output)
+        {
+            for (int axis = 0; axis < 2; axis++)
+            for (int along = 18; along < MallLayout.CellSize; along += 16)
+            {
+                uint h = Hash.Get(ctx.Seed, ctx.Info.Cell.x, ctx.Info.Cell.y, Salt + 9000 + axis * 64 + along);
+                if (Hash.ToFloat01(h) >= 0.6f)
+                    continue;
+                float across = (h >> 8) % 2 == 0 ? 1.2f : MallLayout.Band - 1.2f;
+                float yaw = axis == 0 ? (across < 7f ? 0f : 180f) : (across < 7f ? 90f : 270f);
+                TryAdd(ctx, plan, 0, ctx.Ids.WorkLight, axis == 0 ? new float2(along, across) : new float2(across, along), yaw, output);
+            }
         }
 
         /// <summary>Служебный коридор-тупик: коробки, урна, иногда куча мусора — и стена в конце.</summary>
@@ -444,7 +548,7 @@ namespace VoidMall.World
             for (int x = min.x; x <= max.x; x++)
             {
                 int index = MallLevelPlan.Index(x, z);
-                if (plan.Tiles[index] != (byte)Tile.Open || plan.RoomIds[index] != room)
+                if (!IsFloor(ctx, plan, index) || plan.RoomIds[index] != room)
                     return false;
             }
             if (InAnomaly(ctx, ctx.Origin + local, math.length(half)))
@@ -674,7 +778,7 @@ namespace VoidMall.World
             for (int x = min.x; x <= max.x; x++)
             {
                 int index = MallLevelPlan.Index(x, z);
-                if (plan.Tiles[index] != (byte)Tile.Open || plan.RoomIds[index] != room)
+                if (!IsFloor(ctx, plan, index) || plan.RoomIds[index] != room)
                     return false;
             }
             float2 world = ctx.Origin + local;

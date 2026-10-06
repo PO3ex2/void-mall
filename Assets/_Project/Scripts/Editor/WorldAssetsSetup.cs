@@ -175,7 +175,11 @@ namespace VoidMall.Editor
                 catalog.Materials.Add(def);
             }
             foreach (var def in catalog.Materials)
+            {
                 def.SmoothVariant = null;
+                // Лампы и световые фонари врезаны в потолок: бока — потолочная плитка (свечение по слою текстуры, бока не светятся).
+                def.SideMaterial = def.Lamp != LampKind.None ? FindMaterial(catalog, "block.ceiling_tile") : null;
+            }
             foreach (var (block, smooth) in SmoothVariants)
             {
                 var blockDef = FindMaterial(catalog, block);

@@ -299,11 +299,17 @@ namespace VoidMall.World
 
             if (kind == FunctionalKind.Gate)
             {
+                // Замок с обеих сторон рольставни: заперто видно и из галереи, и из магазина.
                 var mark = new GameObject("Lock");
                 mark.transform.SetParent(pivot.transform, false);
-                mark.transform.localPosition = new Vector3(0f, 0.25f, -0.09f);
-                mark.AddComponent<MeshFilter>().sharedMesh = LockMesh();
-                mark.AddComponent<MeshRenderer>().sharedMaterial = _material;
+                for (int side = 0; side < 2; side++)
+                {
+                    var face = new GameObject(side == 0 ? "Front" : "Back");
+                    face.transform.SetParent(mark.transform, false);
+                    face.transform.SetLocalPositionAndRotation(new Vector3(0f, 0.25f, side == 0 ? -0.09f : 0.09f), Quaternion.Euler(0f, side * 180f, 0f));
+                    face.AddComponent<MeshFilter>().sharedMesh = LockMesh();
+                    face.AddComponent<MeshRenderer>().sharedMaterial = _material;
+                }
                 view.LockMark = mark;
             }
             return view;

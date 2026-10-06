@@ -95,6 +95,9 @@ namespace VoidMall.World
         [Tooltip("Гладкий двойник блока (тот же узор): им облицовываются аномалии в полу из этого материала.")]
         public MaterialDef SmoothVariant;
 
+        [Tooltip("Текстура боковых граней (пусто — как верх и низ). Лампы: боками в потолок — у края проёма видна плитка, а не светящаяся панель.")]
+        public MaterialDef SideMaterial;
+
         [Header("Свечение")]
         public LampKind Lamp;
 

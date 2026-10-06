@@ -38,6 +38,13 @@ namespace VoidMall.World
         /// <summary>Тупики: стена поперёк отрезка галереи (на уровень и полосу) и служебный коридор между магазинами.</summary>
         public const float DeadEndChance = 0.1f, CorridorChance = 0.3f;
 
+        /// <summary>Балконы вдоль галерей: доля полос (без атриума), пустота вдоль [16, 62), мостик поперёк [37, 41).</summary>
+        public const float BalconyChance = 0.35f;
+        public const int BalconyAlongMin = 16, BalconyAlongMax = 62, BalconyBridgeMin = 37, BalconyBridgeMax = 41;
+
+        /// <summary>Радиус круглого проёма над фонтаном (пустота), ограждение — следующее кольцо.</summary>
+        public const float WellRadius = 4.6f;
+
         public const int RampLength = 20;
         public const int RampWidth = 4;
 
@@ -55,6 +62,8 @@ namespace VoidMall.World
             CoreOf(seed, cell, out info.Rotation, out info.CoreOffset, out info.CoreRect);
             info.AtriumX = Hash.Get(seed, cell.x, cell.y, SaltCell + 1) % 100 < 45;
             info.AtriumZ = Hash.Get(seed, cell.x, cell.y, SaltCell + 2) % 100 < 45;
+            info.BalconyX = !info.AtriumX && Hash.ToFloat01(Hash.Get(seed, cell.x, cell.y, SaltCell + 3)) < BalconyChance;
+            info.BalconyZ = !info.AtriumZ && Hash.ToFloat01(Hash.Get(seed, cell.x, cell.y, SaltCell + 4)) < BalconyChance;
 
             // Пандус P2→P1 в проезде парковки, в стороне от ядра.
             int4 core = Expand(info.CoreRect, 1);
@@ -192,7 +201,7 @@ namespace VoidMall.World
         // ───────────────────────────── Площади и стенды ─────────────────────────────
 
         /// <summary>Круглая площадь на пересечении галерей (центр — колонна (7, 7)): доля уровней и доля с фонтаном.</summary>
-        public const float RoundPlazaChance = 0.25f, FountainChance = 0.5f;
+        public const float RoundPlazaChance = 0.3f, FountainChance = 0.6f;
 
         /// <summary>Радиусы (по центрам клеток): узор пола, бортик фонтана (внешний), вода, кольцо скамеек.</summary>
         public const float PlazaRadius = 6.4f, FountainRadius = 3.9f, FountainWaterRadius = 3f, PlazaBenchRadius = 5.2f;
@@ -204,18 +213,30 @@ namespace VoidMall.World
         public static readonly float2 CarStandSize = new(6f, 3.6f);
         public const float CarStandHeight = 0.3f;
 
-        /// <summary>Круглая площадь на этом торговом уровне (fountain — с фонтаном вокруг колонны).</summary>
+        /// <summary>
+        /// Круглая площадь ячейки (на всех торговых этажах). С фонтаном — фонтан на первом торговом этаже (fountain),
+        /// а над ним на всех этажах выше круглый проём (<see cref="PlazaWell"/>); колонны на перекрёстке нет.
+        /// </summary>
         public static bool RoundPlaza(uint seed, in MallCellInfo info, int level, out bool fountain)
         {
             fountain = false;
-            if (MallLayout.Kind(level) != LevelKind.Retail)
+            if (MallLayout.Kind(level) != LevelKind.Retail || !PlazaOf(seed, info, out bool hasFountain))
                 return false;
-            uint h = Hash.Get(seed, info.Cell.x, info.Cell.y, SaltCell + 80 + level);
-            if (Hash.ToFloat01(h) >= RoundPlazaChance)
-                return false;
-            fountain = Hash.ToFloat01(Hash.Get(h, 1)) < FountainChance;
+            fountain = hasFountain && level == MallLayout.FirstRetailLevel;
             return true;
         }
+
+        /// <summary>Круглая площадь ячейки и есть ли у неё фонтан (без привязки к этажу).</summary>
+        public static bool PlazaOf(uint seed, in MallCellInfo info, out bool hasFountain)
+        {
+            uint h = Hash.Get(seed, info.Cell.x, info.Cell.y, SaltCell + 80);
+            hasFountain = Hash.ToFloat01(Hash.Get(h, 1)) < FountainChance;
+            return Hash.ToFloat01(h) < RoundPlazaChance;
+        }
+
+        /// <summary>Этаж над фонтаном: круглый проём с ограждением вместо площади.</summary>
+        public static bool PlazaWell(uint seed, in MallCellInfo info, int level) =>
+            MallLayout.RetailFloor(level) > 0 && PlazaOf(seed, info, out bool hasFountain) && hasFountain;
 
         /// <summary>
         /// Стенд с машиной: подиум посреди отрезка галереи между площадью и атриумом (вдоль 36…42 — там не бывает
@@ -231,9 +252,9 @@ namespace VoidMall.World
             if (Hash.ToFloat01(h) >= CarStandChance)
                 return false;
             alongX = (h >> 20) % 2 == 0;
-            if (alongX ? info.AtriumX : info.AtriumZ)
+            if (alongX ? info.AtriumX || info.BalconyX : info.AtriumZ || info.BalconyZ)
                 alongX = !alongX;
-            if (alongX ? info.AtriumX : info.AtriumZ)
+            if (alongX ? info.AtriumX || info.BalconyX : info.AtriumZ || info.BalconyZ)
                 return false;
             center = alongX ? new float2(39f, 7f) : new float2(7f, 39f);
             return true;
@@ -773,8 +794,8 @@ namespace VoidMall.World
 
         private static void BuildGalleries(uint seed, in MallCellInfo info, int level, ref MallLevelPlan plan)
         {
-            // Колонна на перекрёстке; на уровне с фонтаном её место занимает фонтан.
-            bool fountain = RoundPlaza(seed, info, level, out bool hasFountain) && hasFountain;
+            // Колонна на перекрёстке; у площади с фонтаном её нет на всех торговых этажах (фонтан внизу, проём над ним).
+            bool fountain = MallLayout.Kind(level) == LevelKind.Retail && PlazaOf(seed, info, out bool hasFountain) && hasFountain;
             for (int z = 6; z <= 7; z++)
             for (int x = 6; x <= 7; x++)
                 plan.Tiles[MallLevelPlan.Index(x, z)] = (byte)(fountain ? Tile.Open : Tile.Pillar);
@@ -790,6 +811,72 @@ namespace VoidMall.World
                 BuildAtrium(ref plan, floor, alongX: true);
             if (info.AtriumZ)
                 BuildAtrium(ref plan, floor, alongX: false);
+            if (info.BalconyX)
+                BuildBalcony(ref plan, floor, alongX: true);
+            if (info.BalconyZ)
+                BuildBalcony(ref plan, floor, alongX: false);
+            if (PlazaWell(seed, info, level))
+                BuildWell(ref plan);
+        }
+
+        /// <summary>
+        /// Балкон-проём вдоль полосы галереи (GDD §2.9): пустота поперёк [4, 10), вдоль [BalconyAlongMin, BalconyAlongMax)
+        /// с мостиком посередине, стеклянное ограждение по краю. Как атриум, но без эскалаторов и длиннее.
+        /// На первом торговом этаже — только плитки пустоты (там пол, потолок открыт вверх), выше — пустота с ограждением.
+        /// </summary>
+        private static void BuildBalcony(ref MallLevelPlan plan, int floor, bool alongX)
+        {
+            for (int along = BalconyAlongMin - 1; along <= BalconyAlongMax; along++)
+            for (int across = AtriumAcrossMin - 1; across <= AtriumAcrossMax; across++)
+            {
+                bool bridge = along >= BalconyBridgeMin && along < BalconyBridgeMax;
+                bool inVoid = !bridge && along >= BalconyAlongMin && along < BalconyAlongMax
+                    && across >= AtriumAcrossMin && across < AtriumAcrossMax;
+                int index = alongX ? MallLevelPlan.Index(along, across) : MallLevelPlan.Index(across, along);
+                if (plan.Tiles[index] != (byte)Tile.Open)
+                    continue;
+                if (inVoid)
+                    plan.Tiles[index] = (byte)Tile.AtriumVoid;
+                else if (floor > 0 && IsNextToVoid(along, across, bridge))
+                    plan.Tiles[index] = (byte)Tile.Railing;
+            }
+        }
+
+        /// <summary>Клетка рамки балкона, соседняя с пустотой (по краю проёма и у краёв мостика).</summary>
+        private static bool IsNextToVoid(int along, int across, bool bridge)
+        {
+            bool alongInside = along >= BalconyAlongMin && along < BalconyAlongMax;
+            bool acrossInside = across >= AtriumAcrossMin && across < AtriumAcrossMax;
+            if (bridge)
+                return acrossInside && (along == BalconyBridgeMin || along == BalconyBridgeMax - 1);
+            return (alongInside && (across == AtriumAcrossMin - 1 || across == AtriumAcrossMax))
+                || (acrossInside && (along == BalconyAlongMin - 1 || along == BalconyAlongMax));
+        }
+
+        /// <summary>Круглый проём над фонтаном на этажах выше первого: пустота и кольцо ограждения.</summary>
+        private static void BuildWell(ref MallLevelPlan plan)
+        {
+            for (int z = 0; z < Band; z++)
+            for (int x = 0; x < Band; x++)
+                if (math.distance(new float2(x + 0.5f, z + 0.5f), new float2(7f, 7f)) < WellRadius)
+                    plan.Tiles[MallLevelPlan.Index(x, z)] = (byte)Tile.AtriumVoid;
+            // Ограждение — на каждой клетке пола, касающейся пустоты (и по диагонали): по радиусу на осях оставалась щель.
+            for (int z = 0; z < Band; z++)
+            for (int x = 0; x < Band; x++)
+            {
+                int index = MallLevelPlan.Index(x, z);
+                if (plan.Tiles[index] != (byte)Tile.Open)
+                    continue;
+                bool touches = false;
+                for (int dz = -1; dz <= 1 && !touches; dz++)
+                for (int dx = -1; dx <= 1 && !touches; dx++)
+                {
+                    int nx = x + dx, nz = z + dz;
+                    touches = nx >= 0 && nz >= 0 && nx < Band && nz < Band && plan.Tiles[MallLevelPlan.Index(nx, nz)] == (byte)Tile.AtriumVoid;
+                }
+                if (touches)
+                    plan.Tiles[index] = (byte)Tile.Railing;
+            }
         }
 
         /// <summary>
@@ -808,7 +895,8 @@ namespace VoidMall.World
         }
 
         /// <summary>
-        /// Тупик в галерее: поперёк отрезка между площадями — глухая стена или ряд рольставен (их можно поддеть ломом).
+        /// Тупик в галерее: поперёк отрезка между площадями — рольставни (за ними галерея, их можно поддеть ломом), витрина со
+        /// входом в магазин, занявший кусок галереи до площади или края ячейки (сзади глухой фасад), или такой же магазин за рольставнями.
         /// Не больше одного на полосу и уровень, поэтому обе половины отрезка остаются связаны со своими площадями.
         /// Не у старта, не поперёк атриума и не у входа в мол.
         /// </summary>
@@ -819,18 +907,49 @@ namespace VoidMall.World
             for (int axis = 0; axis < 2; axis++)
             {
                 uint h = Hash.Get(seed, info.Cell.x, info.Cell.y, SaltCell + 60 + level * 2 + axis);
-                if (Hash.ToFloat01(h) >= DeadEndChance)
+                if (Hash.ToFloat01(h) >= DeadEndChance || (axis == 0 ? info.BalconyX : info.BalconyZ))
                     continue;
                 // Вне площади (0…13) и атриума (31…46): 18…28 или 50…60.
                 int along = (h >> 8) % 2 == 0 ? 18 + (int)((h >> 9) % 11) : 50 + (int)((h >> 9) % 11);
                 if (axis == 1 && info.HasEntrance && level == MallLayout.FirstRetailLevel && along < 30)
                     continue;
-                bool shutter = (h >> 16) % 2 == 0;
+                // 0 — рольставни поперёк галереи (за ними она продолжается), 1 — витрина со входом в магазин,
+                // занявший кусок галереи до площади или до края ячейки, 2 — такой же магазин за рольставнями.
+                int variant = (int)((h >> 16) % 3);
+                byte room = 0;
+                if (variant != 0)
+                {
+                    // Магазин — между фронтом и глухим фасадом у площади (вдоль 14) или у края ячейки (вдоль 63).
+                    bool towardPlaza = along < 30;
+                    int from = towardPlaza ? 15 : along + 1, to = towardPlaza ? along : 63;
+                    int back = towardPlaza ? 14 : 63;
+                    room = (byte)plan.Rooms.Length;
+                    int4 rect = axis == 0 ? new int4(from, 0, to, Band) : new int4(0, from, Band, to);
+                    plan.Rooms.Add(new MallRoom { Rect = rect, Flags = RoomFlags.Storefront | (variant == 2 ? RoomFlags.Closed : RoomFlags.None) });
+                    for (int a = from; a < to; a++)
+                    for (int across = 0; across < Band; across++)
+                    {
+                        int index = axis == 0 ? MallLevelPlan.Index(a, across) : MallLevelPlan.Index(across, a);
+                        plan.Tiles[index] = (byte)Tile.Open;
+                        plan.RoomIds[index] = room;
+                    }
+                    for (int across = 0; across < Band; across++)
+                    {
+                        int index = axis == 0 ? MallLevelPlan.Index(back, across) : MallLevelPlan.Index(across, back);
+                        plan.Tiles[index] = (byte)Tile.FacadeWall;
+                        plan.RoomIds[index] = room;
+                    }
+                }
                 for (int across = 0; across < Band; across++)
                 {
-                    Tile t = !shutter ? Tile.Wall : across == 0 || across == Band - 1 ? Tile.FacadeWall : Tile.Shutter;
+                    Tile t = across == 0 || across == Band - 1 ? Tile.FacadeWall
+                        : variant != 1 ? Tile.Shutter
+                        : across >= 5 && across < 9 ? Tile.FacadeDoor
+                        : Tile.FacadeGlass;
                     int index = axis == 0 ? MallLevelPlan.Index(along, across) : MallLevelPlan.Index(across, along);
                     plan.Tiles[index] = (byte)t;
+                    if (room != 0)
+                        plan.RoomIds[index] = room;
                 }
             }
         }

@@ -430,6 +430,12 @@ namespace VoidMall.World
             renderer.sharedMaterial = def.Material != null ? def.Material : _material;
             renderer.enabled = Visible.Value;
             SetupColliders(body, def);
+            // Строительная лампа светит (компонент остаётся на объекте пула, у других пропов свет выключен).
+            var workLight = body.GetComponent<WorkLightProp>();
+            if (def.Shape == PropShape.WorkLight && workLight == null)
+                workLight = body.gameObject.AddComponent<WorkLightProp>();
+            if (workLight != null)
+                workLight.Configure(def.Shape == PropShape.WorkLight, id);
             body.transform.SetParent(parent, true);
             body.Initialize(this, id, defIndex, def);
             PropSpawned?.Invoke(body);

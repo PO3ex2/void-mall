@@ -261,10 +261,10 @@ namespace VoidMall.World
             SectionInfo section = Sections[room.Section];
 
             // Фонтан круглой площади — из блоков (только в галерее у перекрёстка, нижние ряды уровня).
-            if (isPublic && rel <= 2 && local.x < MallLayout.Band && local.y < MallLayout.Band && kind == LevelKind.Retail
+            if (isPublic && (rel <= 2 || rel == free + 1) && local.x < MallLayout.Band && local.y < MallLayout.Band && kind == LevelKind.Retail
                 && MallPlanner.RoundPlaza(Seed, info, level, out bool fountain) && fountain)
             {
-                Cell f = FountainCell(local, rel, out bool handled);
+                Cell f = FountainCell(local, rel, free, out bool handled);
                 if (handled)
                     return f;
             }
@@ -363,13 +363,13 @@ namespace VoidMall.World
                 case Tile.Wall: return new Cell(wallMat);
                 case Tile.Door: return rel <= doorHeight ? DoorCell(local, rel, level, plan, info, Tile.Door, 0.55f, wallMat) : new Cell(wallMat);
                 case Tile.FacadeWall: return new Cell(facadeMat);
-                case Tile.FacadeGlass: return rel < free ? new Cell(M.Glass) : new Cell(facadeMat);
+                case Tile.FacadeGlass: return rel < free ? GlassPane(local, plan, false) : new Cell(facadeMat);
                 case Tile.FacadeDoor: return rel <= doorHeight ? SlidingDoorCell(local, rel, level, plan, info, doorHeight, isPublic) : new Cell(facadeMat);
                 case Tile.Shutter: return rel <= doorHeight ? GateCell(local, rel, level, plan, info, doorHeight) : new Cell(facadeMat);
-                case Tile.Pillar: return new Cell(pillarMat);
+                case Tile.Pillar: return RoundPillar(local, level, info, isPublic && kind == LevelKind.Retail, pillarMat);
                 case Tile.CoreWall: return new Cell(M.Concrete);
                 case Tile.CoreDoor: return rel <= doorHeight ? DoorCell(local, rel, level, plan, info, Tile.CoreDoor, 0.8f, M.Concrete) : new Cell(M.Concrete);
-                case Tile.Railing: return rel == 1 ? new Cell(M.Glass) : Cell.Air;
+                case Tile.Railing: return rel == 1 ? GlassPane(local, plan, true) : Cell.Air;
                 case Tile.Barrier: return rel == 1 ? new Cell(M.Concrete) : Cell.Air;
                 default:
                 {
@@ -389,9 +389,17 @@ namespace VoidMall.World
                 return Cell.Air;
             bool alongX = IsWallLike(plan, local + new int2(1, 0)) || IsWallLike(plan, local + new int2(-1, 0));
             int2 axis = alongX ? new int2(1, 0) : new int2(0, 1);
+            // Проём лифта: у шахты свои двери во всю высоту — ни деревянных дверей, ни перемычки.
+            int2 across = alongX ? new int2(0, 1) : new int2(1, 0);
+            if (TileAt(plan, local + across) == Tile.ElevatorVoid || TileAt(plan, local - across) == Tile.ElevatorVoid)
+                return Cell.Air;
             bool hasLower = TileAt(plan, local - axis) == doorTile;
             bool hasUpper = TileAt(plan, local + axis) == doorTile;
-            int2 key = hasLower ? local - axis : local;
+            // Решение одно на весь проём: ключ — его первая клетка (у проёма в 3 клетки третья раньше решала сама
+            // и оставалась пустой на всю высоту рядом с дверями под перемычкой — «ступенька» в проёме).
+            int2 key = local;
+            for (int i = 0; i < 8 && TileAt(plan, key - axis) == doorTile; i++)
+                key -= axis;
             uint h = Hash.Get(Seed, info.Cell.x * 131 + key.x, info.Cell.y * 131 + key.y, level * 7 + 5111);
             if (Hash.ToFloat01(h) >= chance)
                 return Cell.Air;
@@ -431,7 +439,7 @@ namespace VoidMall.World
         /// </summary>
         private Cell SlidingDoorCell(int2 local, int rel, int level, in MallLevelPlan plan, in MallCellInfo info, int doorHeight, bool entrance)
         {
-            if (M.Sliding1 == 0 || doorHeight != 3)
+            if (M.Sliding1 == 0 || doorHeight != 3 || level == MallLayout.TechLevel)
                 return Cell.Air;
             bool alongX = TileAt(plan, local + new int2(1, 0)) is Tile.FacadeDoor or Tile.FacadeWall or Tile.FacadeGlass or Tile.Shutter
                           || TileAt(plan, local + new int2(-1, 0)) is Tile.FacadeDoor or Tile.FacadeWall or Tile.FacadeGlass or Tile.Shutter;
@@ -469,13 +477,21 @@ namespace VoidMall.World
         /// в центре (вместо колонны) тумба и закруглённая «шапка» из четырёх круглых скосов «вертушкой».
         /// Air — клетка не фонтанная, генерация идёт обычным путём.
         /// </summary>
-        private Cell FountainCell(int2 local, int rel, out bool handled)
+        private Cell FountainCell(int2 local, int rel, int free, out bool handled)
         {
             handled = false;
-            if (local.x >= MallLayout.Band || local.y >= MallLayout.Band || rel > 2)
+            if (local.x >= MallLayout.Band || local.y >= MallLayout.Band)
                 return Cell.Air;
             bool center = local.x >= 6 && local.x <= 7 && local.y >= 6 && local.y <= 7;
             float d = math.distance(new float2(local.x + 0.5f, local.y + 0.5f), new float2(7f, 7f)); // MallPlanner.PlazaCenter (static readonly — не для Burst)
+            // Потолок над фонтаном открыт в круглый проём этажей выше.
+            if (rel == free + 1)
+            {
+                handled = d < MallPlanner.WellRadius;
+                return Cell.Air;
+            }
+            if (rel > 2)
+                return Cell.Air;
             if (center)
             {
                 if (rel == 0)
@@ -498,6 +514,40 @@ namespace VoidMall.World
                 return new Cell(M.Terrazzo, (byte)BlockShape.Slab);
             }
             return Cell.Air;
+        }
+
+        /// <summary>
+        /// Стекло витрины или ограждения — тонкая панель вдоль линии (форма Pane: поворот 0 — вдоль X, 1 — вдоль Z).
+        /// Ограждение: панель только на прямом участке; на углах и ступеньках круга — полный блок, иначе между
+        /// панелями по диагонали осталась бы щель, в которую можно выпасть.
+        /// </summary>
+        private Cell GlassPane(int2 local, in MallLevelPlan plan, bool railing)
+        {
+            bool x = railing
+                ? TileAt(plan, local + new int2(1, 0)) == Tile.Railing || TileAt(plan, local - new int2(1, 0)) == Tile.Railing
+                : IsFacade(TileAt(plan, local + new int2(1, 0))) || IsFacade(TileAt(plan, local - new int2(1, 0)));
+            bool z = railing
+                ? TileAt(plan, local + new int2(0, 1)) == Tile.Railing || TileAt(plan, local - new int2(0, 1)) == Tile.Railing
+                : IsFacade(TileAt(plan, local + new int2(0, 1))) || IsFacade(TileAt(plan, local - new int2(0, 1)));
+            if (x == z)
+                return new Cell(M.Glass);
+            return new Cell(M.Glass, (byte)BlockShape.Pane, BlockShapes.Meta(0, x ? 0 : 1));
+        }
+
+        private static bool IsFacade(Tile tile) => tile is Tile.FacadeGlass or Tile.FacadeWall or Tile.FacadeDoor or Tile.Shutter;
+
+        /// <summary>
+        /// Колонна круглой площади — из четырёх круглых скосов «на боку» (ось скоса вертикальна), сплошной угол
+        /// каждого — к центру колонны (7, 7): вместе — круглое сечение. Остальные колонны — квадратные.
+        /// </summary>
+        private Cell RoundPillar(int2 local, int level, in MallCellInfo info, bool gallery, ushort material)
+        {
+            if (!gallery || local.x < 6 || local.x > 7 || local.y < 6 || local.y > 7 || !MallPlanner.RoundPlaza(Seed, info, level, out _))
+                return new Cell(material);
+            // Верх скоса на −X (up 3) ставит сплошной угол к +X, на +X (up 2) — к −X; поворот 2 переносит его с +Z на −Z.
+            int up = local.x == 6 ? 3 : 2;
+            int yaw = local.y == 6 ? 0 : 2;
+            return new Cell(material, (byte)BlockShape.RoundOuter, BlockShapes.Meta(up, yaw));
         }
 
         private static Tile TileAt(in MallLevelPlan plan, int2 local)
@@ -552,6 +602,9 @@ namespace VoidMall.World
         /// <summary>Лампа в потолочном ряду (или 0). Сетка 4 м в магазинах и галереях, аварийные — вдоль фасадов и на лестницах.</summary>
         private ushort LampAt(int2 local, LevelKind kind, MallRoom room, bool isPublic, in MallCellInfo info)
         {
+            // Технический этаж — без ламп: там светят только строительные лампы на аккумуляторах (пропы).
+            if (kind == LevelKind.Tech)
+                return 0;
             int x = local.x, z = local.y;
             if (room.Has(RoomFlags.Stairwell))
             {

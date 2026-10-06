@@ -147,6 +147,7 @@ namespace VoidMall.Game
 
         private FunctionalBlockView _fblockTarget;
         private bool _prying;
+        private PropBody _pryRegister; // вскрываем кассовый аппарат (а не ворота)
         private float _pryProgress;
         private const float PryTime = 2.5f;
 
@@ -183,15 +184,27 @@ namespace VoidMall.Game
             if (!_prying)
                 return;
             var item = PlayerInventory.Local?.ActiveItem;
-            if (!_interact.IsPressed() || _fblockTarget == null || item == null || item.Tool != ToolKind.Crowbar)
+            bool register = _pryRegister != null;
+            if (!_interact.IsPressed() || (register ? _target != _pryRegister : _fblockTarget == null) || item == null || item.Tool != ToolKind.Crowbar)
             {
                 _prying = false;
+                _pryRegister = null;
                 return;
             }
             _pryProgress += Time.deltaTime / PryTime;
             if (_pryProgress < 1f)
                 return;
             _prying = false;
+            if (register)
+            {
+                var opened = _pryRegister;
+                _pryRegister = null;
+                if (ShelfLoot.Instance == null || !ShelfLoot.Instance.OpenRegister(opened))
+                    return;
+                var wallet = PlayerInventory.Local;
+                Say(wallet.Wear(wallet.ActiveStack, 2f) ? "Лом сломался" : "Касса вскрыта");
+                return;
+            }
             SendState(_fblockTarget.Anchor, true, false, false);
             var inventory = PlayerInventory.Local;
             if (inventory.Wear(inventory.ActiveStack, 5f))
@@ -199,6 +212,14 @@ namespace VoidMall.Game
             else
                 Say("Замок сорван");
             PlayerSkills.AwardLocal(Aspect.Construction, 0.5f);
+        }
+
+        private static bool IsRegister(PropBody prop) => prop.Def.Shape == PropShape.Checkout;
+
+        private static bool CanPryRegister(PropBody prop)
+        {
+            var item = PlayerInventory.Local?.ActiveItem;
+            return IsRegister(prop) && item != null && item.Tool == ToolKind.Crowbar && ShelfLoot.Instance != null && !ShelfLoot.Instance.IsRegisterOpened(prop.Id);
         }
 
         private static void SendState(Unity.Mathematics.int3 anchor, bool open, bool locked, bool side)
@@ -295,6 +316,14 @@ namespace VoidMall.Game
                 {
                     _interactConsumed = true;
                     _prying = !UseFunctional(_fblockTarget);
+                    _pryProgress = 0f;
+                }
+                else if (_target != null && CanPryRegister(_target))
+                {
+                    // Кассовый аппарат: с ломом в руках удержание E вскрывает его (без лома — тащить, как обычно).
+                    _interactConsumed = true;
+                    _prying = true;
+                    _pryRegister = _target;
                     _pryProgress = 0f;
                 }
             }
@@ -787,6 +816,9 @@ namespace VoidMall.Game
                     : _target.Def.Sleepable ? "E — спать · удерживайте E — " + (_target.Def.PackUp ? "свернуть" : mass <= HoldMass.Value ? "взять" : "тащить")
                     : (mass <= HoldMass.Value ? "E — взять" : mass <= DragMass.Value ? "E — тащить" : "слишком тяжело")
                       + (_target.IsInGroup ? (_interactHeld > 0.15f ? $" · вытаскиваем гвозди… {_interactHeld / UnnailDuration * 100f:0}%" : " · удерживайте E — вытащить гвозди") : "");
+                if (IsRegister(_target) && ShelfLoot.Instance != null && !ShelfLoot.Instance.IsRegisterOpened(_target.Id))
+                    action = _prying && _pryRegister == _target ? $"Вскрываем кассу… {_pryProgress * 100f:0}%"
+                        : CanPryRegister(_target) ? "удерживайте E — вскрыть кассу ломом" : action + " · касса заперта — нужен лом";
                 text = $"{_target.Def.DisplayName} · {mass:0} кг · прочность {health * 100f:0}% · {action} · удерживайте F — разобрать";
             }
             else

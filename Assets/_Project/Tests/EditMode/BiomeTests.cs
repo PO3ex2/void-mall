@@ -80,6 +80,76 @@ namespace VoidMall.Tests
         }
 
         [Test]
+        public void Balconies_NotOnAtriumBands_WithBridge()
+        {
+            const uint seed = 9;
+            var sections = new NativeArray<SectionInfo>(1, Allocator.Temp);
+            sections[0] = new SectionInfo { Layout = SectionLayout.Rows, RetailFloorMask = 0b11111, Weight = 1f };
+            var plan = new MallLevelPlan(Allocator.Temp);
+            int balconies = 0;
+            try
+            {
+                for (int z = -5; z < 5; z++)
+                for (int x = -5; x < 5; x++)
+                {
+                    var info = MallPlanner.GetCellInfo(seed, Frequency, new int2(x, z));
+                    Assert.IsFalse(info.BalconyX && info.AtriumX);
+                    Assert.IsFalse(info.BalconyZ && info.AtriumZ);
+                    if (!info.BalconyX)
+                        continue;
+                    balconies++;
+                    MallPlanner.BuildLevel(seed, info, MallLayout.FirstRetailLevel + 2, sections, ref plan);
+                    Assert.AreEqual(Tile.AtriumVoid, plan.TileAt(20, 7), "проём посередине полосы");
+                    Assert.AreNotEqual(Tile.AtriumVoid, plan.TileAt(38, 7), "мостик поперёк");
+                    Assert.AreEqual(Tile.Railing, plan.TileAt(20, MallPlanner.AtriumAcrossMin - 1), "ограждение по краю");
+                    Assert.AreEqual(Tile.Open, plan.TileAt(20, 1), "проход-балкон у витрин");
+                }
+            }
+            finally
+            {
+                plan.Dispose();
+                sections.Dispose();
+            }
+            Assert.Greater(balconies, 0);
+        }
+
+        [Test]
+        public void Fountain_OnFirstFloor_WellAbove()
+        {
+            const uint seed = 4;
+            var sections = new NativeArray<SectionInfo>(1, Allocator.Temp);
+            sections[0] = new SectionInfo { Layout = SectionLayout.Rows, RetailFloorMask = 0b11111, Weight = 1f };
+            var plan = new MallLevelPlan(Allocator.Temp);
+            int found = 0;
+            try
+            {
+                for (int z = -8; z < 8; z++)
+                for (int x = -8; x < 8; x++)
+                {
+                    var info = MallPlanner.GetCellInfo(seed, Frequency, new int2(x, z));
+                    if (!MallPlanner.PlazaOf(seed, info, out bool hasFountain) || !hasFountain)
+                        continue;
+                    found++;
+                    for (int level = MallLayout.FirstRetailLevel; level < MallLayout.FirstRetailLevel + MallLayout.RetailFloors; level++)
+                    {
+                        MallPlanner.RoundPlaza(seed, info, level, out bool fountain);
+                        Assert.AreEqual(level == MallLayout.FirstRetailLevel, fountain, "фонтан только на первом торговом этаже");
+                        Assert.AreEqual(level != MallLayout.FirstRetailLevel, MallPlanner.PlazaWell(seed, info, level));
+                        MallPlanner.BuildLevel(seed, info, level, sections, ref plan);
+                        Tile center = plan.TileAt(7, 7);
+                        Assert.AreEqual(level == MallLayout.FirstRetailLevel ? Tile.Open : Tile.AtriumVoid, center, $"уровень {level}: центр площади");
+                    }
+                }
+            }
+            finally
+            {
+                plan.Dispose();
+                sections.Dispose();
+            }
+            Assert.Greater(found, 0);
+        }
+
+        [Test]
         public void DeadEnds_NeverNearSpawn_NeverAcrossAtrium()
         {
             const uint seed = 5;
