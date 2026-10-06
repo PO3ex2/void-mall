@@ -100,6 +100,12 @@ namespace VoidMall.World
         /// внизу трава, кусты, лианы с краёв, лучи света, иногда дождь. Уютное место: свет и рассудок.
         /// </summary>
         Oasis,
+
+        /// <summary>
+        /// Водный чанк (этап 8Д): колонна 32×32 через все этажи, весь воздух в ней — вода, которую не убрать.
+        /// Стены, полы и мебель на месте, просто затоплены; на границе колонны — стена воды.
+        /// </summary>
+        Flooded,
     }
 
     /// <summary>
@@ -168,6 +174,7 @@ namespace VoidMall.World
             AnomalyKind.Cutout => "cutout",
             AnomalyKind.Inverted => "inverted",
             AnomalyKind.Oasis => "oasis",
+            AnomalyKind.Flooded => "flooded",
             _ => "none",
         };
 
@@ -188,6 +195,7 @@ namespace VoidMall.World
             AnomalyKind.Cutout => "вырез",
             AnomalyKind.Inverted => "перевёрнутый чанк",
             AnomalyKind.Oasis => "оазис",
+            AnomalyKind.Flooded => "водный чанк",
             _ => "нет",
         };
 

@@ -59,6 +59,11 @@ namespace VoidMall.Player
         /// </summary>
         public Vector3 ExternalDrift { get; set; }
 
+        /// <summary>Окно бхопа: прыжок не позже стольких секунд после приземления — без трения.</summary>
+        public const float BhopWindow = 0.1f;
+
+        private float _sinceLanded = float.MaxValue;
+
         public float CurrentHeight => _state.IsCrouched ? _settings.CrouchHeight : _settings.StandHeight;
         public float TargetEyeHeight => _state.IsCrouched ? _settings.CrouchEyeHeight : _settings.StandEyeHeight;
 
@@ -201,6 +206,7 @@ namespace VoidMall.Player
 
         public void Simulate(in PlayerInputFrame input, float dt)
         {
+            _sinceLanded += dt;
             _previousPosition = _state.Position;
             _previousStepOffset = _stepOffset;
             _stepOffset *= Mathf.Exp(-_settings.StepSmoothing * dt);
@@ -210,10 +216,13 @@ namespace VoidMall.Player
             _state.Yaw = input.Yaw;
             _state.Pitch = input.Pitch;
 
-            if (_state.Mode == MoveMode.Walk)
-                SimulateWalk(in input, dt);
-            else
+            UpdateWater();
+            if (_state.Mode != MoveMode.Walk)
                 SimulateFly(in input, dt);
+            else if (_state.IsSwimming)
+                SimulateSwim(in input, dt);
+            else
+                SimulateWalk(in input, dt);
 
             PushRigidbodies(dt);
             transform.position = _state.Position;
@@ -259,9 +268,14 @@ namespace VoidMall.Player
                 _state.IsSprinting ? s.SprintSpeed :
                 s.RunSpeed;
             float wishSpeed = baseSpeed * m.SpeedMul * Mathf.Min(wishAmount, 1f);
+            if (_state.InWater)
+                wishSpeed *= s.WadeSpeedMul; // вброд
 
-            // Трение до прыжка: так приземление всегда стоит скорости и банихоп ограничен.
-            if (_state.IsGrounded)
+            // Трение до прыжка: так приземление всегда стоит скорости и банихоп ограничен. С бхопом (навык) прыжок в
+            // момент приземления (окно BhopWindow, нажатие чуть раньше — из буфера) трения не получает: скорость сохраняется.
+            bool jumpQueued = input.WasPressed(PlayerButtons.Jump) || _jumpBuffer > 0f;
+            bool bhop = m.Bhop && _state.IsGrounded && jumpQueued && _sinceLanded <= BhopWindow;
+            if (_state.IsGrounded && !bhop)
             {
                 _state.Velocity.y = 0f;
                 SourceMovement.Friction(ref _state.Velocity, dt, s.Friction, s.StopSpeed);
@@ -300,6 +314,7 @@ namespace VoidMall.Player
 
             if (!wasGrounded && _state.IsGrounded)
             {
+                _sinceLanded = 0f;
                 LastLandingSpeed = -verticalSpeedBefore;
                 Landed?.Invoke(LastLandingSpeed);
                 EventBus<PlayerLandedEvent>.Publish(new PlayerLandedEvent
@@ -316,6 +331,57 @@ namespace VoidMall.Player
             }
 
             ApplyStandOnForce();
+        }
+
+        /// <summary>Вода по точкам тела: ноги — вброд, грудь — плавание, глаза — под водой (LiquidProbe от мира).</summary>
+        private void UpdateWater()
+        {
+            if (_state.Mode != MoveMode.Walk)
+            {
+                _state.InWater = _state.IsSwimming = _state.HeadUnderwater = false;
+                return;
+            }
+            Vector3 position = _state.Position;
+            _state.IsSwimming = LiquidProbe.At(position + Vector3.up * (CurrentHeight * 0.55f));
+            _state.HeadUnderwater = LiquidProbe.At(position + Vector3.up * TargetEyeHeight);
+            _state.InWater = _state.IsSwimming || LiquidProbe.At(position + Vector3.up * 0.25f);
+        }
+
+        /// <summary>
+        /// Плавание: направление — по взгляду (вверх и вниз тоже), прыжок — всплыть, присед — нырнуть; без движения
+        /// медленно тонешь. Спринт быстрее и тратит стамину. Падение в воду не калечит — вода гасит скорость.
+        /// </summary>
+        private void SimulateSwim(in PlayerInputFrame input, float dt)
+        {
+            var s = _settings;
+            var m = _modifiers;
+            Vector2 move = Vector2.ClampMagnitude(input.Move, 1f);
+            Vector3 wish = Quaternion.Euler(input.Pitch, input.Yaw, 0f) * new Vector3(move.x, 0f, move.y);
+            if (input.IsHeld(PlayerButtons.Jump))
+                wish += Vector3.up;
+            if (input.IsHeld(PlayerButtons.Crouch))
+                wish += Vector3.down;
+            float wishAmount = wish.magnitude;
+            Vector3 wishDir = wishAmount > 1e-4f ? wish / wishAmount : Vector3.zero;
+
+            bool sprint = input.IsHeld(PlayerButtons.Sprint) && m.CanSprint && wishAmount > 0.1f;
+            _state.IsSprinting = sprint;
+            if (sprint)
+                _stamina?.Drain(s.SprintStaminaPerSecond * m.StaminaCostMul * dt);
+            float speed = s.SwimSpeed * (sprint ? s.SwimSprintMultiplier : 1f) * m.SpeedMul * Mathf.Min(wishAmount, 1f);
+
+            SourceMovement.Friction(ref _state.Velocity, dt, s.SwimFriction, s.StopSpeed);
+            SourceMovement.Accelerate(ref _state.Velocity, wishDir, speed, s.SwimAccelerate * m.AccelMul, dt);
+            if (wishAmount < 0.1f)
+                _state.Velocity.y = Mathf.MoveTowards(_state.Velocity.y, -s.SwimSinkSpeed, s.SwimAccelerate * dt);
+
+            Vector3 drift = new Vector3(ExternalDrift.x, 0f, ExternalDrift.z) * dt;
+            _mover.SlideMove(ref _state.Position, ref _state.Velocity, _state.Velocity * dt + drift, CurrentHeight, keepHorizontal: false);
+            _state.IsGrounded = false;
+            _state.IsSliding = false;
+            _state.GroundCollider = null;
+            _state.GroundVelocity = Vector3.zero;
+            _jumpBuffer = 0f;
         }
 
         private void SimulateFly(in PlayerInputFrame input, float dt)
@@ -448,7 +514,8 @@ namespace VoidMall.Player
         {
             var s = _settings;
             Vector3 horizontal = _state.HorizontalVelocity;
-            float maxHorizontal = s.SprintSpeed * s.MaxJumpSpeedFactor * Mathf.Max(_modifiers.SpeedMul, 0.01f);
+            float factor = _modifiers.JumpSpeedFactor > 0f ? _modifiers.JumpSpeedFactor : s.MaxJumpSpeedFactor;
+            float maxHorizontal = s.SprintSpeed * factor * Mathf.Max(_modifiers.SpeedMul, 0.01f);
             if (horizontal.sqrMagnitude > maxHorizontal * maxHorizontal)
                 horizontal = horizontal.normalized * maxHorizontal;
 

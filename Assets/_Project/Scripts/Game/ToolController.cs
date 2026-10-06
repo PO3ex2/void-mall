@@ -176,6 +176,11 @@ namespace VoidMall.Game
         private void HandleActions()
         {
             var item = ActiveItem;
+            if (item != null && item.Tool == ToolKind.Bucket)
+            {
+                HandleBucket();
+                return;
+            }
             if (item != null && item.Tool == ToolKind.Drill)
             {
                 HandleDrilling(item);
@@ -394,7 +399,31 @@ namespace VoidMall.Game
                 return;
             Inventory.RefillHotbar(slot, stack.Def);
             Send(new PlaceBlockCommand { Position = cell, Material = material });
+            Inventory.GiveLeftover(item);
             PlayerSkills.AwardLocal(Aspect.Construction, 0.15f);
+        }
+
+        /// <summary>Пустое ведро: ПКМ по воде — набрать (блок воды исчезает, воду водного чанка не убрать).</summary>
+        private void HandleBucket()
+        {
+            if (!_secondary.WasPressedThisFrame())
+                return;
+            var view = _camera.transform;
+            if (!World.RaycastLiquid(view.position, view.forward, _reach, out var water))
+            {
+                Say("Тут нет воды");
+                return;
+            }
+            if (!ItemSystem.Instance.Items.TryGetIndex("item.bucket_water", out ushort full))
+                return;
+            var stack = Inventory.ActiveStack;
+            int slot = Inventory.Hotbar.Selected;
+            if (!Inventory.TryConsume(stack.Def, 1))
+                return;
+            Inventory.RefillHotbar(slot, stack.Def);
+            Inventory.Add(new ItemStack(full, 1));
+            Send(new DamageBlockCommand { Position = water.Cell, Amount = 1 });
+            Say("Набрали воды");
         }
 
         private void HandleDrilling(ItemDef drill)
@@ -675,7 +704,9 @@ namespace VoidMall.Game
                 : item.Tool == ToolKind.Drill ? "ЛКМ — срезать, ПКМ — нарастить"
                 : item.Tool == ToolKind.Flashlight ? $"ЛКМ — {(_flashlightOn ? "выключить" : "включить")}"
                 : item.Tool == ToolKind.Torch ? $"ЛКМ — {(_torchOn ? "потушить" : "зажечь")}"
+                : item.Tool == ToolKind.Bucket ? "ПКМ по воде — набрать"
                 : item.IsReadable ? "ЛКМ — изучить чертёж"
+                : item.PlacesBlock != null && item.IsConsumable ? "ЛКМ — выпить, ПКМ — вылить"
                 : item.PlacesBlock != null ? "ПКМ — поставить, ЛКМ — ударить"
                 : !string.IsNullOrEmpty(item.PlacesProp) ? (_ghostVisible && !_ghostValid ? "Не помещается" : "ПКМ — поставить, R — повернуть")
                 : item.IsConsumable ? "ЛКМ — использовать"

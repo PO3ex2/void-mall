@@ -54,6 +54,8 @@ namespace VoidMall.Editor
             new() { Id = "recipe.sewing_table", Result = "item.sewing_table", Station = Bench, Time = 25f, Category = RecipeCategory.Stations, Ingredients = new[] { ("material.plank", 5), ("material.scrap_metal", 3), ("material.screws", 10) } },
             new() { Id = "recipe.chem_table", Result = "item.chem_table", Station = Bench, Time = 25f, Category = RecipeCategory.Stations, Ingredients = new[] { ("material.plank", 4), ("material.glass_shard", 3), ("material.pipe", 1), ("material.screws", 8) } },
             new() { Id = "recipe.burner", Result = "item.burner", Station = Bench, Time = 20f, Category = RecipeCategory.Stations, Ingredients = new[] { ("material.scrap_metal", 3), ("material.pipe", 1), ("material.screws", 4) }, Skill = SkillId.Technician, Level = 1 },
+            new() { Id = "recipe.fire_barrel", Result = "item.fire_barrel", Station = Bench, Time = 25f, Category = RecipeCategory.Stations, Ingredients = new[] { ("material.scrap_metal", 6), ("material.screws", 4) } },
+            new() { Id = "recipe.bucket", Result = "item.bucket", Station = Bench, Time = 12f, Category = RecipeCategory.Tools, Ingredients = new[] { ("material.scrap_metal", 3), ("material.wire", 1) } },
             new() { Id = "recipe.table", Result = "item.table", Station = Bench, Time = 12f, Category = RecipeCategory.Building, Ingredients = new[] { ("material.plank", 4), ("material.nails", 6) } },
             new() { Id = "recipe.shelf", Result = "item.shelf", Station = Bench, Time = 16f, Category = RecipeCategory.Building, Ingredients = new[] { ("material.scrap_metal", 4), ("material.screws", 8) } },
             new() { Id = "recipe.planks", Result = "item.block.planks", Count = 4, Station = Bench, Time = 10f, Category = RecipeCategory.Blocks, Ingredients = new[] { ("material.plank", 2), ("material.nails", 4) } },
@@ -75,6 +77,8 @@ namespace VoidMall.Editor
             new() { Id = "recipe.school_backpack", Result = "item.school_backpack", Station = Sewing, Time = 30f, Category = RecipeCategory.Clothing, Ingredients = new[] { ("material.fabric", 6), ("material.plastic", 2) } },
             new() { Id = "recipe.sleeping_bag", Result = "item.sleeping_bag", Station = Sewing, Time = 30f, Category = RecipeCategory.Building, Ingredients = new[] { ("material.fabric", 6), ("material.foam", 3) } },
             new() { Id = "recipe.padded_vest", Result = "item.padded_vest", Station = Sewing, Time = 40f, Category = RecipeCategory.Clothing, Ingredients = new[] { ("material.fabric", 6), ("material.foam", 4) }, Blueprint = true, Skill = SkillId.Tailor, Level = 1 },
+            new() { Id = "recipe.winter_jacket", Result = "item.winter_jacket", Station = Sewing, Time = 50f, Category = RecipeCategory.Clothing, Ingredients = new[] { ("material.fabric", 8), ("material.foam", 5) }, Blueprint = true, Skill = SkillId.Tailor, Level = 1 },
+            new() { Id = "recipe.knit_hat", Result = "item.knit_hat", Station = Sewing, Time = 15f, Category = RecipeCategory.Clothing, Ingredients = new[] { ("material.fabric", 2) } },
             new() { Id = "recipe.hiking_backpack", Result = "item.hiking_backpack", Station = Sewing, Time = 50f, Category = RecipeCategory.Clothing, Ingredients = new[] { ("material.fabric", 10), ("material.plastic", 3), ("material.rubber", 2) }, Blueprint = true, Skill = SkillId.Tailor, Level = 1 },
 
             // ── Химстол ──
@@ -92,6 +96,7 @@ namespace VoidMall.Editor
             new() { Id = "recipe.dish_noodles_meat", Result = "item.dish_noodles_meat", Station = Cook, Time = 30f, Category = RecipeCategory.Food, Ingredients = new[] { ("item.noodles", 1), ("item.canned_meat", 1), ("item.water_bottle", 1) } },
             new() { Id = "recipe.dish_beans_meat", Result = "item.dish_beans_meat", Station = Cook, Time = 25f, Category = RecipeCategory.Food, Ingredients = new[] { ("item.canned_beans", 1), ("item.canned_meat", 1) }, Skill = SkillId.Cook, Level = 1 },
             new() { Id = "recipe.hot_chocolate", Result = "item.hot_chocolate", Station = Cook, Time = 15f, Category = RecipeCategory.Food, Ingredients = new[] { ("item.chocolate", 1), ("item.water_bottle", 1) } },
+            new() { Id = "recipe.boil_water", Result = "item.bucket_clean", Station = Cook, Time = 40f, Category = RecipeCategory.Food, Ingredients = new[] { ("item.bucket_water", 1) } },
         };
 
         public static void CreateRecipeAssets()

@@ -17,10 +17,14 @@ namespace VoidMall.World
         private Mesh _mesh;
         private MeshCollider _collider;
 
+        // Вода — отдельный объект без коллизии (сквозь неё плывут).
+        private Mesh _waterMesh;
+        private MeshRenderer _waterRenderer;
+
         public Mesh Mesh => _mesh;
         public bool HasGeometry { get; private set; }
 
-        public static ChunkRenderer Create(Transform parent, Material opaque, Material transparent)
+        public static ChunkRenderer Create(Transform parent, Material opaque, Material transparent, Material water)
         {
             var go = new GameObject("Chunk") { layer = GameLayers.World };
             go.transform.SetParent(parent, false);
@@ -32,6 +36,16 @@ namespace VoidMall.World
             renderer._mesh = new Mesh { name = "ChunkMesh", indexFormat = IndexFormat.UInt32 };
             renderer._mesh.MarkDynamic();
             go.GetComponent<MeshFilter>().sharedMesh = renderer._mesh;
+
+            var waterGo = new GameObject("Water") { layer = GameLayers.World };
+            waterGo.transform.SetParent(go.transform, false);
+            renderer._waterMesh = new Mesh { name = "ChunkWater", indexFormat = IndexFormat.UInt32 };
+            renderer._waterMesh.MarkDynamic();
+            waterGo.AddComponent<MeshFilter>().sharedMesh = renderer._waterMesh;
+            renderer._waterRenderer = waterGo.AddComponent<MeshRenderer>();
+            renderer._waterRenderer.sharedMaterial = water;
+            renderer._waterRenderer.shadowCastingMode = ShadowCastingMode.Off;
+            renderer._waterRenderer.enabled = false;
             return renderer;
         }
 
@@ -68,6 +82,24 @@ namespace VoidMall.World
                 _collider.sharedMesh = null;
         }
 
+        /// <summary>Вода чанка (без коллизии).</summary>
+        public void ApplyWater(NativeList<ChunkVertex> vertices, NativeList<int> indices)
+        {
+            const MeshUpdateFlags flags = MeshUpdateFlags.DontRecalculateBounds | MeshUpdateFlags.DontValidateIndices;
+            _waterMesh.Clear();
+            bool any = vertices.Length > 0;
+            _waterRenderer.enabled = any;
+            if (!any)
+                return;
+            _waterMesh.SetVertexBufferParams(vertices.Length, ChunkVertex.Layout);
+            _waterMesh.SetVertexBufferData(vertices.AsArray(), 0, 0, vertices.Length, 0, flags);
+            _waterMesh.SetIndexBufferParams(indices.Length, IndexFormat.UInt32);
+            _waterMesh.SetIndexBufferData(indices.AsArray(), 0, 0, indices.Length, flags);
+            _waterMesh.subMeshCount = 1;
+            _waterMesh.SetSubMesh(0, new SubMeshDescriptor(0, indices.Length), flags);
+            _waterMesh.bounds = ChunkBounds;
+        }
+
         /// <summary>Меш уже запечён (Physics.BakeMesh) — назначение мгновенное.</summary>
         public void ApplyCollider()
         {
@@ -78,6 +110,8 @@ namespace VoidMall.World
         public void ResetForPool()
         {
             _mesh.Clear();
+            _waterMesh.Clear();
+            _waterRenderer.enabled = false;
             _collider.sharedMesh = null;
             HasGeometry = false;
             gameObject.SetActive(false);
@@ -87,6 +121,8 @@ namespace VoidMall.World
         {
             if (_mesh != null)
                 Destroy(_mesh);
+            if (_waterMesh != null)
+                Destroy(_waterMesh);
         }
     }
 }

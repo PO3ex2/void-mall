@@ -72,6 +72,14 @@ namespace VoidMall.World
             var info = _world.Materials.Infos[cell.Material];
             if ((info.Flags & MaterialFlags.Unbreakable) != 0)
                 return;
+            if (info.Kind == MaterialKind.Liquid)
+            {
+                // Набрали воду ведром: клетка пустеет сразу.
+                Cell empty = _world.EmptyCellAt(command.Position);
+                _world.SetCell(command.Position, empty);
+                Broadcast(command.Position, empty, 0);
+                return;
+            }
             if (info.Kind == MaterialKind.Functional)
             {
                 DamageFunctional(command.Position, cell, info, command.Amount);
@@ -83,8 +91,9 @@ namespace VoidMall.World
             int damage = _world.GetDamage(command.Position) + command.Amount;
             if (damage >= info.Hardness)
             {
-                _world.SetCell(command.Position, Cell.Air);
-                Broadcast(command.Position, Cell.Air, 0);
+                Cell empty = _world.EmptyCellAt(command.Position);
+                _world.SetCell(command.Position, empty);
+                Broadcast(command.Position, empty, 0);
                 PublishMined(cell.Material, 1f, command.Position);
                 _removed.Clear();
                 _removed.Add(command.Position);
@@ -118,8 +127,11 @@ namespace VoidMall.World
             if (!world.IsLoaded(position) || !world.GetCell(position).IsAir)
                 return false;
             var def = world.Materials.Get(material);
-            if (!def.Placeable || def.Kind != MaterialKind.Block)
+            // Блоки и вода (из ведра).
+            if (!def.Placeable || (def.Kind != MaterialKind.Block && def.Kind != MaterialKind.Liquid))
                 return false;
+            if (def.Kind == MaterialKind.Liquid)
+                return true; // в воду можно ставить и там, где стоишь
             Vector3 center = new Vector3(position.x, position.y, position.z) + Vector3.one * 0.5f;
             return !Physics.CheckBox(center, Vector3.one * 0.49f, Quaternion.identity, EntityMask, QueryTriggerInteraction.Ignore);
         }
@@ -151,8 +163,9 @@ namespace VoidMall.World
                     Cell value = _world.GetCell(part);
                     if (value.Material != cell.Material || !math.all(FunctionalCells.AnchorOf(part, value) == anchor))
                         continue;
-                    _world.SetCell(part, Cell.Air);
-                    Broadcast(part, Cell.Air, 0);
+                    Cell empty = _world.EmptyCellAt(part);
+                    _world.SetCell(part, empty);
+                    Broadcast(part, empty, 0);
                     _removed.Add(part);
                 }
             }
@@ -351,8 +364,9 @@ namespace VoidMall.World
             {
                 foreach (var cell in island)
                 {
-                    _world.SetCell(cell, Cell.Air);
-                    Broadcast(cell, Cell.Air, 0);
+                    Cell empty = _world.EmptyCellAt(cell);
+                    _world.SetCell(cell, empty);
+                    Broadcast(cell, empty, 0);
                 }
             }
 

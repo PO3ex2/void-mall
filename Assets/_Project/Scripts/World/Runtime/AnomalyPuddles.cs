@@ -162,7 +162,7 @@ namespace VoidMall.World
                 return Floor.Unknown;
             Cell floor = world.GetCell(below), air = world.GetCell(surface);
             bool solid = floor.Material != 0 && world.GetInfo(floor.Material).IsSolid;
-            bool open = air.Material == 0 || !world.GetInfo(air.Material).IsSolid;
+            bool open = air.Material == 0 || (!world.GetInfo(air.Material).IsSolid && !world.GetInfo(air.Material).IsLiquid);
             return solid && open ? Floor.Present : Floor.Missing;
         }
 

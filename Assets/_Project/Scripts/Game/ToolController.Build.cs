@@ -132,6 +132,9 @@ namespace VoidMall.Game
             if (!World.Materials.TryGetIndex(item.PlacesBlock.Id, out ushort material))
                 return false;
             var info = World.GetInfo(material);
+            // Вода из ведра ставится просто в клетку перед гранью — без шаблонов формы.
+            if (info.Kind == MaterialKind.Liquid)
+                return false;
             if (info.Kind == MaterialKind.Functional)
             {
                 HandleFunctionalPlacing(item, material, info);

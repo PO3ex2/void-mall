@@ -48,6 +48,10 @@ namespace VoidMall.World
         public NativeList<int> OpaqueIndices;
         public NativeList<int> TransparentIndices;
 
+        /// <summary>Вода — отдельный меш без коллизии (сквозь неё плывут) со своим шейдером.</summary>
+        public NativeList<ChunkVertex> WaterVertices;
+        public NativeList<int> WaterIndices;
+
         // Грани: +X, −X, +Y, −Y, +Z, −Z. Углы перечислены так, что треугольники (0,1,2),(0,2,3) смотрят наружу.
         private static readonly int[] FaceNormals =
         {
@@ -69,6 +73,11 @@ namespace VoidMall.World
             Vertices.Clear();
             OpaqueIndices.Clear();
             TransparentIndices.Clear();
+            if (WaterVertices.IsCreated)
+            {
+                WaterVertices.Clear();
+                WaterIndices.Clear();
+            }
 
             if (IsTriviallyEmpty())
                 return;
@@ -82,6 +91,11 @@ namespace VoidMall.World
                 if (cell.Material == 0)
                     continue;
                 MaterialInfo info = Materials[cell.Material];
+                if (info.Kind == MaterialKind.Liquid)
+                {
+                    EmitWater(new int3(x, y, z), info);
+                    continue;
+                }
                 if (info.Kind != MaterialKind.Block)
                     continue;
                 // Блок с формой (полублок, скос…) — геометрия из таблицы форм.
@@ -144,6 +158,11 @@ namespace VoidMall.World
                 if (cell.Material == 0)
                 {
                     d = cell.Value >= Density.Iso ? (byte)(Density.Iso - 1) : cell.Value;
+                }
+                else if (Materials[cell.Material].Kind == MaterialKind.Liquid)
+                {
+                    // Вода для гладкой поверхности — как воздух: дно котлована под водой остаётся гладким.
+                    d = Density.Iso - 1;
                 }
                 else if (Materials[cell.Material].Kind == MaterialKind.Smooth)
                 {
@@ -319,6 +338,48 @@ namespace VoidMall.World
                     return false;
             }
             return true;
+        }
+
+        /// <summary>
+        /// Грани воды: наружу — к воздуху и всему, что не закрывает клетку целиком (стекло, формы, двери). Вода к воде
+        /// (любой) не рисуется: водный чанк изнутри — без стенок, снаружи — стена воды.
+        /// </summary>
+        private void EmitWater(int3 position, MaterialInfo info)
+        {
+            if (!WaterVertices.IsCreated)
+                return;
+            for (int face = 0; face < 6; face++)
+            {
+                int3 normal = new(FaceNormals[face * 3], FaceNormals[face * 3 + 1], FaceNormals[face * 3 + 2]);
+                int3 front = position + normal;
+                if (ChunkOrigin.y + front.y < 0)
+                    continue;
+                Cell neighbor = Sample(front);
+                if (neighbor.Material != 0)
+                {
+                    MaterialInfo neighborInfo = Materials[neighbor.Material];
+                    if (neighborInfo.Kind == MaterialKind.Liquid)
+                        continue;
+                    if (neighborInfo.IsOpaque && (neighborInfo.Kind != MaterialKind.Block || neighbor.Value == 0))
+                        continue;
+                }
+                int baseVertex = WaterVertices.Length;
+                int axis = normal.x != 0 ? 0 : normal.y != 0 ? 1 : 2;
+                for (int i = 0; i < 4; i++)
+                {
+                    int offset = face * 12 + i * 3;
+                    float3 local = position + new float3(FaceCorners[offset], FaceCorners[offset + 1], FaceCorners[offset + 2]);
+                    float3 world = ChunkOrigin + local;
+                    float2 uv = axis == 0 ? world.zy : axis == 1 ? world.xz : world.xy;
+                    WaterVertices.Add(new ChunkVertex { Position = local, Normal = normal, Uv = new float4(uv, info.TextureLayer, 1f) });
+                }
+                WaterIndices.Add(baseVertex);
+                WaterIndices.Add(baseVertex + 1);
+                WaterIndices.Add(baseVertex + 2);
+                WaterIndices.Add(baseVertex);
+                WaterIndices.Add(baseVertex + 2);
+                WaterIndices.Add(baseVertex + 3);
+            }
         }
 
         private bool IsFaceVisible(Cell cell, MaterialInfo info, Cell neighbor)

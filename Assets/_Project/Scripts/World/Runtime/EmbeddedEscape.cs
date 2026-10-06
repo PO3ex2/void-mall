@@ -114,7 +114,8 @@ namespace VoidMall.World
                 return math.min((int)value.Value, Density.Iso - 1);
             var kind = world.GetInfo(value.Material).Kind;
             // Двери и формы (полублок, скос) — не массив: игрок стоит в проёме или на ступеньке, выталкивать не надо.
-            if (kind == MaterialKind.Functional || (kind == MaterialKind.Block && value.Value != 0))
+            // Вода — не массив: в ней плавают.
+            if (kind == MaterialKind.Functional || kind == MaterialKind.Liquid || (kind == MaterialKind.Block && value.Value != 0))
                 return 0f;
             return kind == MaterialKind.Smooth ? value.Value : 255f;
         }

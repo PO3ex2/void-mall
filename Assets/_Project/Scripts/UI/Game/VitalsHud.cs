@@ -19,7 +19,7 @@ namespace VoidMall.UI
 
         private VisualElement _root;
         private VisualElement _panel;
-        private readonly Bar[] _bars = new Bar[6];
+        private readonly Bar[] _bars = new Bar[7];
         private Label _temperature;
         private VisualElement _chips;
         private VisualElement _sleep;
@@ -65,6 +65,7 @@ namespace VoidMall.UI
             _bars[3] = AddBar("Вода", new Color(0.35f, 0.6f, 0.95f));
             _bars[4] = AddBar("Бодрость", new Color(0.65f, 0.55f, 0.9f));
             _bars[5] = AddBar("Рассудок", new Color(0.5f, 0.85f, 0.85f));
+            _bars[6] = AddBar("Воздух", new Color(0.75f, 0.92f, 1f));
 
             _temperature = new Label { pickingMode = PickingMode.Ignore };
             _temperature.style.fontSize = 11f;
@@ -189,6 +190,11 @@ namespace VoidMall.UI
             SetBar(_bars[3], m.WaterFraction, $"{m.Water:0} мл");
             SetBar(_bars[4], m.Rest / 100f, $"{m.Rest:0}%");
             SetBar(_bars[5], m.Sanity / 100f, $"{m.Sanity:0}%");
+            // Воздух — только под водой (и пока не восстановился).
+            bool airShown = m.Air < VitalsModel.MaxAir - 0.01f;
+            _bars[6].Fill.parent.parent.style.display = airShown ? DisplayStyle.Flex : DisplayStyle.None;
+            if (airShown)
+                SetBar(_bars[6], m.Air / VitalsModel.MaxAir, $"{m.Air:0} с");
             var env = _vitals.Environment;
             SetText(_temperature, $"Тело {m.BodyTemperature:0.0} °C · воздух {env.AirTemperature:0} °C{(env.Warmth > 0f ? $" (+{env.Warmth:0} одежда)" : "")}");
             UpdateChips(m);

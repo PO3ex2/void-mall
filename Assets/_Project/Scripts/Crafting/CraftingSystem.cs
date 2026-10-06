@@ -89,6 +89,9 @@ namespace VoidMall.Crafting
                 _stations.Add(prop.Id, state);
             }
             state.Position = prop.Bounds.center;
+            state.Heater = prop.Def.Heater;
+            state.Heat = prop.Def.HeatOutput;
+            state.HeatRadius = prop.Def.HeatRadius;
             return state;
         }
 
@@ -113,28 +116,46 @@ namespace VoidMall.Crafting
             float dt = Time.deltaTime;
             foreach (var station in _stations.Values)
             {
-                if (station.Queue.IsEmpty)
-                    continue;
-                // Верстак, швейный, химстол — только с открытым окном; плита — сама.
-                if (!station.Autonomous && station.Occupant == null)
-                    continue;
-                float seconds = dt;
-                if (station.NeedsFuel)
+                bool burned = TickQueue(station, dt);
+                // Бочка-костёр горит и без готовки, пока есть топливо.
+                if (!burned && station.Heater && station.Fuel > 0f)
                 {
-                    seconds = Mathf.Min(dt, station.Fuel);
-                    if (seconds <= 0f)
-                        continue;
+                    station.Fuel = Mathf.Max(0f, station.Fuel - dt);
+                    burned = true;
+                    station.RaiseChanged();
                 }
-                float before = station.Queue.Current.Elapsed;
-                _completed.Clear();
-                station.Queue.Tick(Instant.Value ? 1e6f : seconds * station.Speed, _completed, station.TryDeliver);
-                // Топливо горит, только пока очередь реально двигалась.
-                if (station.NeedsFuel && (_completed.Count > 0 || station.Queue.IsEmpty || station.Queue.Current.Elapsed > before))
-                    station.Fuel = Mathf.Max(0f, station.Fuel - seconds);
-                foreach (var job in _completed)
-                    Complete(job);
-                station.RaiseChanged();
+                station.Burning = burned && station.NeedsFuel;
+                if (station.Burning && station.Heat > 0f)
+                    HeatSources.Report(station.PropId, station.Position, station.Heat, station.HeatRadius);
             }
+        }
+
+        /// <summary>Шаг очереди станции. True — топливо горело (шла готовка).</summary>
+        private bool TickQueue(StationState station, float dt)
+        {
+            if (station.Queue.IsEmpty)
+                return false;
+            // Верстак, швейный, химстол — только с открытым окном; плита — сама.
+            if (!station.Autonomous && station.Occupant == null)
+                return false;
+            float seconds = dt;
+            if (station.NeedsFuel)
+            {
+                seconds = Mathf.Min(dt, station.Fuel);
+                if (seconds <= 0f)
+                    return false;
+            }
+            float before = station.Queue.Current.Elapsed;
+            _completed.Clear();
+            station.Queue.Tick(Instant.Value ? 1e6f : seconds * station.Speed, _completed, station.TryDeliver);
+            // Топливо горит, только пока очередь реально двигалась.
+            bool burned = station.NeedsFuel && (_completed.Count > 0 || station.Queue.IsEmpty || station.Queue.Current.Elapsed > before);
+            if (burned)
+                station.Fuel = Mathf.Max(0f, station.Fuel - seconds);
+            foreach (var job in _completed)
+                Complete(job);
+            station.RaiseChanged();
+            return burned;
         }
 
         /// <summary>Завершение позиции: действие (починка), очки навыков, «Экономный» — вернуть ингредиент.</summary>

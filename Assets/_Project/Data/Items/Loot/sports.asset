@@ -55,3 +55,15 @@ MonoBehaviour:
     Weight: 3
     Min: 1
     Max: 1
+  - Item: {fileID: 11400000, guid: 48f4031653b5f89489a183cbe02c09b4, type: 2}
+    Weight: 2
+    Min: 1
+    Max: 1
+  - Item: {fileID: 11400000, guid: 21464e3260085a244b41254012f80ba2, type: 2}
+    Weight: 2
+    Min: 1
+    Max: 1
+  - Item: {fileID: 11400000, guid: 911bb7659a0057f4481d84d82304f0f0, type: 2}
+    Weight: 1
+    Min: 1
+    Max: 1

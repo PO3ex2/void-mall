@@ -57,7 +57,7 @@ git clone https://github.com/PO3ex2/void-mall.git
 
 Команды пропов: `props_list`, `prop_spawn chair` (создать перед собой), `props_info`, `world_props 0`, `world_prop_radius 80`, `sv_hold_mass 20`, `sv_drag_mass 300`.
 
-Команды мола: `where` (где я, с биомом), `biome` (биом и карта биомов 9×9), `anomalies` (ближайшие аномалии), `goto_anomaly abyss|pool|cutout|inverted|oasis|distortion|glitch|pulse|lookme|puddle`, `time 22.5` (время суток, ночью свет гаснет), `time_daylength 60`, `time_frozen 1`, `seed 42` (пересоздать мир), `regen_chunk`, `world_props 0`, `world_prop_radius 80`, `r_lamplights 40`, `r_lampshadows 2`, `fx_anomaly_strength 1`.
+Команды мола: `where` (где я, с биомом), `biome` (биом и карта биомов 9×9), `anomalies` (ближайшие аномалии), `goto_anomaly abyss|pool|cutout|inverted|oasis|flooded|distortion|glitch|pulse|lookme|puddle`, `time 22.5` (время суток, ночью свет гаснет), `time_daylength 60`, `time_frozen 1`, `seed 42` (пересоздать мир), `regen_chunk`, `world_props 0`, `world_prop_radius 80`, `r_lamplights 40`, `r_lampshadows 2`, `fx_anomaly_strength 1`.
 
 Команды мира: `blocks`, `setblock x y z материал`, `fill x1 y1 z1 x2 y2 z2 материал`, `world_info`, `r_viewdistance 8`, `tool_hand_damage 15`, `drill_radius 2`, `debug_mining_log 0`.
 

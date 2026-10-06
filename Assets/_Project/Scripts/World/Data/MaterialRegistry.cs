@@ -37,6 +37,7 @@ namespace VoidMall.World
         public bool IsSolid => (Flags & MaterialFlags.Solid) != 0;
         public bool IsOpaque => (Flags & MaterialFlags.Opaque) != 0;
         public bool IsTransparent => (Flags & MaterialFlags.Transparent) != 0;
+        public bool IsLiquid => Kind == MaterialKind.Liquid;
     }
 
     /// <summary>Реестр материалов мира: ID ↔ индекс ↔ описание, плюс NativeArray для джобов.</summary>
@@ -69,7 +70,7 @@ namespace VoidMall.World
             {
                 var def = _registry.Get(i);
                 var flags = MaterialFlags.None;
-                if (def.Kind != MaterialKind.Air)
+                if (def.Kind != MaterialKind.Air && def.Kind != MaterialKind.Liquid)
                     flags |= MaterialFlags.Solid;
                 // Функциональные клетки (двери) не закрывают грани соседей: модель тоньше клетки.
                 if (def.Kind is MaterialKind.Block or MaterialKind.Smooth && !def.Transparent)

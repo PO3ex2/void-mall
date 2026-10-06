@@ -149,7 +149,7 @@ namespace VoidMall.World
                 return;
             }
             // Аномалии: в перевёрнутом чанке падает вверх, пульсация таскает туда-сюда (и не даёт уснуть).
-            if (AnomalyPhysics.Any && AnomalyPhysics.Apply(Body, Time.time, GroupBounds().min.y))
+            if (AnomalyPhysics.Apply(Body, Time.time, AnomalyPhysics.Any ? GroupBounds().min.y : float.NaN))
             {
                 _stillTime = 0f;
                 return;

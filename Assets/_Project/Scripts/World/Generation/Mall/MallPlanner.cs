@@ -134,6 +134,14 @@ namespace VoidMall.World
                     info.AnomalyCenter = MallLayout.CellOrigin(cell) + new float2(corner & 1, corner >> 1) * WorldConstants.ChunkSize;
                     info.AnomalyRadius = WorldConstants.ChunkSize;
                     return;
+                case AnomalyKind.Flooded:
+                    // Колонна-чанк через все этажи, как перевёрнутый.
+                    info.Anomaly = AnomalyKind.Flooded;
+                    int quarter = (int)(h % 4);
+                    info.AnomalyLevel = MallLayout.LevelCount - 1;
+                    info.AnomalyCenter = MallLayout.CellOrigin(cell) + new float2(quarter & 1, quarter >> 1) * WorldConstants.ChunkSize;
+                    info.AnomalyRadius = WorldConstants.ChunkSize;
+                    return;
                 case AnomalyKind.Oasis:
                     // Дыра в потолке торгового этажа; шахта с экраном неба — этажом выше.
                     info.Anomaly = AnomalyKind.Oasis;
@@ -209,7 +217,7 @@ namespace VoidMall.World
             for (int x = 0; x < 64; x++)
             {
                 var kind = RollAnomalyRaw(seed, anomalyFrequency, new int2(x, 0));
-                if (kind != AnomalyKind.Cutout && kind != AnomalyKind.Inverted)
+                if (kind != AnomalyKind.Cutout && kind != AnomalyKind.Inverted && kind != AnomalyKind.Flooded)
                     return new int2(x, 0);
             }
             return int2.zero;
@@ -224,6 +232,12 @@ namespace VoidMall.World
         /// <summary>Клетка в колонне перевёрнутого чанка ячейки (мировые XZ).</summary>
         public static bool InInverted(in MallCellInfo info, float2 world) =>
             info.Anomaly == AnomalyKind.Inverted
+            && world.x >= info.AnomalyCenter.x && world.x < info.AnomalyCenter.x + WorldConstants.ChunkSize
+            && world.y >= info.AnomalyCenter.y && world.y < info.AnomalyCenter.y + WorldConstants.ChunkSize;
+
+        /// <summary>Клетка в колонне водного чанка ячейки (мировые XZ).</summary>
+        public static bool InFlooded(in MallCellInfo info, float2 world) =>
+            info.Anomaly == AnomalyKind.Flooded
             && world.x >= info.AnomalyCenter.x && world.x < info.AnomalyCenter.x + WorldConstants.ChunkSize
             && world.y >= info.AnomalyCenter.y && world.y < info.AnomalyCenter.y + WorldConstants.ChunkSize;
 
@@ -316,13 +330,14 @@ namespace VoidMall.World
             // В узлах решётки бездна чаще — только там она бывает огромной.
             float pAbyss = (IsBigAnomalyNode(cell) ? 0.25f : 0.1f) * frequency, pPool = 0.08f * frequency, pCutout = 0.05f * frequency;
             // Оазис — самый частый (GDD §2.5), перевёрнутый чанк — редкий.
-            float pOasis = 0.12f * frequency, pInverted = 0.04f * frequency;
+            float pOasis = 0.12f * frequency, pInverted = 0.04f * frequency, pFlooded = 0.02f * frequency;
             float edge = pAbyss;
             if (roll < edge) return AnomalyKind.Abyss;
             if (roll < (edge += pPool)) return AnomalyKind.Pool;
             if (roll < (edge += pCutout)) return AnomalyKind.Cutout;
             if (roll < (edge += pOasis)) return AnomalyKind.Oasis;
-            if (roll < edge + pInverted) return AnomalyKind.Inverted;
+            if (roll < (edge += pInverted)) return AnomalyKind.Inverted;
+            if (roll < edge + pFlooded) return AnomalyKind.Flooded;
             return AnomalyKind.None;
         }
 
@@ -397,7 +412,7 @@ namespace VoidMall.World
             {
                 AnomalyKind.Abyss => math.distance(p, other.AnomalyCenter) - MallAnomalies.AbyssZoneRadius(other.AnomalyRadius),
                 AnomalyKind.Pool => math.distance(p, other.AnomalyCenter) - MallAnomalies.PoolZoneRadius(other.AnomalyRadius),
-                AnomalyKind.Cutout or AnomalyKind.Inverted => DistanceToRect(p, new float4(other.AnomalyCenter, other.AnomalyCenter + WorldConstants.ChunkSize)),
+                AnomalyKind.Cutout or AnomalyKind.Inverted or AnomalyKind.Flooded => DistanceToRect(p, new float4(other.AnomalyCenter, other.AnomalyCenter + WorldConstants.ChunkSize)),
                 AnomalyKind.Oasis => math.distance(p, other.AnomalyCenter) - OasisZoneRadius(other.AnomalyRadius),
                 _ => float.MaxValue,
             };

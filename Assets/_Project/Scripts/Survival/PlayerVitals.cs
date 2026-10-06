@@ -44,6 +44,9 @@ namespace VoidMall.Survival
         public bool SleepingOnFloor => Sleeping && _floorSleep;
         public bool IsDead => Model.IsDead;
 
+        /// <summary>Температура воздуха вокруг (последний замер окружения), °C.</summary>
+        public float AirTemperature => _env.AirTemperature;
+
         /// <summary>Когда погиб (Time.unscaledTime) — экран смерти ждёт RespawnDelay.</summary>
         public float DiedAt { get; private set; }
 
@@ -104,6 +107,8 @@ namespace VoidMall.Survival
             _motor.AddModifierSource(this);
             if (GetComponent<VitalsEffects>() == null)
                 gameObject.AddComponent<VitalsEffects>();
+            if (GetComponent<BreathVapor>() == null)
+                gameObject.AddComponent<BreathVapor>();
         }
 
         private void OnEnable()
@@ -166,6 +171,9 @@ namespace VoidMall.Survival
             _env.LookingAtAnomaly = _exposure.Staring;
             _env.InOasis = _exposure.InOasis;
             _env.PuddleHeal = _exposure.PuddleHeal;
+            ref readonly var motorState = ref _motor.State;
+            _env.InWater = motorState.InWater;
+            _env.HeadUnderwater = motorState.HeadUnderwater;
 
             if (!IsDead)
             {
@@ -202,11 +210,12 @@ namespace VoidMall.Survival
         {
             Vector3 position = transform.position;
             _env.IsNight = clock != null && clock.IsNight;
-            _env.AirTemperature = _probe.AirTemperature(world, position, _env.IsNight);
+            _env.AirTemperature = _probe.AirTemperature(world, position, SurvivalEnvironment.NightFactor(clock != null ? clock.Hour : 12f));
             _env.InAnomaly = _probe.InAnomaly(world, position);
             _env.Light = Services.TryGet(out ILightProbe light) ? light.SampleLight(position + Vector3.up * 1.6f) : 1f;
             _env.HasOwnLight = false; // фонарик уже учтён в освещённости (LightingDirector.DynamicLights)
             _env.Warmth = ClothingWarmth();
+            _env.HeatNearby = HeatSources.HeatAt(position + Vector3.up);
         }
 
         private float ClothingWarmth()
@@ -313,6 +322,7 @@ namespace VoidMall.Survival
             perks.CookMul = 1f + 0.15f * PlayerSkills.LevelOf(SkillId.Cook);
             perks.ComfortWiden = 2f * PlayerSkills.LevelOf(SkillId.Hardening);
             perks.SanityDrainMul = 1f - 0.15f * PlayerSkills.LevelOf(SkillId.SteadyNerves);
+            perks.BhopLevel = PlayerSkills.LevelOf(SkillId.Athlete);
             return perks;
         }
 

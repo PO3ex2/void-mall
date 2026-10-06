@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
+using VoidMall.Core;
 
 namespace VoidMall.World
 {
@@ -119,6 +120,30 @@ namespace VoidMall.World
             return toCenter / distance * (speed * falloff * phase);
         }
 
+        /// <summary>Легче этого (кг) — всплывает и дрейфует, тяжелее — медленно тонет.</summary>
+        public const float FloatMass = 8f;
+
+        /// <summary>
+        /// Вода: лёгкое тело всплывает (подъёмная сила больше веса) и медленно дрейфует, тяжёлое тонет медленно;
+        /// в воде всё вязнет. Не держит тело проснувшимся: всплывшее под потолок или утонувшее — засыпает.
+        /// </summary>
+        public static bool ApplyWater(Rigidbody body, Vector3 position, float time)
+        {
+            if (!LiquidProbe.At(position))
+                return false;
+            bool floats = body.mass <= FloatMass;
+            body.AddForce(-Physics.gravity * (floats ? 1.5f : 0.7f), ForceMode.Acceleration);
+            body.AddForce(-body.linearVelocity * 2.5f, ForceMode.Acceleration);
+            body.AddTorque(-body.angularVelocity * 1.5f, ForceMode.Acceleration);
+            if (floats)
+            {
+                float seed = (body.GetHashCode() % 1000) * 0.137f;
+                var drift = new Vector3(Mathf.PerlinNoise(time * 0.2f, seed) - 0.5f, 0f, Mathf.PerlinNoise(seed, time * 0.2f) - 0.5f);
+                body.AddForce(drift * 0.8f, ForceMode.Acceleration);
+            }
+            return true;
+        }
+
         /// <summary>
         /// Применить аномалии к телу: в перевёрнутой колонне гравитация вверх, в пульсации — тяга к целевой скорости.
         /// Возвращает true, если пульсация действует (тело надо держать проснувшимся).
@@ -126,9 +151,12 @@ namespace VoidMall.World
         /// </summary>
         public static bool Apply(Rigidbody body, float time, float baseY = float.NaN)
         {
-            if (body == null || body.isKinematic || !Any)
+            if (body == null || body.isKinematic)
                 return false;
             Vector3 position = body.worldCenterOfMass;
+            ApplyWater(body, position, time);
+            if (!Any)
+                return false;
             if (body.useGravity && InInverted(position))
                 body.AddForce(-2f * Physics.gravity, ForceMode.Acceleration);
             if (Pulses.Count == 0)

@@ -15,7 +15,7 @@ namespace VoidMall.World
         public ushort Lamp, Emergency, Skylight;
         public ushort Duct, CableTray;
         public ushort Door, Gate, Sliding1, Sliding2, Sliding4, Water;
-        public ushort Grass, SkyScreen;
+        public ushort Grass, SkyScreen, WaterDeep;
 
         public static MallMaterials Resolve(MaterialRegistry registry) => new()
         {
@@ -46,15 +46,18 @@ namespace VoidMall.World
             Water = registry.TryGetIndex("block.water", out ushort water) ? water : (ushort)0,
             Grass = registry.TryGetIndex("block.grass", out ushort grass) ? grass : (ushort)0,
             SkyScreen = registry.TryGetIndex("block.sky_screen", out ushort screen) ? screen : (ushort)0,
+            WaterDeep = registry.TryGetIndex("block.water_deep", out ushort deep) ? deep : (ushort)0,
         };
     }
 
     /// <summary>
     /// Генерация чанка мола (проходы 1–5 из ARCHITECTURE §4.6): фундамент, уровни по плану из MallPlanner,
-    /// отделка по разделам, лампы, аномалии (бездна, котлован, вырез, перевёрнутый чанк, оазис). Детерминирована по сиду и координатам.
+    /// отделка по разделам, лампы, аномалии (бездна, котлован, вырез, перевёрнутый чанк, оазис, водный чанк). Детерминирована по сиду и координатам.
     /// Чанк 32×32 всегда лежит в одной макроячейке 64×64, поэтому план строится для одной ячейки.
     /// </summary>
-    [BurstCompile]
+    // Строгая плавающая точка: план ячейки (броски аномалий по порогам) должен совпадать с управляемым кодом
+    // (пропы, структуры, консоль считают его без Burst), иначе на границе порога ячейка получает другую аномалию.
+    [BurstCompile(FloatMode = FloatMode.Strict)]
     public struct MallGenerationJob : IJob
     {
         public int3 Chunk;
@@ -96,6 +99,7 @@ namespace VoidMall.World
             var radialBig = new NativeArray<float>(Size * Size, Allocator.Temp);
             var cut = new NativeArray<bool>(Size * Size, Allocator.Temp);
             var inverted = new NativeArray<bool>(Size * Size, Allocator.Temp);
+            var flooded = new NativeArray<bool>(Size * Size, Allocator.Temp);
             for (int z = 0; z < Size; z++)
             for (int x = 0; x < Size; x++)
             {
@@ -106,6 +110,7 @@ namespace VoidMall.World
                     && world.x >= info.AnomalyCenter.x && world.x < info.AnomalyCenter.x + Size
                     && world.y >= info.AnomalyCenter.y && world.y < info.AnomalyCenter.y + Size;
                 inverted[x + z * Size] = MallPlanner.InInverted(info, world);
+                flooded[x + z * Size] = M.WaterDeep != 0 && MallPlanner.InFlooded(info, world);
             }
 
             var plan = new MallLevelPlan(Allocator.Temp);
@@ -133,6 +138,9 @@ namespace VoidMall.World
                     int column = x + z * Size;
                     Cell value = GenerateCell(p, p.xz - cellOrigin, level, hasPlan, plan, info, radial[column], cut[column], inverted[column], lining[column],
                         big, radialBig[column], liningBig[column]);
+                    // Водный чанк: весь воздух уровней — вода.
+                    if (hasPlan && flooded[column] && value.Material == 0)
+                        value = new Cell(M.WaterDeep);
                     Cells[WorldConstants.CellIndex(x, ly, z)] = value;
                     if (value.Material != 0 && (value.Material == M.Lamp || value.Material == M.Emergency || value.Material == M.Skylight))
                         Lamps.Add(p);
@@ -148,6 +156,7 @@ namespace VoidMall.World
             liningBig.Dispose();
             cut.Dispose();
             inverted.Dispose();
+            flooded.Dispose();
             lining.Dispose();
 
             Cell first = Cells[0];

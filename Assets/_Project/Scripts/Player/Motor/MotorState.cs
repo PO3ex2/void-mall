@@ -24,6 +24,15 @@ namespace VoidMall.Player
         public bool IsCrouched;
         public bool IsSprinting;
 
+        /// <summary>Ноги в воде (вброд или плывёт).</summary>
+        public bool InWater;
+
+        /// <summary>Грудь в воде — плавание.</summary>
+        public bool IsSwimming;
+
+        /// <summary>Глаза под водой.</summary>
+        public bool HeadUnderwater;
+
         /// <summary>Под ногами слишком крутой склон: стоять нельзя, игрок съезжает (физически это полёт).</summary>
         public bool IsSliding;
 

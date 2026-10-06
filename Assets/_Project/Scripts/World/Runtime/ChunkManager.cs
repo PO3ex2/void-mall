@@ -26,6 +26,7 @@ namespace VoidMall.World
         [SerializeField] private MaterialCatalog _catalog;
         [SerializeField] private Material _opaqueMaterial;
         [SerializeField] private Material _transparentMaterial;
+        [SerializeField] private Material _waterMaterial;
         [SerializeField] private WorldSettings _settings;
 
         [Tooltip("Сид, если настройки мира не заданы.")]
@@ -129,6 +130,7 @@ namespace VoidMall.World
             _airChunk = new ChunkData(new int3(0, WorldConstants.ChunksPerColumn, 0), Cell.Air);
             _bedrockChunk = new ChunkData(new int3(0, -1, 0), new Cell(_generatorMaterials.Bedrock));
 
+            LiquidProbe.IsLiquidAt = IsLiquidAt;
             _chunkRoot = new GameObject("Chunks").transform;
             _chunkRoot.SetParent(transform, false);
         }
@@ -145,7 +147,7 @@ namespace VoidMall.World
                 materials.Add(def.Id.StartsWith("block.") ? def.Id.Substring(6) : def.Id);
             DevConsole.RegisterCompleter("setblock", token => token == 3 ? materials : null);
             DevConsole.RegisterCompleter("fill", token => token == 6 ? materials : null);
-            DevConsole.RegisterCompleter("goto_anomaly", token => token == 0 ? new[] { "abyss", "pool", "cutout", "inverted", "oasis", "distortion", "glitch", "pulse", "lookme", "puddle" } : null);
+            DevConsole.RegisterCompleter("goto_anomaly", token => token == 0 ? new[] { "abyss", "pool", "cutout", "inverted", "oasis", "flooded", "distortion", "glitch", "pulse", "lookme", "puddle" } : null);
             DevConsole.RegisterCompleter("time", token => token == 0 ? new[] { "6", "9", "12", "18", "22", "22.5", "23", "0" } : null);
         }
 
@@ -378,6 +380,25 @@ namespace VoidMall.World
         public bool IsLoaded(int3 cell) => TryGetChunk(cell, out _, out _, out _);
 
         public MaterialInfo GetInfo(ushort material) => _registry.Infos[material];
+
+        /// <summary>Вода в точке (клетка — жидкость).</summary>
+        public bool IsLiquidAt(Vector3 position)
+        {
+            Cell cell = GetCell((int3)math.floor((float3)position));
+            return cell.Material != 0 && _registry.Infos[cell.Material].IsLiquid;
+        }
+
+        /// <summary>
+        /// Чем становится клетка, из которой убрали блок: в водном чанке — вода (её там не убрать), иначе воздух.
+        /// </summary>
+        public Cell EmptyCellAt(int3 cell)
+        {
+            var info = GetCellInfo(MallLayout.CellOf(cell.x, cell.z));
+            int level = MallLayout.LevelAt(cell.y);
+            if (_generatorMaterials.WaterDeep != 0 && level >= 0 && level < MallLayout.LevelCount && MallPlanner.InFlooded(info, new float2(cell.x + 0.5f, cell.z + 0.5f)))
+                return new Cell(_generatorMaterials.WaterDeep);
+            return Cell.Air;
+        }
 
         /// <summary>Материал блоков (runtime-экземпляр с массивом текстур) — для обломков и превью.</summary>
         public Material BlockMaterial => _opaque;
@@ -757,12 +778,14 @@ namespace VoidMall.World
             Vertices = buffers.Vertices,
             OpaqueIndices = buffers.Opaque,
             TransparentIndices = buffers.Transparent,
+            WaterVertices = buffers.WaterVertices,
+            WaterIndices = buffers.WaterIndices,
         };
 
         private void ApplyMesh(ChunkColumn column, int index, MeshBuffers buffers, bool queueBake)
         {
             column.HasMesh[index] = true;
-            if (buffers.Vertices.Length == 0)
+            if (buffers.Vertices.Length == 0 && buffers.WaterVertices.Length == 0)
             {
                 ReleaseRenderer(column, index);
                 column.CollisionReady[index] = true;
@@ -777,6 +800,7 @@ namespace VoidMall.World
                 column.Renderers[index] = renderer;
             }
             renderer.Apply(buffers.Vertices, buffers.Opaque, buffers.Transparent);
+            renderer.ApplyWater(buffers.WaterVertices, buffers.WaterIndices);
             column.MeshVersion[index]++;
             column.CollisionReady[index] = false;
             if (queueBake)
@@ -920,7 +944,7 @@ namespace VoidMall.World
                 pooled.gameObject.SetActive(true);
                 return pooled;
             }
-            return ChunkRenderer.Create(_chunkRoot, _opaque, _transparent);
+            return ChunkRenderer.Create(_chunkRoot, _opaque, _transparent, _waterMaterial);
         }
 
         private void ReleaseRenderer(ChunkColumn column, int index)
@@ -977,12 +1001,16 @@ namespace VoidMall.World
             public NativeList<ChunkVertex> Vertices = new(4096, Allocator.Persistent);
             public NativeList<int> Opaque = new(6144, Allocator.Persistent);
             public NativeList<int> Transparent = new(256, Allocator.Persistent);
+            public NativeList<ChunkVertex> WaterVertices = new(64, Allocator.Persistent);
+            public NativeList<int> WaterIndices = new(96, Allocator.Persistent);
 
             public void Dispose()
             {
                 Vertices.Dispose();
                 Opaque.Dispose();
                 Transparent.Dispose();
+                WaterVertices.Dispose();
+                WaterIndices.Dispose();
             }
         }
     }

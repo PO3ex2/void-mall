@@ -35,3 +35,6 @@ MonoBehaviour:
   Station: 4
   StationSpeed: 0.7
   StationAutonomous: 1
+  Heater: 0
+  HeatOutput: 7
+  HeatRadius: 1.8

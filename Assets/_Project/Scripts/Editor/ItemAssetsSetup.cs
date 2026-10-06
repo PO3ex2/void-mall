@@ -47,6 +47,8 @@ namespace VoidMall.Editor
             public float Fuel;
             public string Teaches;
             public string Block;
+            public float Poison;
+            public string Leaves;
         }
 
         private static readonly Color Steel = new(0.62f, 0.64f, 0.68f);
@@ -92,6 +94,10 @@ namespace VoidMall.Editor
             new() { Id = "item.chips", Name = "Чипсы", Category = ItemCategory.Food, Shape = ItemShape.Bag, Size = new(0.18f, 0.24f, 0.06f), Weight = 0.15f, Stack = 5, Tint = new(0.95f, 0.8f, 0.15f), Calories = 530, Fat = 34, Protein = 6, Carbs = 52 },
             new() { Id = "item.noodles", Name = "Лапша быстрого приготовления", Category = ItemCategory.Food, Shape = ItemShape.Box, Size = new(0.12f, 0.06f, 0.1f), Weight = 0.1f, Stack = 10, Tint = new(0.9f, 0.3f, 0.2f), Calories = 450, Fat = 18, Protein = 9, Carbs = 62 },
             new() { Id = "item.water_bottle", Name = "Бутылка воды", Category = ItemCategory.Drink, Shape = ItemShape.Bottle, Size = new(0.07f, 0.25f, 0.07f), Grid = new(1, 2), Weight = 0.55f, Stack = 3, Tint = new(0.6f, 0.8f, 0.95f), Water = 500 },
+            // Этап 8Д: ведро — набрать воду (ПКМ по воде), вылить блоком воды (ПКМ), выпить (ЛКМ).
+            new() { Id = "item.bucket", Name = "Ведро", Description = "ПКМ по воде — набрать.", Category = ItemCategory.Tool, Shape = ItemShape.Can, Size = new(0.28f, 0.3f, 0.28f), Grid = new(2, 2), Weight = 0.9f, Tint = new(0.6f, 0.62f, 0.66f), Tool = ToolKind.Bucket },
+            new() { Id = "item.bucket_water", Name = "Ведро сырой воды", Description = "ЛКМ — выпить (можно отравиться; вскипятите на огне). ПКМ — вылить: встанет блок воды.", Category = ItemCategory.Drink, Shape = ItemShape.Can, Size = new(0.28f, 0.3f, 0.28f), Grid = new(2, 2), Weight = 6f, Tint = new(0.35f, 0.5f, 0.55f), Water = 1000, Poison = 0.35f, Block = "block.water", Leaves = "item.bucket" },
+            new() { Id = "item.bucket_clean", Name = "Ведро кипячёной воды", Description = "ЛКМ — выпить. ПКМ — вылить: встанет блок воды.", Category = ItemCategory.Drink, Shape = ItemShape.Can, Size = new(0.28f, 0.3f, 0.28f), Grid = new(2, 2), Weight = 6f, Tint = new(0.55f, 0.75f, 0.85f), Water = 1000, Block = "block.water", Leaves = "item.bucket" },
             new() { Id = "item.soda", Name = "Газировка", Category = ItemCategory.Drink, Shape = ItemShape.Can, Size = new(0.065f, 0.12f, 0.065f), Weight = 0.35f, Stack = 6, Tint = new(0.8f, 0.1f, 0.15f), Calories = 140, Carbs = 35, Water = 330 },
 
             // ── Медикаменты ──
@@ -106,6 +112,9 @@ namespace VoidMall.Editor
             new() { Id = "item.gloves_work", Name = "Рабочие перчатки", Category = ItemCategory.Clothing, Shape = ItemShape.Pack, Size = new(0.15f, 0.04f, 0.12f), Weight = 0.15f, Tint = new(0.75f, 0.6f, 0.2f), Slot = EquipSlot.Arms, Layer = EquipLayer.Clothing, Warmth = 1f },
             new() { Id = "item.jeans", Name = "Джинсы", Category = ItemCategory.Clothing, Shape = ItemShape.Clothing, Size = new(0.35f, 0.08f, 0.3f), Grid = new(2, 2), Weight = 0.7f, Tint = new(0.25f, 0.35f, 0.6f), Slot = EquipSlot.Legs, Layer = EquipLayer.Clothing, Warmth = 4f },
             new() { Id = "item.sneakers", Name = "Кроссовки", Category = ItemCategory.Clothing, Shape = ItemShape.Boots, Size = new(0.25f, 0.12f, 0.3f), Grid = new(2, 1), Weight = 0.8f, Tint = new(0.9f, 0.9f, 0.88f), Slot = EquipSlot.Feet, Layer = EquipLayer.Clothing, Warmth = 2f },
+            // Этап 8Г: тёплая одежда — ночью в моле мороз.
+            new() { Id = "item.knit_hat", Name = "Вязаная шапка", Category = ItemCategory.Clothing, Shape = ItemShape.Helmet, Size = new(0.2f, 0.1f, 0.2f), Weight = 0.1f, Tint = new(0.6f, 0.15f, 0.15f), Slot = EquipSlot.Head, Layer = EquipLayer.Clothing, Warmth = 4f },
+            new() { Id = "item.mittens", Name = "Варежки", Category = ItemCategory.Clothing, Shape = ItemShape.Pack, Size = new(0.15f, 0.04f, 0.12f), Weight = 0.1f, Tint = new(0.3f, 0.45f, 0.65f), Slot = EquipSlot.Arms, Layer = EquipLayer.Clothing, Warmth = 3f },
 
             // ── Броня ──
             new() { Id = "item.hard_hat", Name = "Строительная каска", Category = ItemCategory.Armor, Shape = ItemShape.Helmet, Size = new(0.25f, 0.16f, 0.28f), Grid = new(2, 2), Weight = 0.4f, Tint = new(0.95f, 0.8f, 0.1f), Slot = EquipSlot.Head, Layer = EquipLayer.Armor, Armor = 10 },
@@ -113,6 +122,8 @@ namespace VoidMall.Editor
             new() { Id = "item.arm_guards", Name = "Налокотники", Category = ItemCategory.Armor, Shape = ItemShape.Pack, Size = new(0.15f, 0.06f, 0.12f), Weight = 0.3f, Tint = new(0.15f, 0.15f, 0.17f), Slot = EquipSlot.Arms, Layer = EquipLayer.Armor, Armor = 5 },
             new() { Id = "item.knee_pads", Name = "Наколенники", Category = ItemCategory.Armor, Shape = ItemShape.Pack, Size = new(0.2f, 0.06f, 0.12f), Grid = new(2, 1), Weight = 0.4f, Tint = new(0.15f, 0.15f, 0.17f), Slot = EquipSlot.Legs, Layer = EquipLayer.Armor, Armor = 6 },
             new() { Id = "item.work_boots", Name = "Рабочие ботинки", Category = ItemCategory.Armor, Shape = ItemShape.Boots, Size = new(0.28f, 0.18f, 0.32f), Grid = new(2, 2), Weight = 1.4f, Tint = new(0.4f, 0.28f, 0.15f), Slot = EquipSlot.Feet, Layer = EquipLayer.Armor, Armor = 8, Warmth = 3f },
+            new() { Id = "item.winter_jacket", Name = "Зимняя куртка", Category = ItemCategory.Armor, Shape = ItemShape.Clothing, Size = new(0.45f, 0.14f, 0.38f), Grid = new(3, 3), Weight = 2.2f, Tint = new(0.2f, 0.25f, 0.32f), Slot = EquipSlot.Torso, Layer = EquipLayer.Armor, Armor = 4, Warmth = 14f },
+            new() { Id = "item.thermal_pants", Name = "Термобельё", Category = ItemCategory.Armor, Shape = ItemShape.Clothing, Size = new(0.3f, 0.06f, 0.25f), Grid = new(2, 2), Weight = 0.4f, Tint = new(0.15f, 0.15f, 0.17f), Slot = EquipSlot.Legs, Layer = EquipLayer.Armor, Warmth = 6f },
 
             // ── Рюкзаки ──
             new() { Id = "item.school_backpack", Name = "Школьный рюкзак", Description = "Надеть — получить сетку 5×4.", Category = ItemCategory.Backpack, Shape = ItemShape.Backpack, Size = new(0.3f, 0.4f, 0.15f), Grid = new(2, 2), Weight = 0.6f, Tint = new(0.2f, 0.45f, 0.75f), Slot = EquipSlot.Backpack, Container = new(5, 4) },
@@ -133,6 +144,7 @@ namespace VoidMall.Editor
             new() { Id = "item.sewing_table", Name = "Швейный стол", Description = "ПКМ — поставить. Одежда, рюкзаки, спальники, ткань из одежды.", Category = ItemCategory.Misc, Shape = ItemShape.Box, Size = new(0.45f, 0.3f, 0.3f), Grid = new(2, 2), Weight = 12f, Tint = new(0.85f, 0.85f, 0.82f), PlacesProp = "prop.sewing_table" },
             new() { Id = "item.chem_table", Name = "Химстол", Description = "ПКМ — поставить. Антисептик и обезболивающее из бытовой химии.", Category = ItemCategory.Misc, Shape = ItemShape.Box, Size = new(0.45f, 0.3f, 0.3f), Grid = new(2, 2), Weight = 12f, Tint = new(0.7f, 0.85f, 0.9f), PlacesProp = "prop.chem_table" },
             new() { Id = "item.burner", Name = "Туристическая горелка", Description = "ПКМ — поставить. Готовка и прогрев еды, нужно топливо. Удержание E — свернуть.", Category = ItemCategory.Misc, Shape = ItemShape.Can, Size = new(0.15f, 0.12f, 0.15f), Grid = new(2, 2), Weight = 1.5f, Tint = new(0.75f, 0.2f, 0.15f), PlacesProp = "prop.burner" },
+            new() { Id = "item.fire_barrel", Name = "Бочка-костёр", Description = "ПКМ — поставить. E — открыть: топливо и готовка. Горит, пока есть топливо, греет вокруг и светит.", Category = ItemCategory.Misc, Shape = ItemShape.Can, Size = new(0.3f, 0.45f, 0.3f), Grid = new(3, 3), Weight = 14f, Tint = new(0.42f, 0.24f, 0.14f), PlacesProp = "prop.fire_barrel" },
             new() { Id = "item.barricade", Name = "Баррикада из досок", Description = "ПКМ — поставить. Перекрывает проход; прибейте молотком.", Category = ItemCategory.Misc, Shape = ItemShape.Plank, Size = new(0.6f, 0.08f, 0.3f), Grid = new(4, 2), Weight = 8f, Tint = WoodColor, PlacesProp = "prop.barricade" },
             new() { Id = "item.table", Name = "Стол", Description = "ПКМ — поставить.", Category = ItemCategory.Misc, Shape = ItemShape.Box, Size = new(0.4f, 0.2f, 0.4f), Grid = new(2, 2), Weight = 8f, Tint = WoodColor, PlacesProp = "prop.table" },
             new() { Id = "item.shelf", Name = "Стеллаж", Description = "ПКМ — поставить.", Category = ItemCategory.Misc, Shape = ItemShape.Box, Size = new(0.5f, 0.3f, 0.2f), Grid = new(3, 2), Weight = 15f, Tint = Steel, PlacesProp = "prop.shelf" },
@@ -140,6 +152,7 @@ namespace VoidMall.Editor
             new() { Id = "item.blueprint_drill", Name = "Чертёж: перфоратор", Category = ItemCategory.Blueprint, Shape = ItemShape.Box, Size = new(0.21f, 0.01f, 0.3f), Weight = 0.05f, Tint = Blueprint, Teaches = "recipe.drill" },
             new() { Id = "item.blueprint_drill_pro", Name = "Чертёж: мощный перфоратор", Category = ItemCategory.Blueprint, Shape = ItemShape.Box, Size = new(0.21f, 0.01f, 0.3f), Weight = 0.05f, Tint = Blueprint, Teaches = "recipe.drill_pro" },
             new() { Id = "item.blueprint_padded_vest", Name = "Чертёж: утеплённый жилет", Category = ItemCategory.Blueprint, Shape = ItemShape.Box, Size = new(0.21f, 0.01f, 0.3f), Weight = 0.05f, Tint = Blueprint, Teaches = "recipe.padded_vest" },
+            new() { Id = "item.blueprint_winter_jacket", Name = "Чертёж: зимняя куртка", Category = ItemCategory.Blueprint, Shape = ItemShape.Box, Size = new(0.21f, 0.01f, 0.3f), Weight = 0.05f, Tint = Blueprint, Teaches = "recipe.winter_jacket" },
             new() { Id = "item.blueprint_hiking_backpack", Name = "Чертёж: туристический рюкзак", Category = ItemCategory.Blueprint, Shape = ItemShape.Box, Size = new(0.21f, 0.01f, 0.3f), Weight = 0.05f, Tint = Blueprint, Teaches = "recipe.hiking_backpack" },
 
             // ── Функциональные блоки и формы (этап 8А) ──
@@ -159,8 +172,8 @@ namespace VoidMall.Editor
             ("section.pharmacy", 0.35f, new[] { ("material.chemicals", 4f, 1, 2), ("item.bandage", 10f, 1, 3), ("item.painkillers", 8f, 1, 2), ("item.splint", 3f, 1, 1), ("item.antiseptic", 6f, 1, 1), ("item.water_bottle", 3f, 1, 1), ("item.chocolate", 2f, 1, 1) }),
             ("section.hardware", 0.3f, new[] { ("material.chemicals", 3f, 1, 2), ("item.gas_canister", 1f, 1, 1), ("item.blueprint_sledgehammer", 0.4f, 1, 1), ("item.blueprint_drill", 0.3f, 1, 1), ("item.blueprint_drill_pro", 0.15f, 1, 1), ("item.sleeping_bag", 0.6f, 1, 1), ("material.nails", 10f, 10, 40), ("material.screws", 8f, 10, 40), ("item.hammer", 3f, 1, 1), ("item.crowbar", 2f, 1, 1), ("item.sledgehammer", 1f, 1, 1), ("item.drill", 1f, 1, 1), ("item.drill_pro", 0.3f, 1, 1), ("item.flashlight", 3f, 1, 1), ("material.plank", 6f, 1, 4), ("material.wire", 5f, 1, 3), ("material.pipe", 3f, 1, 2), ("item.gloves_work", 3f, 1, 1), ("item.hard_hat", 2f, 1, 1), ("item.work_boots", 1f, 1, 1) }),
             ("section.electronics", 0.3f, new[] { ("item.blueprint_drill", 0.3f, 1, 1), ("item.blueprint_drill_pro", 0.15f, 1, 1), ("item.flashlight", 6f, 1, 1), ("material.wire", 8f, 1, 3), ("material.plastic", 5f, 1, 3), ("item.drill", 1f, 1, 1) }),
-            ("section.clothing", 0.35f, new[] { ("item.blueprint_padded_vest", 0.3f, 1, 1), ("item.blueprint_hiking_backpack", 0.3f, 1, 1), ("item.hoodie", 8f, 1, 1), ("item.jeans", 8f, 1, 1), ("item.sneakers", 6f, 1, 1), ("item.cap", 6f, 1, 1), ("item.gloves_work", 3f, 1, 1), ("item.school_backpack", 2f, 1, 1), ("item.hiking_backpack", 0.6f, 1, 1), ("item.padded_vest", 1f, 1, 1), ("material.fabric", 3f, 1, 3) }),
-            ("section.sports", 0.3f, new[] { ("item.burner", 1f, 1, 1), ("item.gas_canister", 2f, 1, 2), ("item.sleeping_bag", 2f, 1, 1), ("item.school_backpack", 4f, 1, 1), ("item.hiking_backpack", 2f, 1, 1), ("item.knee_pads", 4f, 1, 1), ("item.arm_guards", 3f, 1, 1), ("item.sneakers", 4f, 1, 1), ("item.water_bottle", 5f, 1, 2), ("item.cap", 3f, 1, 1) }),
+            ("section.clothing", 0.35f, new[] { ("item.blueprint_padded_vest", 0.3f, 1, 1), ("item.blueprint_hiking_backpack", 0.3f, 1, 1), ("item.hoodie", 8f, 1, 1), ("item.jeans", 8f, 1, 1), ("item.sneakers", 6f, 1, 1), ("item.cap", 6f, 1, 1), ("item.gloves_work", 3f, 1, 1), ("item.school_backpack", 2f, 1, 1), ("item.hiking_backpack", 0.6f, 1, 1), ("item.padded_vest", 1f, 1, 1), ("material.fabric", 3f, 1, 3), ("item.knit_hat", 4f, 1, 1), ("item.mittens", 3f, 1, 1), ("item.thermal_pants", 2f, 1, 1), ("item.winter_jacket", 1f, 1, 1), ("item.blueprint_winter_jacket", 0.3f, 1, 1) }),
+            ("section.sports", 0.3f, new[] { ("item.burner", 1f, 1, 1), ("item.gas_canister", 2f, 1, 2), ("item.sleeping_bag", 2f, 1, 1), ("item.school_backpack", 4f, 1, 1), ("item.hiking_backpack", 2f, 1, 1), ("item.knee_pads", 4f, 1, 1), ("item.arm_guards", 3f, 1, 1), ("item.sneakers", 4f, 1, 1), ("item.water_bottle", 5f, 1, 2), ("item.cap", 3f, 1, 1), ("item.knit_hat", 2f, 1, 1), ("item.thermal_pants", 2f, 1, 1), ("item.winter_jacket", 1f, 1, 1) }),
             ("section.furniture", 0.2f, new[] { ("material.fabric", 5f, 1, 3), ("material.foam", 5f, 1, 3), ("material.plank", 3f, 1, 2), ("material.screws", 3f, 5, 20) }),
             ("section.toys", 0.3f, new[] { ("material.plastic", 8f, 1, 3), ("material.cardboard", 5f, 1, 3), ("item.chocolate", 2f, 1, 2) }),
             ("section.foodcourt", 0.25f, new[] { ("item.soda", 8f, 1, 2), ("item.water_bottle", 6f, 1, 1), ("item.noodles", 5f, 1, 2), ("item.chips", 5f, 1, 1), ("item.crackers", 3f, 1, 1) }),
@@ -169,12 +182,12 @@ namespace VoidMall.Editor
             ("section.tech", 0.25f, new[] { ("item.car_battery", 1.5f, 1, 1), ("material.wire", 8f, 1, 4), ("material.pipe", 6f, 1, 2), ("material.scrap_metal", 6f, 1, 3), ("item.flashlight", 2f, 1, 1), ("item.crowbar", 1f, 1, 1), ("item.gloves_work", 2f, 1, 1), ("item.hard_hat", 1f, 1, 1) }),
             ("section.electrical", 0.3f, new[] { ("material.wire", 10f, 1, 4), ("material.fuse", 8f, 1, 4), ("material.electrical_tape", 6f, 1, 2), ("material.screws", 4f, 5, 20), ("item.flashlight", 2f, 1, 1), ("item.gloves_work", 2f, 1, 1), ("item.crowbar", 1f, 1, 1), ("item.hard_hat", 1f, 1, 1) }),
             ("section.office", 0.3f, new[] { ("material.cardboard", 6f, 1, 3), ("material.plastic", 4f, 1, 2), ("material.electrical_tape", 4f, 1, 1), ("material.wire", 4f, 1, 2), ("material.fuse", 2f, 1, 1), ("material.screws", 2f, 5, 15), ("item.flashlight", 1.5f, 1, 1), ("item.crackers", 3f, 1, 1), ("item.chocolate", 3f, 1, 2), ("item.soda", 3f, 1, 1), ("item.water_bottle", 3f, 1, 1), ("item.painkillers", 1f, 1, 1) }),
-            ("section.construction", 0.7f, new[] { ("item.block.foam_concrete", 10f, 4, 16), ("material.plank", 8f, 2, 8), ("material.cement", 6f, 1, 2), ("material.nails", 4f, 10, 40), ("material.screws", 2f, 10, 30), ("item.hammer", 0.6f, 1, 1), ("item.gloves_work", 1f, 1, 1), ("item.hard_hat", 0.6f, 1, 1) }),
+            ("section.construction", 0.7f, new[] { ("item.bucket", 2f, 1, 1), ("item.block.foam_concrete", 10f, 4, 16), ("material.plank", 8f, 2, 8), ("material.cement", 6f, 1, 2), ("material.nails", 4f, 10, 40), ("material.screws", 2f, 10, 30), ("item.hammer", 0.6f, 1, 1), ("item.gloves_work", 1f, 1, 1), ("item.hard_hat", 0.6f, 1, 1) }),
             // Стойки у касс и кассовые аппараты (вскрыть ломом) — свои ключи таблиц.
             ("impulse", 0.6f, new[] { ("item.chocolate", 8f, 1, 3), ("item.chips", 6f, 1, 1), ("item.soda", 6f, 1, 2), ("item.crackers", 4f, 1, 1), ("item.water_bottle", 4f, 1, 1), ("material.electrical_tape", 2f, 1, 1), ("item.painkillers", 1f, 1, 1) }),
             ("register", 1f, new[] { ("material.electrical_tape", 5f, 1, 2), ("material.fuse", 4f, 1, 2), ("material.wire", 3f, 1, 2), ("item.chocolate", 4f, 1, 2), ("item.painkillers", 2f, 1, 1), ("material.screws", 2f, 3, 10), ("item.blueprint_drill", 0.3f, 1, 1), ("item.blueprint_hiking_backpack", 0.2f, 1, 1) }),
             // Ящики с лутом (разбить): не раздел, а свой ключ таблицы.
-            ("crate", 1f, new[] { ("item.car_battery", 1f, 1, 1), ("item.canned_beans", 5f, 1, 3), ("item.canned_meat", 4f, 1, 2), ("item.water_bottle", 5f, 1, 2), ("item.bandage", 4f, 1, 2), ("item.painkillers", 2f, 1, 1), ("item.flashlight", 2f, 1, 1), ("item.gas_canister", 1.5f, 1, 1), ("material.fuse", 3f, 1, 2), ("material.wire", 3f, 1, 3), ("material.electrical_tape", 2f, 1, 1), ("material.nails", 3f, 10, 30), ("item.crowbar", 0.8f, 1, 1), ("item.hammer", 0.8f, 1, 1), ("item.blueprint_drill", 0.3f, 1, 1), ("item.blueprint_padded_vest", 0.3f, 1, 1), ("item.hiking_backpack", 0.4f, 1, 1) }),
+            ("crate", 1f, new[] { ("item.bucket", 1f, 1, 1), ("item.car_battery", 1f, 1, 1), ("item.canned_beans", 5f, 1, 3), ("item.canned_meat", 4f, 1, 2), ("item.water_bottle", 5f, 1, 2), ("item.bandage", 4f, 1, 2), ("item.painkillers", 2f, 1, 1), ("item.flashlight", 2f, 1, 1), ("item.gas_canister", 1.5f, 1, 1), ("material.fuse", 3f, 1, 2), ("material.wire", 3f, 1, 3), ("material.electrical_tape", 2f, 1, 1), ("material.nails", 3f, 10, 30), ("item.crowbar", 0.8f, 1, 1), ("item.hammer", 0.8f, 1, 1), ("item.blueprint_drill", 0.3f, 1, 1), ("item.blueprint_padded_vest", 0.3f, 1, 1), ("item.hiking_backpack", 0.4f, 1, 1) }),
             ("", 0.2f, new[] { ("material.cardboard", 4f, 1, 2), ("material.plastic", 4f, 1, 2), ("item.water_bottle", 2f, 1, 1), ("item.chips", 2f, 1, 1) }),
         };
 
@@ -278,6 +291,8 @@ namespace VoidMall.Editor
             def.Uses = spec.Uses;
             def.Electric = spec.Electric;
             def.Cooked = spec.Cooked;
+            def.PoisonChance = spec.Poison;
+            def.Leaves = spec.Leaves;
             def.FuelSeconds = spec.Fuel;
             def.TeachesRecipe = spec.Teaches;
             def.RepairCost = new List<ItemAmount>();

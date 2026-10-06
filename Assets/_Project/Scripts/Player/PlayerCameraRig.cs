@@ -109,6 +109,14 @@ namespace VoidMall.Player
             float t = Time.time * _swayFrequency;
             float swayPitch = (Mathf.PerlinNoise(t, 0.17f) - 0.5f) * 2f * sway * _swayDegrees;
             float swayYaw = (Mathf.PerlinNoise(0.53f, t) - 0.5f) * 2f * sway * _swayDegrees;
+            // Дрожь от холода: мелко и быстро.
+            float shiver = modifiers.ShiverAmount;
+            if (shiver > 0f)
+            {
+                float st = Time.time * 22f;
+                swayPitch += (Mathf.PerlinNoise(st, 0.71f) - 0.5f) * shiver * 0.9f;
+                swayYaw += (Mathf.PerlinNoise(0.29f, st) - 0.5f) * shiver * 0.9f;
+            }
             float roll = -bobX * 30f - limp * Mathf.Sin(_bobPhase) * 1.5f * _bobWeight;
 
             Vector3 feet = _motor.InterpolatedPosition;

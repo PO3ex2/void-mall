@@ -20,6 +20,7 @@ namespace VoidMall.Editor
         public const string BrushMaterialPath = Root + "/Art/Materials/Tool_DrillBrush.mat";
         public const string DustMaterialPath = Root + "/Art/Materials/Fx_Dust.mat";
         public const string AnomalyVfxMaterialPath = Root + "/Art/Materials/Fx_Anomaly.mat";
+        public const string WaterMaterialPath = Root + "/Art/Materials/Water.mat";
         public const string VoidSkyboxPath = Root + "/Art/Materials/Sky_Fog.mat";
         public const string PropsMaterialPath = Root + "/Art/Materials/Props.mat";
         public const string FBlockGlassMaterialPath = Root + "/Art/Materials/FBlock_Glass.mat";
@@ -117,11 +118,13 @@ namespace VoidMall.Editor
             // Этап 8Б: стройматериалы с технического этажа.
             new("block.foam_concrete", "Пеноблок", MaterialKind.Block, BlockPattern.Concrete, 350, tint: new Color(1.12f, 1.12f, 1.08f)),
             new("block.planks", "Дощатый настил", MaterialKind.Block, BlockPattern.Wood, 300, tint: new Color(1.25f, 1.15f, 1f)),
-            // Вода фонтана: непрозрачная гладь (прозрачная на уровне пола просвечивала потолок этажа ниже); пока с коллизией.
-            new("block.water", "Вода", MaterialKind.Block, BlockPattern.Glass, 40, placeable: false, tint: new Color(0.3f, 0.52f, 0.68f)),
+            // Вода (этап 8Д — жидкость): ставится и набирается ведром, сквозь неё плывут; из неё фонтан.
+            new("block.water", "Вода", MaterialKind.Liquid, BlockPattern.Glass, 40, tint: new Color(0.3f, 0.52f, 0.68f)),
             // Этап 8В: оазис — трава под дырой и экран «неба» над шахтой.
             new("block.grass", "Трава", MaterialKind.Block, BlockPattern.Grass, 200),
             new("block.sky_screen", "Экран «неба»", MaterialKind.Block, BlockPattern.SkyScreen, 300, placeable: false, lamp: LampKind.Screen, emission: 2.4f),
+            // Этап 8Д: вода водного чанка — та же вода, но её не убрать.
+            new("block.water_deep", "Глубокая вода", MaterialKind.Liquid, BlockPattern.Glass, 40, unbreakable: true, placeable: false, tint: new Color(0.3f, 0.52f, 0.68f)),
         };
 
         /// <summary>Блок пола → его гладкий двойник.</summary>
@@ -238,6 +241,8 @@ namespace VoidMall.Editor
 
             // Эффекты аномалий (лужа, вспышка, лучи оазиса): режим задаётся копиями материала в рантайме.
             GetOrCreateMaterial(AnomalyVfxMaterialPath, Shader.Find("VoidMall/AnomalyVfx"));
+            // Вода (этап 8Д): отдельный меш чанка.
+            GetOrCreateMaterial(WaterMaterialPath, Shader.Find("VoidMall/Water"));
 
             // Небо тестовых полигонов: нижняя полусфера чёрная — в шахтах-безднах видна пустота, а не «земля» skybox.
             // Небо: выше горизонта — цвет тумана, внизу — чёрная пустота (LightingDirector подкрашивает по времени суток).

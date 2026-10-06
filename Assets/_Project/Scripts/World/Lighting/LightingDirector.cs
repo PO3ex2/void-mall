@@ -191,6 +191,14 @@ namespace VoidMall.World
             float edge = ChunkManager.ViewDistance.Value * WorldConstants.ChunkSize - WorldConstants.ChunkSize * 0.75f;
             RenderSettings.fogEndDistance = Mathf.Max(24f, Mathf.Min(_fogEnd, edge));
             RenderSettings.fogStartDistance = Mathf.Min(_fogStart, RenderSettings.fogEndDistance * 0.3f);
+            // Под водой — густой сине-зелёный туман: видно на несколько метров.
+            if (_camera != null && world.IsLiquidAt(_camera.transform.position))
+            {
+                fog = Color.Lerp(new Color(0.05f, 0.17f, 0.18f), new Color(0.01f, 0.04f, 0.05f), darkness);
+                RenderSettings.fogColor = fog;
+                RenderSettings.fogStartDistance = 0f;
+                RenderSettings.fogEndDistance = 10f;
+            }
             UpdateSky(fog);
 
             Vector3 center = ViewerPosition();

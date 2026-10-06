@@ -188,16 +188,15 @@ namespace VoidMall.Items
                     Release(item);
                     continue;
                 }
-                // Аномалии: пульсация будит и таскает, в перевёрнутом чанке предметы падают вверх.
-                if (AnomalyPhysics.Any)
+                // Аномалии и вода: пульсация будит и таскает, в перевёрнутом чанке предметы падают вверх, в воде всплывают.
                 {
                     bool asleep = item.Body.IsSleeping();
-                    if (asleep && AnomalyPhysics.PulseVelocity(item.transform.position, Time.time, 1f).sqrMagnitude > 1e-4f)
+                    if (asleep && AnomalyPhysics.Any && AnomalyPhysics.PulseVelocity(item.transform.position, Time.time, 1f).sqrMagnitude > 1e-4f)
                     {
                         item.Body.WakeUp();
                         asleep = false;
                     }
-                    if (!asleep && !SettleInverted(item))
+                    if (!asleep && !SettleStill(item))
                         AnomalyPhysics.Apply(item.Body, Time.time);
                 }
                 if (item.Body.IsSleeping())
@@ -208,11 +207,14 @@ namespace VoidMall.Items
             }
         }
 
-        /// <summary>Улёгшийся на потолке перевёрнутого чанка предмет засыпает (иначе сила вверх держит его проснувшимся).</summary>
-        private static bool SettleInverted(WorldItem item)
+        /// <summary>
+        /// Улёгшийся на потолке перевёрнутого чанка или всплывший (утонувший) в воде предмет засыпает: постоянная сила
+        /// иначе держала бы его проснувшимся.
+        /// </summary>
+        private static bool SettleStill(WorldItem item)
         {
             var body = item.Body;
-            if (!AnomalyPhysics.InInverted(body.worldCenterOfMass)
+            if (!(AnomalyPhysics.InInverted(body.worldCenterOfMass) || LiquidProbe.At(body.worldCenterOfMass))
                 || AnomalyPhysics.PulseVelocity(body.worldCenterOfMass, Time.time, 1f).sqrMagnitude > 1e-4f)
             {
                 item.StillTime = 0f;

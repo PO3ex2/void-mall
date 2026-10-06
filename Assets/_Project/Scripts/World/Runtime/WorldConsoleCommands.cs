@@ -66,7 +66,7 @@ namespace VoidMall.World
                 $"  {a.Name,-24} {a.Class.ClassName(),-15} этаж {MallLayout.LevelName(a.Level),-2} ({a.Target.x:0}, {a.Target.y:0}, {a.Target.z:0}), до неё {a.Distance:0} м"));
         }
 
-        [ConsoleCommand("goto_anomaly", "Телепорт к ближайшей аномалии: abyss, pool, cutout, inverted, oasis, distortion, glitch, pulse, lookme, puddle.", Flags = ConsoleFlags.Cheat)]
+        [ConsoleCommand("goto_anomaly", "Телепорт к ближайшей аномалии: abyss, pool, cutout, inverted, oasis, flooded, distortion, glitch, pulse, lookme, puddle.", Flags = ConsoleFlags.Cheat)]
         private static string GotoAnomaly(string kind)
         {
             if (!TryGetWorld(out var world, out var error))
@@ -149,13 +149,13 @@ namespace VoidMall.World
                 if (info.Anomaly != AnomalyKind.None)
                 {
                     // Перевёрнутый чанк — на всех этажах: ведём к его краю на первом торговом.
-                    int level = info.Anomaly == AnomalyKind.Inverted ? MallLayout.FirstRetailLevel : info.AnomalyLevel;
+                    int level = info.Anomaly is AnomalyKind.Inverted or AnomalyKind.Flooded ? MallLayout.FirstRetailLevel : info.AnomalyLevel;
                     float2 c = info.AnomalyCenter;
                     float edge = info.Anomaly == AnomalyKind.Abyss ? MallAnomalies.AbyssZoneRadius(info.AnomalyRadius) + 1f
                         : info.Anomaly == AnomalyKind.Pool ? MallAnomalies.PoolZoneRadius(info.AnomalyRadius) + 1f
                         : info.Anomaly == AnomalyKind.Oasis ? info.AnomalyRadius * 0.5f
                         : 0f;
-                    Vector3 target = info.Anomaly is AnomalyKind.Cutout or AnomalyKind.Inverted
+                    Vector3 target = info.Anomaly is AnomalyKind.Cutout or AnomalyKind.Inverted or AnomalyKind.Flooded
                         ? new Vector3(c.x - 1.5f, MallLayout.FloorTop(level), c.y + 16f)
                         : new Vector3(c.x + edge, MallLayout.FloorTop(level), c.y);
                     list.Add(new AnomalyEntry { Id = info.Anomaly.Id(), Name = info.Anomaly.DisplayName(), Class = info.Anomaly.Class(), Level = level, Target = target });

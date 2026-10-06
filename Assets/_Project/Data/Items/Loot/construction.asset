@@ -15,6 +15,10 @@ MonoBehaviour:
   Section: section.construction
   Fill: 0.7
   Entries:
+  - Item: {fileID: 11400000, guid: d9fc499c4eced9f4dae5ba02ffc1c129, type: 2}
+    Weight: 2
+    Min: 1
+    Max: 1
   - Item: {fileID: 11400000, guid: a82b93d809122034f88c10c300858a62, type: 2}
     Weight: 10
     Min: 4

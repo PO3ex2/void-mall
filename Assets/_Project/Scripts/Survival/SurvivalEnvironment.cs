@@ -25,8 +25,31 @@ namespace VoidMall.Survival
                 _plan.Dispose();
         }
 
-        /// <summary>Температура воздуха, °C.</summary>
-        public float AirTemperature(ChunkManager world, Vector3 position, bool night)
+        /// <summary>
+        /// Ночной холод (GDD §4.1): 0 — день, 1 — ночь. Холодает с 19 до 23, теплеет с 4 до 8 (плавно).
+        /// </summary>
+        public static float NightFactor(float hour)
+        {
+            hour = Mathf.Repeat(hour, 24f);
+            if (hour >= 23f || hour < 4f)
+                return 1f;
+            if (hour >= 19f)
+                return Mathf.SmoothStep(0f, 1f, (hour - 19f) / 4f);
+            if (hour < 8f)
+                return Mathf.SmoothStep(1f, 0f, (hour - 4f) / 4f);
+            return 0f;
+        }
+
+        /// <summary>Воздух уровня днём и ночью, °C: торговые 21 → 3, парковка 12 → −3, техэтаж 24 → 12.</summary>
+        public static float LevelTemperature(LevelKind kind, float night) => kind switch
+        {
+            LevelKind.Parking => Mathf.Lerp(12f, -3f, night),
+            LevelKind.Tech => Mathf.Lerp(24f, 12f, night),
+            _ => Mathf.Lerp(21f, 3f, night),
+        };
+
+        /// <summary>Температура воздуха, °C. night — ночной холод 0…1 (<see cref="NightFactor"/>).</summary>
+        public float AirTemperature(ChunkManager world, Vector3 position, float night)
         {
             if (world == null || world.Sections == null)
                 return 20f;
@@ -43,19 +66,7 @@ namespace VoidMall.Survival
             if (InZone(info, level, xz, AnomalyKind.Pool))
                 return 13f;
 
-            float temperature;
-            switch (MallLayout.Kind(level))
-            {
-                case LevelKind.Parking:
-                    temperature = night ? 8f : 12f;
-                    break;
-                case LevelKind.Tech:
-                    temperature = night ? 22f : 24f;
-                    break;
-                default:
-                    temperature = night ? 17f : 21f;
-                    break;
-            }
+            float temperature = LevelTemperature(MallLayout.Kind(level), night);
 
             // Раздел комнаты: в вентиляционных тепло от установок, в щитовых — от щитов.
             var layout = RoomLayout(world, info, level, position);
@@ -76,6 +87,8 @@ namespace VoidMall.Survival
                 else if (prop.Def.Shape == PropShape.Boiler)
                     temperature += 18f * closeness;
             }
+            // Горящие источники: бочка-костёр, плита и горелка во время готовки.
+            temperature += HeatSources.HeatAt(position + Vector3.up);
             return temperature;
         }
 

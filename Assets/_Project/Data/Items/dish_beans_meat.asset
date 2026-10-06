@@ -40,6 +40,8 @@ MonoBehaviour:
   Carbs: 70
   Water: 150
   Cooked: 1
+  PoisonChance: 0
+  Leaves: 
   FuelSeconds: 0
   Treats: 0
   Heal: 0

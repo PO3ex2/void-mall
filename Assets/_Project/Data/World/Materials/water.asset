@@ -14,11 +14,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: VoidMall.World::VoidMall.World.MaterialDef
   _id: block.water
   DisplayName: "\u0412\u043E\u0434\u0430"
-  Kind: 1
+  Kind: 4
   Transparent: 0
   Unbreakable: 0
   Hardness: 40
-  Placeable: 0
+  Placeable: 1
   Pattern: 9
   Tint: {r: 0.3, g: 0.52, b: 0.68, a: 1}
   SmoothVariant: {fileID: 0}

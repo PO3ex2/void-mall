@@ -59,3 +59,23 @@ MonoBehaviour:
     Weight: 3
     Min: 1
     Max: 3
+  - Item: {fileID: 11400000, guid: 48f4031653b5f89489a183cbe02c09b4, type: 2}
+    Weight: 4
+    Min: 1
+    Max: 1
+  - Item: {fileID: 11400000, guid: 43379750214d1c64394d1d420fd2a3e6, type: 2}
+    Weight: 3
+    Min: 1
+    Max: 1
+  - Item: {fileID: 11400000, guid: 21464e3260085a244b41254012f80ba2, type: 2}
+    Weight: 2
+    Min: 1
+    Max: 1
+  - Item: {fileID: 11400000, guid: 911bb7659a0057f4481d84d82304f0f0, type: 2}
+    Weight: 1
+    Min: 1
+    Max: 1
+  - Item: {fileID: 11400000, guid: 352513de8e2a76f44a8770c28cb9b24d, type: 2}
+    Weight: 0.3
+    Min: 1
+    Max: 1

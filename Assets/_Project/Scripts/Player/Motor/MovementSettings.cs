@@ -63,6 +63,19 @@ namespace VoidMall.Player
         [Tooltip("Максимальная сила толкания пропов, Н.")]
         public float PushForce = 900f;
 
+        [Header("Вода")]
+        [Tooltip("Скорость плавания, м/с (спринт — × SwimSprintMultiplier, тратит стамину).")]
+        public float SwimSpeed = 2.4f;
+        public float SwimSprintMultiplier = 1.5f;
+        public float SwimAccelerate = 6f;
+        public float SwimFriction = 2.5f;
+
+        [Tooltip("Без движения медленно тонешь, м/с.")]
+        public float SwimSinkSpeed = 0.4f;
+
+        [Tooltip("Множитель скорости, когда идёшь вброд (вода по колено или пояс).")]
+        public float WadeSpeedMul = 0.65f;
+
         [Header("Полёт (fly / noclip)")]
         public float FlySpeed = 8f;
         public float FlySprintMultiplier = 3f;

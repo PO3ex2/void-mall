@@ -110,6 +110,7 @@ namespace VoidMall.Editor
             ProjectSetup.SetReference(chunkManager, "_catalog", AssetDatabase.LoadAssetAtPath<MaterialCatalog>(WorldAssetsSetup.CatalogPath));
             ProjectSetup.SetReference(chunkManager, "_opaqueMaterial", AssetDatabase.LoadAssetAtPath<Material>(WorldAssetsSetup.BlockOpaqueMaterialPath));
             ProjectSetup.SetReference(chunkManager, "_transparentMaterial", AssetDatabase.LoadAssetAtPath<Material>(WorldAssetsSetup.BlockTransparentMaterialPath));
+            ProjectSetup.SetReference(chunkManager, "_waterMaterial", AssetDatabase.LoadAssetAtPath<Material>(WorldAssetsSetup.WaterMaterialPath));
             ProjectSetup.SetReference(chunkManager, "_settings", settings);
             ProjectSetup.SetReference(clock, "_settings", settings);
             ProjectSetup.SetReference(structures, "_material", AssetDatabase.LoadAssetAtPath<Material>(WorldAssetsSetup.PropsMaterialPath));

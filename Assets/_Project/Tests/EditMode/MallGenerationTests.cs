@@ -14,7 +14,7 @@ namespace VoidMall.Tests
         {
             Bedrock = 1, Concrete = 2, ConcreteMass = 3, Soil = 4, SmoothTile = 5, Terrazzo = 6, CeilingTile = 7,
             PaintWhite = 8, Glass = 9, Shutter = 10, FacadeDark = 11, Asphalt = 12, LineX = 13, LineZ = 14,
-            Lamp = 15, Emergency = 16, Skylight = 17, SkyScreen = 18, Grass = 19,
+            Lamp = 15, Emergency = 16, Skylight = 17, SkyScreen = 18, Grass = 19, WaterDeep = 27,
         };
 
         private NativeArray<SectionInfo> _sections;
@@ -447,6 +447,34 @@ namespace VoidMall.Tests
                     int level = MallLayout.LevelAt(lamp.y);
                     Assert.That(lamp.y, Is.EqualTo(MallLayout.LevelBase(level)), "лампа — в плите пола, а не в потолке");
                 }
+            }
+            finally
+            {
+                low.Dispose();
+                high.Dispose();
+            }
+        }
+
+        [Test]
+        public void Flooded_AllAirIsWater()
+        {
+            var info = FindAnomaly(AnomalyKind.Flooded, out uint seed);
+            int3 chunk = new((int)info.AnomalyCenter.x / 32, 0, (int)info.AnomalyCenter.y / 32);
+            var low = Generate(chunk, seed, out _, out _);
+            var high = Generate(chunk + new int3(0, 1, 0), seed, out _, out _);
+            try
+            {
+                int water = 0;
+                for (int y = MallLayout.LevelBase(0); y < MallLayout.RoofY; y++)
+                for (int z = 0; z < 32; z++)
+                for (int x = 0; x < 32; x++)
+                {
+                    Cell cell = (y < 32 ? low : high)[WorldConstants.CellIndex(x, y & 31, z)];
+                    Assert.That(cell.Material, Is.Not.EqualTo(0), $"в водном чанке нет воздуха ({x}, {y}, {z})");
+                    if (cell.Material == Materials.WaterDeep)
+                        water++;
+                }
+                Assert.Greater(water, 1000, "залито водой");
             }
             finally
             {

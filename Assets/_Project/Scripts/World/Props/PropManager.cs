@@ -436,6 +436,12 @@ namespace VoidMall.World
                 workLight = body.gameObject.AddComponent<WorkLightProp>();
             if (workLight != null)
                 workLight.Configure(def.Shape == PropShape.WorkLight, id);
+            // Огонь бочки-костра: горит, пока станция сообщает о тепле (HeatSources).
+            var fire = body.GetComponent<FireBarrelProp>();
+            if (def.Shape == PropShape.FireBarrel && fire == null)
+                fire = body.gameObject.AddComponent<FireBarrelProp>();
+            if (fire != null)
+                fire.Configure(def.Shape == PropShape.FireBarrel, id, def.Size.y);
             body.transform.SetParent(parent, true);
             body.Initialize(this, id, defIndex, def);
             PropSpawned?.Invoke(body);

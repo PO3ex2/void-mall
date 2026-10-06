@@ -17,7 +17,15 @@ namespace VoidMall.World
     /// <summary>Луч по сетке клеток (Amanatides–Woo): точный, не зависит от коллайдеров и готовности мешей.</summary>
     public static class VoxelRaycast
     {
-        public static bool Raycast(this ChunkManager world, Vector3 origin, Vector3 direction, float maxDistance, out VoxelHit hit)
+        /// <summary>Луч до первой твёрдой клетки: вода пропускается (сквозь неё целятся и ломают).</summary>
+        public static bool Raycast(this ChunkManager world, Vector3 origin, Vector3 direction, float maxDistance, out VoxelHit hit) =>
+            Cast(world, origin, direction, maxDistance, false, out hit);
+
+        /// <summary>Луч до первой клетки воды (ведро); упёрся в твёрдое раньше — воды нет.</summary>
+        public static bool RaycastLiquid(this ChunkManager world, Vector3 origin, Vector3 direction, float maxDistance, out VoxelHit hit) =>
+            Cast(world, origin, direction, maxDistance, true, out hit) && world.GetInfo(hit.Value.Material).IsLiquid;
+
+        private static bool Cast(ChunkManager world, Vector3 origin, Vector3 direction, float maxDistance, bool stopAtLiquid, out VoxelHit hit)
         {
             hit = default;
             float3 o = origin;
@@ -41,7 +49,7 @@ namespace VoidMall.World
             while (t <= maxDistance)
             {
                 Cell value = world.GetCell(cell);
-                if (!value.IsAir && !IsOpenFunctional(world, cell, value))
+                if (!value.IsAir && !IsOpenFunctional(world, cell, value) && (stopAtLiquid || !world.GetInfo(value.Material).IsLiquid))
                 {
                     hit = new VoxelHit { Cell = cell, Normal = normal, Distance = t, Value = value };
                     return true;

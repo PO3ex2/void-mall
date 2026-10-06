@@ -36,6 +36,15 @@ namespace VoidMall.Crafting
 
         public bool NeedsFuel => Kind == CraftStation.Cooking;
 
+        /// <summary>Горит, пока есть топливо, даже без готовки (бочка-костёр).</summary>
+        public bool Heater;
+
+        /// <summary>Тепло, пока горит: прибавка вплотную (°C) и радиус (м).</summary>
+        public float Heat, HeatRadius;
+
+        /// <summary>Горела в последнем кадре (готовка или костёр).</summary>
+        public bool Burning { get; internal set; }
+
         /// <summary>Готовка идёт: есть очередь и (для плиты) топливо.</summary>
         public bool Working => !Queue.IsEmpty && !Queue.Blocked && (!NeedsFuel || Fuel > 0f);
 

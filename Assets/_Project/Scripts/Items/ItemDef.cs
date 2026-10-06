@@ -69,6 +69,9 @@ namespace VoidMall.Items
         Flashlight,
         Torch,
         Template,
+
+        /// <summary>Ведро: ПКМ по воде — набрать.</summary>
+        Bucket,
     }
 
     /// <summary>Слот экипировки (GDD §5.1): у каждого — слой брони и слой одежды.</summary>
@@ -169,6 +172,12 @@ namespace VoidMall.Items
 
         [Tooltip("Приготовлено на плите: +рассудок, навык «Повар» прибавляет калорий.")]
         public bool Cooked;
+
+        [Tooltip("Шанс отравиться (сырая вода из ведра).")]
+        [Range(0f, 1f)] public float PoisonChance;
+
+        [Tooltip("Что остаётся в руках после использования или установки (полное ведро → пустое). Пусто — ничего.")]
+        public string Leaves;
 
         [Tooltip("Сколько секунд горит в плите или горелке. 0 — не топливо.")]
         [Min(0f)] public float FuelSeconds;

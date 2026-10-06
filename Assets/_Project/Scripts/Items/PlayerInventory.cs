@@ -72,9 +72,20 @@ namespace VoidMall.Items
             Hotbar.Changed += RaiseChanged;
             Local = this;
 
+            GiveStarterClothes();
             EventBus<MaterialMinedEvent>.Subscribe(OnMined);
             EventBus<PropSalvagedEvent>.Subscribe(OnSalvaged);
             RaiseChanged();
+        }
+
+        /// <summary>Стартовая одежда: без неё ночью в моле (GDD §4.1) переохлаждение за пару минут.</summary>
+        public static readonly string[] StarterClothes = { "item.hoodie", "item.jeans", "item.sneakers" };
+
+        private void GiveStarterClothes()
+        {
+            foreach (var id in StarterClothes)
+                if (Items.TryGetIndex(id, out ushort def))
+                    Add(new ItemStack(def, 1));
         }
 
         private void OnDestroy()
@@ -283,8 +294,19 @@ namespace VoidMall.Items
                 grid.NotifyChanged();
             Hotbar.Prune(Owns);
             EventBus<ItemConsumedEvent>.Publish(new ItemConsumedEvent { Player = gameObject, Item = def, Spoiled = stack.Spoiled });
+            GiveLeftover(def);
             RaiseChanged();
             return true;
+        }
+
+        /// <summary>Что остаётся после использования или установки (полное ведро → пустое): в инвентарь, не влезло — под ноги.</summary>
+        public void GiveLeftover(ItemDef used)
+        {
+            if (string.IsNullOrEmpty(used.Leaves) || !Items.TryGetIndex(used.Leaves, out ushort def))
+                return;
+            var stack = new ItemStack(def, 1);
+            if (Add(stack) > 0 && WorldItems.Instance != null)
+                WorldItems.Instance.Spawn(stack, transform.position + Vector3.up, Vector3.zero);
         }
 
         /// <summary>

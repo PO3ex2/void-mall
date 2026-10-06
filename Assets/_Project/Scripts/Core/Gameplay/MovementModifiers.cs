@@ -26,6 +26,15 @@ namespace VoidMall.Core
         /// <summary>Хромота: 0 — нет, 1 — сильная.</summary>
         public float LimpAmount;
 
+        /// <summary>Дрожь от холода: мелкое быстрое дрожание взгляда, 0 — нет, 1 — сильная.</summary>
+        public float ShiverAmount;
+
+        /// <summary>Бхоп: прыжок в момент приземления не теряет скорость (навык «Атлет»).</summary>
+        public bool Bhop;
+
+        /// <summary>Потолок горизонтальной скорости при прыжке (× SprintSpeed); 0 — из настроек движения.</summary>
+        public float JumpSpeedFactor;
+
         public static MovementModifiers Default => new()
         {
             SpeedMul = 1f,

@@ -49,6 +49,15 @@ namespace VoidMall.Survival
 
         /// <summary>Лечение светящейся лужей, здоровья в секунду (уже списано с запаса лужи).</summary>
         public float PuddleHeal;
+
+        /// <summary>Тело в воде (вброд или плывёт): промокаешь.</summary>
+        public bool InWater;
+
+        /// <summary>Глаза под водой: тратится воздух.</summary>
+        public bool HeadUnderwater;
+
+        /// <summary>Тепло горящих источников рядом, °C (у огня сохнешь быстрее).</summary>
+        public float HeatNearby;
         public bool IsNight;
         public bool Sleeping;
 
@@ -70,6 +79,7 @@ namespace VoidMall.Survival
         public float CookMul;          // множитель калорий готовых блюд («Повар»)
         public float ComfortWiden;     // на сколько °C шире комфорт («Закалка»)
         public float SanityDrainMul;   // множитель потери рассудка («Крепкие нервы»)
+        public int BhopLevel;          // бхоп: уровень «Атлета» (0 — нет)
 
         public static VitalsPerks None => new()
         {
@@ -103,6 +113,18 @@ namespace VoidMall.Survival
         /// <summary>Сколько часов сна снимают «Отпечаток»; максимум рассудка с ним.</summary>
         public const float ImprintSleepHours = 2f, ImprintSanityCap = 50f;
 
+        /// <summary>Воздух под водой (с), урон, когда кончился (в секунду), восстановление над водой (с воздуха в секунду).</summary>
+        public const float MaxAir = 40f, DrownDamage = 10f, AirRegen = 15f;
+
+        /// <summary>«Мокрый»: сколько часов сохнешь, доля тепла одежды, во сколько раз быстрее у огня.</summary>
+        public const float WetHours = 1f, WetWarmthMul = 0.2f, DryNearFireMul = 4f;
+
+        /// <summary>«Согрет» (горячая еда): прибавка к ощущаемой температуре и сколько игровых часов держится.</summary>
+        public const float WarmedBonus = 8f, WarmedHours = 1.5f;
+
+        /// <summary>Холодовые множители: восстановление стамины («Холодно» / переохлаждение), калории — до ×ColdCaloriesMax.</summary>
+        public const float ColdStaminaRegen = 0.6f, HypothermiaStaminaRegen = 0.4f, ColdCaloriesMax = 1.6f;
+
         /// <summary>Восстановление рассудка в оазисе, в секунду.</summary>
         public const float OasisSanityRegen = 0.4f;
 
@@ -113,6 +135,7 @@ namespace VoidMall.Survival
         public float Sanity { get; private set; } = 100f;
         public float BodyTemperature { get; private set; } = NormalBodyTemp;
         public float Stamina { get; private set; } = BaseMaxStamina;
+        public float Air { get; private set; } = MaxAir;
         public bool StaminaExhausted { get; private set; }
         public bool IsDead => Health <= 0f;
 
@@ -231,6 +254,7 @@ namespace VoidMall.Survival
             if (IsDead)
                 return;
             TickNeeds(gameHours, env);
+            TickWater(realDt, gameHours, env);
             TickTemperature(realDt, env);
             TickStatuses(realDt, gameHours);
             TickSanity(realDt, gameHours, env);
@@ -240,7 +264,7 @@ namespace VoidMall.Survival
 
         private void TickNeeds(float gameHours, in VitalsEnvironment env)
         {
-            float calorieMul = BodyTemperature < 36f ? 1.3f : 1f;
+            float calorieMul = ColdCaloriesMul(env);
             float waterMul = (BodyTemperature > 37.4f ? 1.5f : 1f) + (Has(StatusKind.Poisoning) ? 1.5f : 0f);
             Calories = Mathf.Max(0f, Calories - CaloriesPerHour * calorieMul * gameHours);
             Water = Mathf.Max(0f, Water - WaterPerHour * waterMul * gameHours);
@@ -265,13 +289,58 @@ namespace VoidMall.Survival
             }
         }
 
+        /// <summary>Ощущаемая температура: воздух + одежда (одежда греет до комфорта, но не перегревает) + «Согрет».</summary>
+        public float FeltTemperature(in VitalsEnvironment env)
+        {
+            float felt = env.AirTemperature + env.Warmth * (Has(StatusKind.Wet) ? WetWarmthMul : 1f);
+            if (env.AirTemperature <= ComfortMax)
+                felt = Mathf.Min(felt, ComfortMax);
+            if (Has(StatusKind.Warmed))
+                felt += WarmedBonus;
+            return felt;
+        }
+
+        /// <summary>
+        /// Вода: под водой тратится воздух (кончился — тонешь), над водой восстанавливается; в воде промокаешь
+        /// (WetHours), у огня сохнешь в DryNearFireMul раз быстрее.
+        /// </summary>
+        private void TickWater(float realDt, float gameHours, in VitalsEnvironment env)
+        {
+            if (env.HeadUnderwater)
+            {
+                Air = Mathf.Max(0f, Air - realDt);
+                if (Air <= 0f)
+                    Hurt(DrownDamage * realDt, "Утонул");
+            }
+            else
+            {
+                Air = Mathf.Min(MaxAir, Air + AirRegen * realDt);
+            }
+            if (env.InWater)
+            {
+                var wet = Add(StatusKind.Wet, WetHours);
+                wet.Remaining = WetHours;
+            }
+            else if (env.HeatNearby > 5f && Find(StatusKind.Wet) is { } drying)
+            {
+                drying.Remaining -= gameHours * (DryNearFireMul - 1f);
+            }
+        }
+
+        /// <summary>Расход калорий на холоде: от ×1 в комфорте до ×ColdCaloriesMax на 16 °C ниже него.</summary>
+        public float ColdCaloriesMul(in VitalsEnvironment env)
+        {
+            float cold = Mathf.Max(0f, ComfortMin - Perks.ComfortWiden - FeltTemperature(env));
+            return 1f + (ColdCaloriesMax - 1f) * Mathf.Clamp01(cold / 16f);
+        }
+
         public static float SleepQuality(in VitalsEnvironment env) => env.SleepQuality > 0f ? env.SleepQuality : 1f;
         public static float SleepCap(in VitalsEnvironment env) => env.SleepRestCap > 0f ? env.SleepRestCap : 100f;
 
         private void TickTemperature(float realDt, in VitalsEnvironment env)
         {
             // Ощущаемая температура = воздух + одежда. Вне комфорта тело остывает или греется, в комфорте — к норме.
-            float felt = env.AirTemperature + env.Warmth;
+            float felt = FeltTemperature(env);
             float cold = Mathf.Max(0f, ComfortMin - Perks.ComfortWiden - felt), heat = Mathf.Max(0f, felt - ComfortMax - Perks.ComfortWiden);
             if (cold > 0f)
                 BodyTemperature -= cold * 0.0008f * realDt;
@@ -411,7 +480,8 @@ namespace VoidMall.Survival
             {
                 float regen = StaminaRegen;
                 if (Water < MaxWater * 0.15f) regen *= 0.7f;
-                if (BodyTemperature < 36f) regen *= 0.8f;
+                if (BodyTemperature < 35f) regen *= HypothermiaStaminaRegen;
+                else if (BodyTemperature < 36f) regen *= ColdStaminaRegen;
                 if (DietBalanced == false) regen *= 0.85f;
                 if (Has(StatusKind.Pain) && !Has(StatusKind.Painkiller)) regen *= 0.8f;
                 Stamina = Mathf.Min(max, Stamina + regen * realDt);
@@ -583,6 +653,9 @@ namespace VoidMall.Survival
             // Еда немного успокаивает, горячая — заметно.
             if (item.Calories > 0f || item.Cooked)
                 Sanity = Mathf.Min(MaxSanity, Sanity + (item.Cooked ? 6f : 2f));
+            // Горячее греет изнутри.
+            if (item.Cooked && !spoiled)
+                Add(StatusKind.Warmed, hours: WarmedHours);
             if (spoiled)
             {
                 Add(StatusKind.Poisoning, hours: 1.5f);
@@ -595,6 +668,9 @@ namespace VoidMall.Survival
                 if (poisoning.Remaining <= 0f)
                     Remove(StatusKind.Poisoning);
             }
+            // Сырая вода может отравить (после того, как вода «вымыла» прежнюю отраву).
+            if (item.PoisonChance > 0f && Roll(item.PoisonChance))
+                Add(StatusKind.Poisoning, hours: 1.5f);
             if (item.Treats != MedicalTreatment.None || item.Heal > 0f)
                 Treat(item.Treats, item.Heal + Perks.HealBonus);
         }
@@ -666,6 +742,7 @@ namespace VoidMall.Survival
             Sanity = Mathf.Max(Sanity, 60f);
             BodyTemperature = NormalBodyTemp;
             Stamina = MaxStamina;
+            Air = MaxAir;
             StaminaExhausted = false;
             DeathReason = null;
         }
@@ -698,6 +775,7 @@ namespace VoidMall.Survival
             Sanity = MaxSanity;
             BodyTemperature = NormalBodyTemp;
             Stamina = MaxStamina;
+            Air = MaxAir;
             StaminaExhausted = false;
         }
 
@@ -739,6 +817,15 @@ namespace VoidMall.Survival
             else if (Rest < 25f) m.SpeedMul *= 0.92f;
             if (BodyTemperature < 36f) m.SpeedMul *= 0.95f;
             if (BodyTemperature < 35f) m.SwayAmount += 0.3f;
+            // Дрожь: на холоде мелко, при переохлаждении сильно.
+            if (BodyTemperature < 35f) m.ShiverAmount = Mathf.Max(m.ShiverAmount, 1f);
+            else if (BodyTemperature < 36f) m.ShiverAmount = Mathf.Max(m.ShiverAmount, 0.35f);
+            // Бхоп («Атлет»): потолок скорости прыжка 1.5 / 1.75 / 2 спринта.
+            if (Perks.BhopLevel > 0)
+            {
+                m.Bhop = true;
+                m.JumpSpeedFactor = BhopSpeedFactor(Perks.BhopLevel);
+            }
             if (Sanity <= 0f)
             {
                 m.SwayAmount += 0.6f;
@@ -749,6 +836,9 @@ namespace VoidMall.Survival
                 m.SwayAmount += 0.25f;
             }
         }
+
+        /// <summary>Потолок скорости прыжка (× спринта) по уровню «Атлета»: 0 — как в настройках (1.25), дальше 1.5 / 1.75 / 2.</summary>
+        public static float BhopSpeedFactor(int level) => level <= 0 ? 0f : 1.25f + 0.25f * Mathf.Min(level, 3);
 
         // ───────────────────────────── Состояния для интерфейса ─────────────────────────────
 

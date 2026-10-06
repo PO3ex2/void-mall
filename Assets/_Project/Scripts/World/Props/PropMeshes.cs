@@ -50,6 +50,7 @@ namespace VoidMall.World
         WorkLight,
         Bush,
         Fern,
+        FireBarrel,
         Count,
     }
 
@@ -103,6 +104,7 @@ namespace VoidMall.World
             PropShape.WorkLight => new Vector3(0.8f, 1.9f, 0.8f),
             PropShape.Bush => new Vector3(1.1f, 0.9f, 1.1f),
             PropShape.Fern => new Vector3(1f, 0.6f, 1f),
+            PropShape.FireBarrel => new Vector3(0.6f, 0.9f, 0.6f),
             _ => Vector3.one,
         };
 
@@ -692,6 +694,37 @@ namespace VoidMall.World
                         var leaf = new Color(0.18f + (i % 3) * 0.04f, 0.38f + (i % 2) * 0.08f, 0.14f, 0.15f);
                         b.Box(new Vector3(Mathf.Cos(a) * r, y, Mathf.Sin(a) * r), new Vector3(size, size * 0.75f, size), leaf, Quaternion.Euler(i * 17f, i * 41f, i * 23f));
                     }
+                    break;
+                }
+                case PropShape.FireBarrel:
+                {
+                    // Бочка-костёр: ржавая бочка из боковых планок, обручи, дыры для тяги, сверху угли и поленья.
+                    var rust = new Color(0.42f, 0.24f, 0.14f, 0.3f);
+                    var hoop = new Color(0.25f, 0.18f, 0.13f, 0.4f);
+                    float r = w * 0.5f;
+                    for (int i = 0; i < 12; i++)
+                    {
+                        float a = i * 30f;
+                        var dir = Quaternion.Euler(0f, a, 0f) * Vector3.forward;
+                        var tone = i % 3 == 0 ? hoop : rust;
+                        // У каждой третьей планки внизу дыра для тяги.
+                        float bottom = i % 3 == 1 ? 0.25f : 0f;
+                        b.Box(dir * (r - 0.02f) + Vector3.up * (h + bottom) * 0.5f, new Vector3(r * 0.53f, h - bottom, 0.03f), tone, Quaternion.Euler(0f, a, 0f));
+                    }
+                    for (int k = 0; k < 2; k++)
+                    {
+                        float y = k == 0 ? h * 0.3f : h * 0.75f;
+                        for (int i = 0; i < 12; i++)
+                        {
+                            float a = i * 30f;
+                            var dir = Quaternion.Euler(0f, a, 0f) * Vector3.forward;
+                            b.Box(dir * (r + 0.005f) + Vector3.up * y, new Vector3(r * 0.55f, 0.04f, 0.02f), hoop, Quaternion.Euler(0f, a, 0f));
+                        }
+                    }
+                    b.BoxMinMax(new Vector3(-r * 0.8f, h - 0.14f, -r * 0.8f), new Vector3(r * 0.8f, h - 0.1f, r * 0.8f), new Color(0.08f, 0.06f, 0.05f, 0.1f));
+                    b.Box(new Vector3(0f, h - 0.06f, 0f), new Vector3(r * 1.1f, 0.07f, 0.08f), new Color(0.35f, 0.2f, 0.1f, 0.1f), Quaternion.Euler(0f, 30f, 10f));
+                    b.Box(new Vector3(0f, h - 0.05f, 0f), new Vector3(r * 1.0f, 0.07f, 0.08f), new Color(0.3f, 0.18f, 0.1f, 0.1f), Quaternion.Euler(0f, -40f, -8f));
+                    b.Box(new Vector3(0.04f, h - 0.09f, -0.03f), new Vector3(r * 0.6f, 0.03f, r * 0.6f), new Color(1f, 0.45f, 0.1f, 0.2f), Quaternion.Euler(0f, 15f, 0f));
                     break;
                 }
                 case PropShape.Fern:

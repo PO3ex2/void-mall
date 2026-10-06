@@ -69,6 +69,16 @@ namespace VoidMall.World
 
         [Tooltip("Крафтит сама, без открытого окна (плита, горелка — пока есть топливо).")]
         public bool StationAutonomous;
+
+        [Header("Тепло")]
+        [Tooltip("Горит, пока есть топливо, даже без готовки (бочка-костёр). Иначе греет только во время готовки.")]
+        public bool Heater;
+
+        [Tooltip("Прибавка к температуре вплотную, пока горит, °C (0 — не греет).")]
+        public float HeatOutput;
+
+        [Tooltip("Докуда доходит тепло, м.")]
+        public float HeatRadius = 2f;
     }
 
     /// <summary>Реестр пропов на сессию: ID ↔ индекс, меши (процедурные строятся один раз).</summary>

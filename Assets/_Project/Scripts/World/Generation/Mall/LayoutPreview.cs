@@ -123,6 +123,6 @@ namespace VoidMall.World
         }
 
         private static bool InAnomaly(in MallCellInfo info, int level, float2 world) =>
-            PropPlacer.InAnomaly(info, level, world, 0f) || MallPlanner.InInverted(info, world);
+            PropPlacer.InAnomaly(info, level, world, 0f) || MallPlanner.InInverted(info, world) || MallPlanner.InFlooded(info, world);
     }
 }

@@ -142,6 +142,8 @@ namespace VoidMall.Tests
             var vertices = new NativeList<ChunkVertex>(Allocator.TempJob);
             var opaque = new NativeList<int>(Allocator.TempJob);
             var transparent = new NativeList<int>(Allocator.TempJob);
+            var waterVertices = new NativeList<ChunkVertex>(Allocator.TempJob);
+            var waterIndices = new NativeList<int>(Allocator.TempJob);
             BlockShapes.BuildNative(out var shapeVertices, out var shapeRanges, Allocator.TempJob);
             try
             {
@@ -153,6 +155,8 @@ namespace VoidMall.Tests
                     Vertices = vertices,
                     OpaqueIndices = opaque,
                     TransparentIndices = transparent,
+                    WaterVertices = waterVertices,
+                    WaterIndices = waterIndices,
                     ShapeVertices = shapeVertices,
                     ShapeRanges = shapeRanges,
                 }.Run();
@@ -176,6 +180,8 @@ namespace VoidMall.Tests
                 vertices.Dispose();
                 opaque.Dispose();
                 transparent.Dispose();
+                waterVertices.Dispose();
+                waterIndices.Dispose();
                 shapeVertices.Dispose();
                 shapeRanges.Dispose();
             }

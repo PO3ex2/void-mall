@@ -89,6 +89,8 @@ namespace VoidMall.Editor
             // Этап 8В: растения оазиса (ломаются, ничего не дают).
             new("prop.bush", "Куст", PropShape.Bush, 15f, 60, 2f, new Color(0.3f, 0.5f, 0.25f)),
             new("prop.fern", "Папоротник", PropShape.Fern, 3f, 25, 1f, new Color(0.3f, 0.55f, 0.25f)),
+            // Этап 8Г: бочка-костёр — греет и светит, на ней можно готовить.
+            new("prop.fire_barrel", "Бочка-костёр", PropShape.FireBarrel, 25f, 500, 4f, MetalDust, ("item.fire_barrel", 1, 0), ("material.scrap_metal", 0, 3)),
         };
 
         /// <summary>На чём можно спать (E): сон сохраняет точку возрождения. Диван — хуже кровати.</summary>
@@ -135,10 +137,19 @@ namespace VoidMall.Editor
                     "prop.chem_table" => (CraftStation.Chemistry, 1f, false),
                     "prop.stove" => (CraftStation.Cooking, 1f, true),
                     "prop.burner" => (CraftStation.Cooking, 0.7f, true),
+                    "prop.fire_barrel" => (CraftStation.Cooking, 0.6f, true),
                     "prop.crusher" => (CraftStation.Crusher, 1f, false),
                     _ => (CraftStation.None, 1f, false),
                 };
                 def.SleepQuality = spec.Id == "prop.sofa" ? 0.7f : 1f;
+                // Тепло: бочка-костёр горит, пока есть топливо; плита и горелка греют, пока готовят.
+                (def.Heater, def.HeatOutput, def.HeatRadius) = spec.Id switch
+                {
+                    "prop.fire_barrel" => (true, 26f, 4f),
+                    "prop.stove" => (false, 12f, 2.5f),
+                    "prop.burner" => (false, 7f, 1.8f),
+                    _ => (false, 0f, 2f),
+                };
                 def.Yields = new List<PropYield>();
                 foreach (var (material, full, broken) in spec.Yields)
                     def.Yields.Add(new PropYield { Material = material, Disassembled = full, Broken = broken });

@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
+using VoidMall.Core;
 
 namespace VoidMall.Survival
 {
@@ -77,7 +78,11 @@ namespace VoidMall.Survival
             _chromatic.intensity.Override(Mathf.Clamp01(0.8f * madness * madness + glitch));
             _lens.intensity.Override(Mathf.Clamp(0.25f * madness * Mathf.Sin(time * 0.7f) - 0.5f * glitch, -1f, 1f));
             _color.saturation.Override(-60f * madness - 30f * cold - (vitals.IsDead ? 80f : 0f));
-            _color.colorFilter.Override(Color.Lerp(Color.white, new Color(0.8f, 0.9f, 1f), cold));
+            Color filter = Color.Lerp(Color.white, new Color(0.8f, 0.9f, 1f), cold);
+            // Под водой — зелёно-синий оттенок.
+            if (_camera != null && LiquidProbe.At(_camera.transform.position))
+                filter *= new Color(0.6f, 0.9f, 0.85f);
+            _color.colorFilter.Override(filter);
             _color.postExposure.Override(glitch > 0.5f ? Random.Range(-1.5f, 1f) : 0f);
         }
 
