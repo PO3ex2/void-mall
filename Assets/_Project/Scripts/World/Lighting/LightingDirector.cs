@@ -330,8 +330,8 @@ namespace VoidMall.World
         private void PlaceLight(ChunkManager world, Light light, int3 cell)
         {
             LampKind kind = KindAt(world, cell);
-            // Лампа в потолке светит вниз: источник чуть ниже блока, чтобы не заслонять сам себя.
-            light.transform.position = new Vector3(cell.x + 0.5f, cell.y - 0.35f, cell.z + 0.5f);
+            // Лампа в потолке светит вниз: источник чуть ниже блока, чтобы не заслонять сам себя (в полу — выше).
+            light.transform.position = LampPoint(world, cell, 0.35f);
             switch (kind)
             {
                 case LampKind.Emergency:
@@ -386,6 +386,16 @@ namespace VoidMall.World
             Shader.SetGlobalFloat(FieldCountId, count);
         }
 
+        /// <summary>
+        /// Точка источника лампы: под блоком (лампа в потолке) или над ним, если лампа в полу — в перевёрнутом чанке
+        /// пол и потолок поменялись местами.
+        /// </summary>
+        private static Vector3 LampPoint(ChunkManager world, int3 cell, float offset)
+        {
+            bool inFloor = world.GetCell(cell + new int3(0, 1, 0)).IsAir && !world.GetCell(cell - new int3(0, 1, 0)).IsAir;
+            return new Vector3(cell.x + 0.5f, inFloor ? cell.y + 1f + offset : cell.y - offset, cell.z + 0.5f);
+        }
+
         private static LampKind KindAt(ChunkManager world, int3 cell)
         {
             Cell value = world.GetCell(cell);
@@ -425,7 +435,7 @@ namespace VoidMall.World
                 if (intensity <= 0f)
                     continue;
                 float range = kind == LampKind.Emergency ? _emergencyRange : kind == LampKind.Skylight ? _skylightRange : _lampRange;
-                float distance = Vector3.Distance(position, new Vector3(cell.x + 0.5f, cell.y - 0.35f, cell.z + 0.5f));
+                float distance = Vector3.Distance(position, LampPoint(world, cell, 0.35f));
                 float falloff = Mathf.Clamp01(1f - distance / range);
                 float strength = kind == LampKind.Emergency ? 0.25f : 1f;
                 float value = intensity * falloff * falloff * strength;
@@ -441,7 +451,7 @@ namespace VoidMall.World
                 var (value, cell) = _contributions[i];
                 if (i < 3)
                 {
-                    Vector3 lampPoint = new(cell.x + 0.5f, cell.y - 0.05f, cell.z + 0.5f);
+                    Vector3 lampPoint = LampPoint(world, cell, 0.05f);
                     if (Physics.Linecast(position, lampPoint, out var hit, mask, QueryTriggerInteraction.Ignore)
                         && (hit.point - lampPoint).sqrMagnitude > 0.36f)
                         continue;

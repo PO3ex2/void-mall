@@ -97,6 +97,11 @@ namespace VoidMall.Editor
             var clock = world.AddComponent<WorldClock>();
             world.AddComponent<LightingDirector>();
             world.AddComponent<AnomalyFxDirector>();
+            var puddles = world.AddComponent<AnomalyPuddles>();
+            var anomalyVisuals = world.AddComponent<AnomalyVisuals>();
+            var anomalyVfx = AssetDatabase.LoadAssetAtPath<Material>(WorldAssetsSetup.AnomalyVfxMaterialPath);
+            ProjectSetup.SetReference(puddles, "_vfxMaterial", anomalyVfx);
+            ProjectSetup.SetReference(anomalyVisuals, "_vfxMaterial", anomalyVfx);
             var props = world.AddComponent<PropManager>();
             var itemSystem = world.AddComponent<VoidMall.Items.ItemSystem>();
             world.AddComponent<VoidMall.Items.WorldItems>();

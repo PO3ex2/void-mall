@@ -53,6 +53,12 @@ namespace VoidMall.Player
         public KinematicMover Mover => _mover;
         public float LastLandingSpeed { get; private set; }
 
+        /// <summary>
+        /// Внешний снос по горизонтали, м/с (пульсирующее искажение): двигает игрока поверх его скорости, не копится
+        /// и не гасится трением — пропал источник, пропал и снос. Выставляет модуль аномалий каждый кадр.
+        /// </summary>
+        public Vector3 ExternalDrift { get; set; }
+
         public float CurrentHeight => _state.IsCrouched ? _settings.CrouchHeight : _settings.StandHeight;
         public float TargetEyeHeight => _state.IsCrouched ? _settings.CrouchEyeHeight : _settings.StandEyeHeight;
 
@@ -475,6 +481,7 @@ namespace VoidMall.Player
             Vector3 carry = _state.GroundVelocity * dt;
             _state.Position.y += carry.y;
             delta += new Vector3(carry.x, 0f, carry.z);
+            delta += new Vector3(ExternalDrift.x, 0f, ExternalDrift.z) * dt;
 
             StepSlideMove(delta);
             StayOnGround();
@@ -539,7 +546,8 @@ namespace VoidMall.Player
 
         private void AirMove(float dt)
         {
-            _mover.SlideMove(ref _state.Position, ref _state.Velocity, _state.Velocity * dt, CurrentHeight, keepHorizontal: false);
+            Vector3 drift = new Vector3(ExternalDrift.x, 0f, ExternalDrift.z) * dt;
+            _mover.SlideMove(ref _state.Position, ref _state.Velocity, _state.Velocity * dt + drift, CurrentHeight, keepHorizontal: false);
         }
 
         private void PushRigidbodies(float dt)

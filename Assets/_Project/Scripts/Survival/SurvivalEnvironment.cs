@@ -79,7 +79,10 @@ namespace VoidMall.Survival
             return temperature;
         }
 
-        /// <summary>Игрок в зоне аномалии (бездна, котлован, вырез) или в объёме искажения/глитча.</summary>
+        /// <summary>
+        /// Игрок в зоне аномалии, которая давит на рассудок: бездна, котлован, вырез, перевёрнутый чанк, объёмы
+        /// искажения, глитча и пульсации. Оазис — наоборот, уютное место (InOasis).
+        /// </summary>
         public bool InAnomaly(ChunkManager world, Vector3 position)
         {
             if (world == null)
@@ -87,9 +90,24 @@ namespace VoidMall.Survival
             int level = MallLayout.LevelAtFeet(position.y + 0.1f);
             int2 cell = MallLayout.CellOf(position);
             var info = world.GetCellInfo(cell);
-            if (level >= 0 && level < MallLayout.LevelCount && PropPlacer.InAnomaly(info, level, new float2(position.x, position.z), 0f))
+            float2 xz = new(position.x, position.z);
+            if (MallPlanner.InInverted(info, xz))
                 return true;
-            return InMarker(world, position, AnomalyMarkerKind.Distortion) || InMarker(world, position, AnomalyMarkerKind.Glitch);
+            if (info.Anomaly != AnomalyKind.Oasis && level >= 0 && level < MallLayout.LevelCount && PropPlacer.InAnomaly(info, level, xz, 0f))
+                return true;
+            return InMarker(world, position, AnomalyMarkerKind.Distortion) || InMarker(world, position, AnomalyMarkerKind.Glitch)
+                || InMarker(world, position, AnomalyMarkerKind.Pulse);
+        }
+
+        /// <summary>Игрок под дырой оазиса (на его этаже, в пределах зоны).</summary>
+        public bool InOasis(ChunkManager world, Vector3 position)
+        {
+            if (world == null)
+                return false;
+            var info = world.GetCellInfo(MallLayout.CellOf(position));
+            if (info.Anomaly != AnomalyKind.Oasis || MallLayout.LevelAtFeet(position.y + 0.1f) != info.AnomalyLevel)
+                return false;
+            return math.distance(new float2(position.x, position.z), info.AnomalyCenter) < MallPlanner.OasisZoneRadius(info.AnomalyRadius);
         }
 
         /// <summary>Внутри объёма аномалии-маркера (сферы искажения или глитча) в окне 3×3 ячеек.</summary>

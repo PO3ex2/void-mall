@@ -14,7 +14,7 @@ namespace VoidMall.Tests
         {
             Bedrock = 1, Concrete = 2, ConcreteMass = 3, Soil = 4, SmoothTile = 5, Terrazzo = 6, CeilingTile = 7,
             PaintWhite = 8, Glass = 9, Shutter = 10, FacadeDark = 11, Asphalt = 12, LineX = 13, LineZ = 14,
-            Lamp = 15, Emergency = 16, Skylight = 17,
+            Lamp = 15, Emergency = 16, Skylight = 17, SkyScreen = 18, Grass = 19,
         };
 
         private NativeArray<SectionInfo> _sections;
@@ -414,6 +414,75 @@ namespace VoidMall.Tests
         private static bool IsWalkable(Tile tile) =>
             tile == Tile.Open || tile == Tile.Door || tile == Tile.FacadeDoor || tile == Tile.CoreDoor || tile == Tile.AtriumVoid
             || tile == Tile.Shutter; // рольставню можно сломать
+
+        // ───────────── Аномалии 2 (этап 8В) ─────────────
+
+        private static MallCellInfo FindAnomaly(AnomalyKind kind, out uint seed)
+        {
+            for (seed = 1; seed < 40; seed++)
+            for (int z = 0; z < 20; z++)
+            for (int x = 0; x < 20; x++)
+            {
+                var info = MallPlanner.GetCellInfo(seed, 1f, new int2(x, z));
+                if (info.Anomaly == kind)
+                    return info;
+            }
+            Assert.Fail($"No {kind} found.");
+            return default;
+        }
+
+        [Test]
+        public void Inverted_LampsInFloorSlab_NotInCeiling()
+        {
+            var info = FindAnomaly(AnomalyKind.Inverted, out uint seed);
+            int3 chunk = new((int)info.AnomalyCenter.x / 32, 0, (int)info.AnomalyCenter.y / 32);
+            var low = Generate(chunk, seed, out _, out var lamps);
+            var high = Generate(chunk + new int3(0, 1, 0), seed, out _, out var highLamps);
+            try
+            {
+                lamps.AddRange(highLamps);
+                Assert.That(lamps.Count, Is.GreaterThan(0), "лампы в перевёрнутом чанке есть");
+                foreach (var lamp in lamps)
+                {
+                    int level = MallLayout.LevelAt(lamp.y);
+                    Assert.That(lamp.y, Is.EqualTo(MallLayout.LevelBase(level)), "лампа — в плите пола, а не в потолке");
+                }
+            }
+            finally
+            {
+                low.Dispose();
+                high.Dispose();
+            }
+        }
+
+        [Test]
+        public void Oasis_HoleInCeiling_GrassBelow_ScreenAbove()
+        {
+            var info = FindAnomaly(AnomalyKind.Oasis, out uint seed);
+            int level = info.AnomalyLevel;
+            Assert.That(MallLayout.Kind(level), Is.EqualTo(LevelKind.Retail));
+            int3 column = new((int)math.floor(info.AnomalyCenter.x), 0, (int)math.floor(info.AnomalyCenter.y));
+            int3 chunk = new(column.x >> 5, 0, column.z >> 5);
+            var low = Generate(chunk, seed, out _, out _);
+            var high = Generate(chunk + new int3(0, 1, 0), seed, out _, out _);
+            try
+            {
+                Cell At(int y)
+                {
+                    int3 local = new(column.x & 31, y & 31, column.z & 31);
+                    return (y < 32 ? low : high)[WorldConstants.CellIndex(local)];
+                }
+                Assert.That(At(MallLayout.LevelBase(level)).Material, Is.EqualTo(Materials.Grass), "под дырой — трава");
+                Assert.That(At(MallLayout.CeilingRow(level)).IsAir, Is.True, "дыра в потолке");
+                Assert.That(At(MallLayout.LevelBase(level + 1)).IsAir, Is.True, "пол этажа выше прорезан");
+                Assert.That(At(MallLayout.CeilingRow(level + 1)).Material, Is.EqualTo(Materials.SkyScreen), "наверху экран неба");
+            }
+            finally
+            {
+                low.Dispose();
+                high.Dispose();
+            }
+        }
 
         private static int2 FindPlainCell(uint seed)
         {

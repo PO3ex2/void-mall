@@ -1,0 +1,31 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3b6d19e156aa5a244bb1c2c0a92dc1a3, type: 3}
+  m_Name: fern
+  m_EditorClassIdentifier: VoidMall.World::VoidMall.World.PropDef
+  _id: prop.fern
+  DisplayName: "\u041F\u0430\u043F\u043E\u0440\u043E\u0442\u043D\u0438\u043A"
+  Shape: 43
+  Size: {x: 1, y: 0.6, z: 1}
+  Mesh: {fileID: 0}
+  Material: {fileID: 0}
+  Mass: 3
+  Hardness: 25
+  DisassembleTime: 1
+  Yields: []
+  DebrisColor: {r: 0.3, g: 0.55, b: 0.25, a: 1}
+  Sleepable: 0
+  SleepQuality: 1
+  PackUp: 0
+  Station: 0
+  StationSpeed: 1
+  StationAutonomous: 0

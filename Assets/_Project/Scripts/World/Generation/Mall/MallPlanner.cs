@@ -126,11 +126,26 @@ namespace VoidMall.World
                     info.AnomalyCenter = MallLayout.CellOrigin(cell) + new float2(quadrant & 1, quadrant >> 1) * WorldConstants.ChunkSize;
                     info.AnomalyRadius = WorldConstants.ChunkSize;
                     return;
+                case AnomalyKind.Inverted:
+                    // Колонна-чанк через все этажи: уровень не важен (последний — чтобы «ниже уровня» было всё).
+                    info.Anomaly = AnomalyKind.Inverted;
+                    int corner = (int)(h % 4);
+                    info.AnomalyLevel = MallLayout.LevelCount - 1;
+                    info.AnomalyCenter = MallLayout.CellOrigin(cell) + new float2(corner & 1, corner >> 1) * WorldConstants.ChunkSize;
+                    info.AnomalyRadius = WorldConstants.ChunkSize;
+                    return;
+                case AnomalyKind.Oasis:
+                    // Дыра в потолке торгового этажа; шахта с экраном неба — этажом выше.
+                    info.Anomaly = AnomalyKind.Oasis;
+                    info.AnomalyLevel = MallLayout.FirstRetailLevel + (int)(h2 % MallLayout.RetailFloors);
+                    info.AnomalyRadius = math.lerp(OasisRadiusMin, OasisRadiusMax, size);
+                    zone = OasisZoneRadius(info.AnomalyRadius);
+                    break;
                 default:
                     return;
             }
 
-            // Бездна и котлован — внутри квартала, на стороне, противоположной ядру.
+            // Бездна, котлован и оазис — внутри квартала, на стороне, противоположной ядру.
             float margin = zone + 1f;
             float u = math.lerp(margin, Block - margin, Hash.ToFloat01(Hash.Get(seed, cell.x, cell.y, SaltCell + 23)));
             float vMin = CoreDepth + margin, vMax = Block - margin;
@@ -192,10 +207,28 @@ namespace VoidMall.World
         public static int2 SpawnCell(uint seed, float anomalyFrequency)
         {
             for (int x = 0; x < 64; x++)
-                if (RollAnomalyRaw(seed, anomalyFrequency, new int2(x, 0)) != AnomalyKind.Cutout)
+            {
+                var kind = RollAnomalyRaw(seed, anomalyFrequency, new int2(x, 0));
+                if (kind != AnomalyKind.Cutout && kind != AnomalyKind.Inverted)
                     return new int2(x, 0);
+            }
             return int2.zero;
         }
+
+        /// <summary>Оазис: радиус дыры в потолке (по центрам клеток).</summary>
+        public const float OasisRadiusMin = 3f, OasisRadiusMax = 5.5f;
+
+        /// <summary>Зона оазиса (без мебели и структур): дыра, стенка шахты этажом выше и запас.</summary>
+        public static float OasisZoneRadius(float radius) => radius + 1.5f;
+
+        /// <summary>Клетка в колонне перевёрнутого чанка ячейки (мировые XZ).</summary>
+        public static bool InInverted(in MallCellInfo info, float2 world) =>
+            info.Anomaly == AnomalyKind.Inverted
+            && world.x >= info.AnomalyCenter.x && world.x < info.AnomalyCenter.x + WorldConstants.ChunkSize
+            && world.y >= info.AnomalyCenter.y && world.y < info.AnomalyCenter.y + WorldConstants.ChunkSize;
+
+        /// <summary>Высота y внутри уровня, отражённая вверх ногами (плита пола ↔ потолочный ряд).</summary>
+        public static float MirrorY(int level, float y) => MallLayout.LevelBase(level) + MallLayout.CeilingRow(level) + 1 - y;
 
 
         // ───────────────────────────── Площади и стенды ─────────────────────────────
@@ -282,10 +315,15 @@ namespace VoidMall.World
             float roll = Hash.ToFloat01(Hash.Get(seed, cell.x, cell.y, SaltCell + 20));
             // В узлах решётки бездна чаще — только там она бывает огромной.
             float pAbyss = (IsBigAnomalyNode(cell) ? 0.25f : 0.1f) * frequency, pPool = 0.08f * frequency, pCutout = 0.05f * frequency;
-            return roll < pAbyss ? AnomalyKind.Abyss
-                : roll < pAbyss + pPool ? AnomalyKind.Pool
-                : roll < pAbyss + pPool + pCutout ? AnomalyKind.Cutout
-                : AnomalyKind.None;
+            // Оазис — самый частый (GDD §2.5), перевёрнутый чанк — редкий.
+            float pOasis = 0.12f * frequency, pInverted = 0.04f * frequency;
+            float edge = pAbyss;
+            if (roll < edge) return AnomalyKind.Abyss;
+            if (roll < (edge += pPool)) return AnomalyKind.Pool;
+            if (roll < (edge += pCutout)) return AnomalyKind.Cutout;
+            if (roll < (edge += pOasis)) return AnomalyKind.Oasis;
+            if (roll < edge + pInverted) return AnomalyKind.Inverted;
+            return AnomalyKind.None;
         }
 
         /// <summary>
@@ -359,7 +397,8 @@ namespace VoidMall.World
             {
                 AnomalyKind.Abyss => math.distance(p, other.AnomalyCenter) - MallAnomalies.AbyssZoneRadius(other.AnomalyRadius),
                 AnomalyKind.Pool => math.distance(p, other.AnomalyCenter) - MallAnomalies.PoolZoneRadius(other.AnomalyRadius),
-                AnomalyKind.Cutout => DistanceToRect(p, new float4(other.AnomalyCenter, other.AnomalyCenter + WorldConstants.ChunkSize)),
+                AnomalyKind.Cutout or AnomalyKind.Inverted => DistanceToRect(p, new float4(other.AnomalyCenter, other.AnomalyCenter + WorldConstants.ChunkSize)),
+                AnomalyKind.Oasis => math.distance(p, other.AnomalyCenter) - OasisZoneRadius(other.AnomalyRadius),
                 _ => float.MaxValue,
             };
         }
@@ -401,16 +440,31 @@ namespace VoidMall.World
             coreRect = RotateRect(new int4(coreOffset, 0, coreOffset + CoreWidth, CoreDepth), rotation);
         }
 
+        /// <summary>Доля ячеек с маркером: пульсация, лужа, «Смотри на меня» (в обычном моле; биом умножает).</summary>
+        public const float PulseChance = 0.1f, PuddleChance = 0.12f, LookAtMeChance = 0.12f;
+
+        /// <summary>«Смотри на меня» в поле аномалий: по 2–4 на ячейку; в пустых разделах — почти нет.</summary>
+        public const int LookAtMeFieldMin = 2, LookAtMeFieldMax = 4;
+        public const float LookAtMeEmptyChance = 0.015f;
+
+        /// <summary>Радиус светящейся лужи и высота вспышки «Смотри на меня» над полом.</summary>
+        public const float PuddleRadiusMin = 0.9f, PuddleRadiusMax = 1.4f, LookAtMeHeight = 2.2f;
+
+        /// <summary>
+        /// Маркеры ячейки: искажение и глитч (как раньше), затем «Смотри на меня», пульсация и лужа — пока есть место.
+        /// Лужа и вспышка — в галерее (на виду); лужа лежит на полу, существует ли она — решает рантайм (пол цел).
+        /// </summary>
         private static void PlaceMarkers(uint seed, float frequency, ref MallCellInfo info)
         {
+            int2 cell = info.Cell;
+            float mul = frequency * BiomeAnomalyMul(info.Biome);
             for (int kind = 1; kind <= 2; kind++)
             {
-                int2 cell = info.Cell;
-                if (Hash.ToFloat01(Hash.Get(seed, cell.x, cell.y, SaltCell + 30 + kind)) >= 0.12f * frequency * BiomeAnomalyMul(info.Biome))
+                if (Hash.ToFloat01(Hash.Get(seed, cell.x, cell.y, SaltCell + 30 + kind)) >= 0.12f * mul)
                     continue;
                 uint h = Hash.Get(seed, cell.x, cell.y, SaltCell + 40 + kind);
                 int level = (int)(h % MallLayout.LevelCount);
-                var marker = new AnomalyMarker
+                info.AddMarker(new AnomalyMarker
                 {
                     Kind = (AnomalyMarkerKind)kind,
                     Center = new float3(
@@ -418,13 +472,72 @@ namespace VoidMall.World
                         MallLayout.FloorTop(level) + MallLayout.FreeHeight(level) * 0.5f,
                         cell.y * MallLayout.CellSize + 8 + (h >> 12) % 48),
                     Radius = 5f + (h >> 20) % 6,
-                };
-                if (info.MarkerCount == 0)
-                    info.Marker0 = marker;
-                else
-                    info.Marker1 = marker;
-                info.MarkerCount++;
+                });
             }
+
+            int lookCount = LookAtMeCount(seed, frequency, info);
+            for (int i = 0; i < lookCount; i++)
+            {
+                uint h = Hash.Get(seed, cell.x, cell.y, SaltCell + 60 + i);
+                int level = (int)(h % MallLayout.LevelCount);
+                info.AddMarker(new AnomalyMarker
+                {
+                    Kind = AnomalyMarkerKind.LookAtMe,
+                    Center = GalleryPoint(cell, h, MallLayout.FloorTop(level) + LookAtMeHeight),
+                    Radius = 2.5f,
+                });
+            }
+
+            if (Hash.ToFloat01(Hash.Get(seed, cell.x, cell.y, SaltCell + 33)) < PulseChance * mul)
+            {
+                uint h = Hash.Get(seed, cell.x, cell.y, SaltCell + 43);
+                int level = (int)(h % MallLayout.LevelCount);
+                info.AddMarker(new AnomalyMarker
+                {
+                    Kind = AnomalyMarkerKind.Pulse,
+                    Center = new float3(
+                        cell.x * MallLayout.CellSize + 8 + (h >> 4) % 48,
+                        MallLayout.FloorTop(level) + 1.2f,
+                        cell.y * MallLayout.CellSize + 8 + (h >> 12) % 48),
+                    Radius = 4.5f + (h >> 20) % 4,
+                });
+            }
+
+            if (Hash.ToFloat01(Hash.Get(seed, cell.x, cell.y, SaltCell + 35)) < PuddleChance * mul)
+            {
+                uint h = Hash.Get(seed, cell.x, cell.y, SaltCell + 45);
+                int level = (int)(h % MallLayout.LevelCount);
+                info.AddMarker(new AnomalyMarker
+                {
+                    Kind = AnomalyMarkerKind.Puddle,
+                    Center = GalleryPoint(cell, h, MallLayout.FloorTop(level), floorLane: true),
+                    Radius = math.lerp(PuddleRadiusMin, PuddleRadiusMax, Hash.ToFloat01(Hash.Get(h, 3))),
+                });
+            }
+        }
+
+        /// <summary>Сколько «Смотри на меня» в ячейке: в поле аномалий 2–4, в обычном моле изредка одна, в пустых — почти никогда.</summary>
+        private static int LookAtMeCount(uint seed, float frequency, in MallCellInfo info)
+        {
+            int2 cell = info.Cell;
+            uint h = Hash.Get(seed, cell.x, cell.y, SaltCell + 34);
+            if (info.Biome == MallBiome.AnomalyField)
+                return (int)math.round((LookAtMeFieldMin + h % (LookAtMeFieldMax - LookAtMeFieldMin + 1)) * math.saturate(frequency));
+            float chance = info.Biome == MallBiome.Empty ? LookAtMeEmptyChance : LookAtMeChance;
+            return Hash.ToFloat01(h) < chance * frequency ? 1 : 0;
+        }
+
+        /// <summary>
+        /// Точка в одной из галерей ячейки (западной или южной). floorLane — полоса у фасадов (поперёк 0…3 или 11…14),
+        /// где пол есть всегда: посередине галереи бывают пустоты атриумов и балконов.
+        /// </summary>
+        private static float3 GalleryPoint(int2 cell, uint h, float y, bool floorLane = false)
+        {
+            float2 origin = MallLayout.CellOrigin(cell);
+            float across = floorLane ? ((h >> 4) % 2 == 0 ? 1.1f : 11.1f) : 2.5f + (h >> 4) % 9;
+            float along = 18f + (h >> 12) % 42;
+            float2 local = (h & 1) == 0 ? new float2(across, along) : new float2(along, across);
+            return new float3(origin.x + local.x + 0.5f, y, origin.y + local.y + 0.5f);
         }
 
         /// <summary>

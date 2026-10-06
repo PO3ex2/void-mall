@@ -15,6 +15,7 @@ namespace VoidMall.World
         public ushort Lamp, Emergency, Skylight;
         public ushort Duct, CableTray;
         public ushort Door, Gate, Sliding1, Sliding2, Sliding4, Water;
+        public ushort Grass, SkyScreen;
 
         public static MallMaterials Resolve(MaterialRegistry registry) => new()
         {
@@ -43,12 +44,14 @@ namespace VoidMall.World
             Sliding2 = registry.TryGetIndex("fblock.sliding_door_2", out ushort sliding2) ? sliding2 : (ushort)0,
             Sliding4 = registry.TryGetIndex("fblock.sliding_door_4", out ushort sliding4) ? sliding4 : (ushort)0,
             Water = registry.TryGetIndex("block.water", out ushort water) ? water : (ushort)0,
+            Grass = registry.TryGetIndex("block.grass", out ushort grass) ? grass : (ushort)0,
+            SkyScreen = registry.TryGetIndex("block.sky_screen", out ushort screen) ? screen : (ushort)0,
         };
     }
 
     /// <summary>
     /// Генерация чанка мола (проходы 1–5 из ARCHITECTURE §4.6): фундамент, уровни по плану из MallPlanner,
-    /// отделка по разделам, лампы, аномалии (бездна, котлован, вырез). Детерминирована по сиду и координатам.
+    /// отделка по разделам, лампы, аномалии (бездна, котлован, вырез, перевёрнутый чанк, оазис). Детерминирована по сиду и координатам.
     /// Чанк 32×32 всегда лежит в одной макроячейке 64×64, поэтому план строится для одной ячейки.
     /// </summary>
     [BurstCompile]
@@ -92,6 +95,7 @@ namespace VoidMall.World
             var radial = new NativeArray<float>(Size * Size, Allocator.Temp);
             var radialBig = new NativeArray<float>(Size * Size, Allocator.Temp);
             var cut = new NativeArray<bool>(Size * Size, Allocator.Temp);
+            var inverted = new NativeArray<bool>(Size * Size, Allocator.Temp);
             for (int z = 0; z < Size; z++)
             for (int x = 0; x < Size; x++)
             {
@@ -101,6 +105,7 @@ namespace VoidMall.World
                 cut[x + z * Size] = info.Anomaly == AnomalyKind.Cutout
                     && world.x >= info.AnomalyCenter.x && world.x < info.AnomalyCenter.x + Size
                     && world.y >= info.AnomalyCenter.y && world.y < info.AnomalyCenter.y + Size;
+                inverted[x + z * Size] = MallPlanner.InInverted(info, world);
             }
 
             var plan = new MallLevelPlan(Allocator.Temp);
@@ -126,7 +131,7 @@ namespace VoidMall.World
                 {
                     int3 p = origin + new int3(x, ly, z);
                     int column = x + z * Size;
-                    Cell value = GenerateCell(p, p.xz - cellOrigin, level, hasPlan, plan, info, radial[column], cut[column], lining[column],
+                    Cell value = GenerateCell(p, p.xz - cellOrigin, level, hasPlan, plan, info, radial[column], cut[column], inverted[column], lining[column],
                         big, radialBig[column], liningBig[column]);
                     Cells[WorldConstants.CellIndex(x, ly, z)] = value;
                     if (value.Material != 0 && (value.Material == M.Lamp || value.Material == M.Emergency || value.Material == M.Skylight))
@@ -142,6 +147,7 @@ namespace VoidMall.World
             radialBig.Dispose();
             liningBig.Dispose();
             cut.Dispose();
+            inverted.Dispose();
             lining.Dispose();
 
             Cell first = Cells[0];
@@ -151,7 +157,7 @@ namespace VoidMall.World
             IsUniform[0] = (byte)(uniform ? 1 : 0);
         }
 
-        private Cell GenerateCell(int3 p, int2 local, int level, bool hasPlan, in MallLevelPlan plan, in MallCellInfo info, float radial, bool cut, ushort lining,
+        private Cell GenerateCell(int3 p, int2 local, int level, bool hasPlan, in MallLevelPlan plan, in MallCellInfo info, float radial, bool cut, bool inverted, ushort lining,
             in MallCellInfo big, float radialBig, ushort liningBig)
         {
             // Вырез: от дна мира до потолка уровня — пустота.
@@ -167,11 +173,70 @@ namespace VoidMall.World
                 return new Cell(p.y <= MallLayout.SoilTopY ? M.Soil : M.ConcreteMass, 255);
             if (!hasPlan)
                 return p.y == MallLayout.RoofY ? new Cell(M.Concrete) : Cell.Air;
+            // Перевёрнутый чанк: клетка берётся с отражённой высоты своего уровня.
+            if (inverted)
+                return Invert(GenerateLevelCell(new int3(p.x, MallLayout.LevelBase(level) + MallLayout.CeilingRow(level) - p.y, p.z), local, level, plan, info));
+            if (info.Anomaly == AnomalyKind.Oasis && TryOasis(p, level, info, radial, out Cell oasis))
+                return oasis;
             Cell cell = GenerateLevelCell(p, local, level, plan, info);
             // Лампы за оболочкой аномалии торчали бы в стенках шахты или чаши — там просто потолок.
             if ((cell.Material == M.Lamp || cell.Material == M.Emergency) && (NearShell(p, info, radial) || NearShell(p, big, radialBig)))
                 return new Cell(M.Concrete);
             return cell;
+        }
+
+        /// <summary>
+        /// Клетка перевёрнутого чанка: формы блоков отражаются (верх ↔ низ, высокая сторона остаётся на месте),
+        /// функциональные блоки (двери, ворота) не переворачиваются — проём остаётся пустым.
+        /// </summary>
+        private Cell Invert(Cell cell)
+        {
+            if (cell.Material == 0 || cell.Material >= Materials.Length)
+                return cell;
+            var info = Materials[cell.Material];
+            if (info.Kind == MaterialKind.Functional)
+                return Cell.Air;
+            if (info.Kind != MaterialKind.Block || cell.Value == 0)
+                return cell;
+            // Биты ориентации — как в BlockShapes (верх·4 + поворот); сам класс в Burst не трогаем (у него управляемые статики).
+            int orientation = math.min(cell.Meta & 31, BlockShapes.Orientations - 1);
+            int up = orientation / 4, yaw = orientation & 3;
+            if (up <= 1)
+                cell.Meta = (byte)((cell.Meta & ~31) | ((1 - up) * 4 + ((yaw + 2) & 3)));
+            return cell;
+        }
+
+        /// <summary>
+        /// Оазис: дыра в потолочном ряду своего уровня, пол под ней — трава; этажом выше — круглая шахта в бетонной
+        /// стенке, наверху экран «неба».
+        /// </summary>
+        private bool TryOasis(int3 p, int level, in MallCellInfo info, float radial, out Cell cell)
+        {
+            cell = default;
+            int oasisLevel = info.AnomalyLevel;
+            float radius = info.AnomalyRadius;
+            if (level == oasisLevel)
+            {
+                if (p.y == MallLayout.CeilingRow(level) && radial < radius + 1.2f)
+                {
+                    cell = radial < radius ? Cell.Air : new Cell(M.Concrete);
+                    return true;
+                }
+                if (p.y == MallLayout.LevelBase(level) && radial < radius + 0.8f && M.Grass != 0)
+                {
+                    cell = new Cell(M.Grass);
+                    return true;
+                }
+                return false;
+            }
+            if (level != oasisLevel + 1 || radial >= radius + 1.2f)
+                return false;
+            bool top = p.y == MallLayout.CeilingRow(level);
+            if (radial < radius)
+                cell = top && M.SkyScreen != 0 ? new Cell(M.SkyScreen) : Cell.Air;
+            else
+                cell = new Cell(M.Concrete);
+            return true;
         }
 
         /// <summary>

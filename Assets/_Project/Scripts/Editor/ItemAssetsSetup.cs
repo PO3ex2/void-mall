@@ -341,6 +341,8 @@ namespace VoidMall.Editor
             BlockPattern.LampPanel or BlockPattern.Skylight => new Color(0.95f, 0.95f, 0.92f),
             BlockPattern.EmergencyLamp => new Color(0.6f, 0.2f, 0.15f),
             BlockPattern.Soil => new Color(0.45f, 0.34f, 0.22f),
+            BlockPattern.Grass => new Color(0.25f, 0.45f, 0.18f),
+            BlockPattern.SkyScreen => new Color(0.55f, 0.7f, 0.95f),
             _ => new Color(0.8f, 0.8f, 0.8f),
         };
 

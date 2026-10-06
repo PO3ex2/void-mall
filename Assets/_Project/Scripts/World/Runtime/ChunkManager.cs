@@ -145,7 +145,7 @@ namespace VoidMall.World
                 materials.Add(def.Id.StartsWith("block.") ? def.Id.Substring(6) : def.Id);
             DevConsole.RegisterCompleter("setblock", token => token == 3 ? materials : null);
             DevConsole.RegisterCompleter("fill", token => token == 6 ? materials : null);
-            DevConsole.RegisterCompleter("goto_anomaly", token => token == 0 ? new[] { "abyss", "pool", "cutout", "distortion", "glitch" } : null);
+            DevConsole.RegisterCompleter("goto_anomaly", token => token == 0 ? new[] { "abyss", "pool", "cutout", "inverted", "oasis", "distortion", "glitch", "pulse", "lookme", "puddle" } : null);
             DevConsole.RegisterCompleter("time", token => token == 0 ? new[] { "6", "9", "12", "18", "22", "22.5", "23", "0" } : null);
         }
 

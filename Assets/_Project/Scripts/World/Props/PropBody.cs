@@ -148,7 +148,13 @@ namespace VoidMall.World
                 _stillTime = 0f;
                 return;
             }
-            bool still = Body.linearVelocity.sqrMagnitude < SleepSpeed * SleepSpeed && Body.angularVelocity.sqrMagnitude < SleepSpeed * SleepSpeed;
+            // Аномалии: в перевёрнутом чанке падает вверх, пульсация таскает туда-сюда (и не даёт уснуть).
+            if (AnomalyPhysics.Any && AnomalyPhysics.Apply(Body, Time.time, GroupBounds().min.y))
+            {
+                _stillTime = 0f;
+                return;
+            }
+            bool still =Body.linearVelocity.sqrMagnitude < SleepSpeed * SleepSpeed && Body.angularVelocity.sqrMagnitude < SleepSpeed * SleepSpeed;
             _stillTime = still ? _stillTime + Time.fixedDeltaTime : 0f;
             if (_stillTime >= SleepDelay)
                 Sleep();

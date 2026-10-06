@@ -13,7 +13,7 @@ namespace VoidMall.World
         public ushort Cabinet, Boiler, Bench, Planter, Sofa, CardboardBox, PlasticCrate, TrashBin;
         public ushort Switchboard, CableReel, VentUnit, Bed;
         public ushort Workbench, SewingTable, ChemTable, Stove, Crusher;
-        public ushort Turnstile, OfficeDesk, OfficeChair, FilingCabinet, WaterCooler, CubicleWall, Stanchion, TrashPile, LootCrate, Pallet, ImpulseRack, WorkLight;
+        public ushort Turnstile, OfficeDesk, OfficeChair, FilingCabinet, WaterCooler, CubicleWall, Stanchion, TrashPile, LootCrate, Pallet, ImpulseRack, WorkLight, Bush, Fern;
 
         public ushort StationProp(CraftStation station) => station switch
         {
@@ -66,6 +66,8 @@ namespace VoidMall.World
             Pallet = props.IndexOf("prop.pallet"),
             ImpulseRack = props.IndexOf("prop.impulse_rack"),
             WorkLight = props.IndexOf("prop.work_light"),
+            Bush = props.IndexOf("prop.bush"),
+            Fern = props.IndexOf("prop.fern"),
         };
     }
 
@@ -129,6 +131,7 @@ namespace VoidMall.World
             }
             else if (kind == LevelKind.Retail)
             {
+                PlaceOasis(ctx, plan, output);
                 // Особые места раньше обычной мебели галерей — им нужно своё место.
                 PlaceEntrance(ctx, plan, output);
                 PlacePlaza(ctx, plan, output);
@@ -236,6 +239,12 @@ namespace VoidMall.World
             {
                 var spawn = output[i];
                 spawn.Id = MakeId(info.Cell, plan.Level, i - start);
+                // Перевёрнутый чанк: мебель «стоит» на потолке вверх ногами (пол и потолок поменялись местами).
+                if (MallPlanner.InInverted(info, new float2(spawn.Position.x, spawn.Position.z)))
+                {
+                    spawn.Position.y = MallPlanner.MirrorY(plan.Level, spawn.Position.y);
+                    spawn.Inverted = true;
+                }
                 output[i] = spawn;
             }
         }
@@ -412,6 +421,30 @@ namespace VoidMall.World
         }
 
         /// <summary>Технический этаж без ламп: в его коридорах-галереях через каждые 16 м — строительная лампа у стены (через раз).</summary>
+        /// <summary>Оазис: под дырой в потолке — кусты и папоротники по траве (в обход занятости зоны аномалии).</summary>
+        private static void PlaceOasis(in Context ctx, in MallLevelPlan plan, List<PropSpawn> output)
+        {
+            var info = ctx.Info;
+            if (info.Anomaly != AnomalyKind.Oasis || ctx.Level != info.AnomalyLevel)
+                return;
+            uint h = Hash.Get(ctx.Seed, info.Cell.x, info.Cell.y, Salt + 9500);
+            int wanted = 6 + (int)(h % 6), placed = 0;
+            for (int k = 0; k < wanted * 3 && placed < wanted; k++)
+            {
+                uint hk = Hash.Get(h, k);
+                float angle = Hash.ToFloat01(hk) * math.PI * 2f;
+                float distance = math.sqrt(Hash.ToFloat01(Hash.Get(hk, 1))) * (info.AnomalyRadius - 0.6f);
+                float2 local = info.AnomalyCenter + new float2(math.cos(angle), math.sin(angle)) * distance - ctx.Origin;
+                int2 tile = (int2)math.floor(local);
+                if (math.any(tile < 0) || math.any(tile >= MallLayout.CellSize))
+                    continue;
+                int room = plan.RoomIds[MallLevelPlan.Index(tile.x, tile.y)];
+                ushort kind = (hk >> 8) % 3 == 0 ? ctx.Ids.Bush : ctx.Ids.Fern;
+                if (TryAddLoose(ctx, plan, room, kind, local, Hash.ToFloat01(Hash.Get(hk, 2)) * 360f, output))
+                    placed++;
+            }
+        }
+
         private static void PlaceWorkLights(in Context ctx, in MallLevelPlan plan, List<PropSpawn> output)
         {
             for (int axis = 0; axis < 2; axis++)
@@ -815,6 +848,11 @@ namespace VoidMall.World
                     return level <= info.AnomalyLevel
                         && world.x + radius > c.x && world.x - radius < c.x + WorldConstants.ChunkSize
                         && world.y + radius > c.y && world.y - radius < c.y + WorldConstants.ChunkSize;
+                case AnomalyKind.Oasis:
+                    // Под дырой — свои растения (PlaceOasis), этажом выше — шахта со стенкой.
+                    if (level == info.AnomalyLevel)
+                        return distance < MallPlanner.OasisZoneRadius(info.AnomalyRadius) + radius;
+                    return level == info.AnomalyLevel + 1 && distance < MallPlanner.OasisZoneRadius(info.AnomalyRadius) + radius;
                 default:
                     return false;
             }

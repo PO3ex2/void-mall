@@ -119,7 +119,7 @@ namespace VoidMall.World
         {
             LampKind.Lamp => LampIntensity(seed, cell, wave, time, field),
             LampKind.Emergency => EmergencyIntensity(seed, cell, emergencyWave, time),
-            LampKind.Skylight => skylight,
+            LampKind.Skylight or LampKind.Screen => skylight,
             _ => 0f,
         };
 

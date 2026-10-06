@@ -282,7 +282,7 @@ namespace VoidMall.World
                             bucket.Ids.Add(spawn.Id);
                         continue;
                     }
-                    var body = Spawn(spawn.Def, spawn.Id, spawn.Position, Quaternion.Euler(spawn.Pitch, spawn.Yaw, 0f), _root);
+                    var body = Spawn(spawn.Def, spawn.Id, spawn.Position, spawn.Rotation, _root);
                     bucket.Ids.Add(spawn.Id);
                     budget--;
                     if (System.Diagnostics.Stopwatch.GetTimestamp() > deadline)

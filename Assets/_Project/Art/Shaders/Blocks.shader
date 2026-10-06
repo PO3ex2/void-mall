@@ -164,7 +164,18 @@ Shader "VoidMall/Blocks"
                 int baseLayer = (int)(input.layer >= 0 ? input.layer : -input.layer - 1);
                 float4 emission = _VM_LayerEmission[baseLayer];
                 if (emission.a > 0.5)
-                    surface.emission = texel.rgb * emission.rgb * VM_LampKindIntensity(cell, (int)(emission.a + 0.5));
+                {
+                    int lampKind = (int)(emission.a + 0.5);
+                    surface.emission = texel.rgb * emission.rgb * VM_LampKindIntensity(cell, lampKind);
+                    // Экран «неба» ночью: редкие пиксели-звёзды (16×16 пикселей на блок) мерцают.
+                    if (lampKind == 4)
+                    {
+                        int2 pixel = (int2)floor(frac(uv) * 16.0);
+                        uint h = VM_Hash4(_VM_Seed, cell.x * 16 + pixel.x, cell.y, cell.z * 16 + pixel.y, 905);
+                        float star = VM_ToFloat01(h) < 0.012 ? 0.6 + 0.4 * sin(_VM_Time * (1.0 + VM_ToFloat01(h * 747796405u) * 3.0)) : 0.0;
+                        surface.emission += star * (1.0 - _VM_Skylight) * texel.rgb * 8.0;
+                    }
+                }
                 surface.emission += glitchFlash * glitch * half3(0.6, 0.2, 0.8);
 
                 half4 color = UniversalFragmentPBR(inputData, surface);

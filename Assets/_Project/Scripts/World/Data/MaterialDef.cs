@@ -43,6 +43,10 @@ namespace VoidMall.World
         ParkingLineU,
         ParkingLineV,
         FacadePanel,
+        Grass,
+
+        /// <summary>Экран «неба» оазиса: пиксели из RGB-субпикселей.</summary>
+        SkyScreen,
     }
 
     /// <summary>Что делает функциональный блок.</summary>
@@ -67,6 +71,9 @@ namespace VoidMall.World
 
         /// <summary>Световой фонарь атриума: яркость следует за временем суток.</summary>
         Skylight,
+
+        /// <summary>Экран «неба» оазиса: днём светится как фонарь, ночью тёмный, с редкими звёздами-пикселями.</summary>
+        Screen,
     }
 
     /// <summary>Описание материала мира (блок или гладкий воксель). Порядок в каталоге = runtime-индекс в Cell.Material.</summary>

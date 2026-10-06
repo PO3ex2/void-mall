@@ -19,6 +19,7 @@ namespace VoidMall.Editor
         public const string CracksMaterialPath = Root + "/Art/Materials/Tool_BlockCracks.mat";
         public const string BrushMaterialPath = Root + "/Art/Materials/Tool_DrillBrush.mat";
         public const string DustMaterialPath = Root + "/Art/Materials/Fx_Dust.mat";
+        public const string AnomalyVfxMaterialPath = Root + "/Art/Materials/Fx_Anomaly.mat";
         public const string VoidSkyboxPath = Root + "/Art/Materials/Sky_Fog.mat";
         public const string PropsMaterialPath = Root + "/Art/Materials/Props.mat";
         public const string FBlockGlassMaterialPath = Root + "/Art/Materials/FBlock_Glass.mat";
@@ -118,6 +119,9 @@ namespace VoidMall.Editor
             new("block.planks", "Дощатый настил", MaterialKind.Block, BlockPattern.Wood, 300, tint: new Color(1.25f, 1.15f, 1f)),
             // Вода фонтана: непрозрачная гладь (прозрачная на уровне пола просвечивала потолок этажа ниже); пока с коллизией.
             new("block.water", "Вода", MaterialKind.Block, BlockPattern.Glass, 40, placeable: false, tint: new Color(0.3f, 0.52f, 0.68f)),
+            // Этап 8В: оазис — трава под дырой и экран «неба» над шахтой.
+            new("block.grass", "Трава", MaterialKind.Block, BlockPattern.Grass, 200),
+            new("block.sky_screen", "Экран «неба»", MaterialKind.Block, BlockPattern.SkyScreen, 300, placeable: false, lamp: LampKind.Screen, emission: 2.4f),
         };
 
         /// <summary>Блок пола → его гладкий двойник.</summary>
@@ -231,6 +235,9 @@ namespace VoidMall.Editor
             var particleTexture = AssetDatabase.GetBuiltinExtraResource<Texture2D>("Default-Particle.psd");
             if (particleTexture != null)
                 dust.SetTexture("_BaseMap", particleTexture);
+
+            // Эффекты аномалий (лужа, вспышка, лучи оазиса): режим задаётся копиями материала в рантайме.
+            GetOrCreateMaterial(AnomalyVfxMaterialPath, Shader.Find("VoidMall/AnomalyVfx"));
 
             // Небо тестовых полигонов: нижняя полусфера чёрная — в шахтах-безднах видна пустота, а не «земля» skybox.
             // Небо: выше горизонта — цвет тумана, внизу — чёрная пустота (LightingDirector подкрашивает по времени суток).

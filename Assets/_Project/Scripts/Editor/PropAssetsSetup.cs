@@ -86,6 +86,9 @@ namespace VoidMall.Editor
             new("prop.pallet", "Поддон", PropShape.Pallet, 20f, 200, 3f, WoodDust, ("material.plank", 3, 1), ("material.nails", 4, 1)),
             new("prop.impulse_rack", "Стойка у кассы", PropShape.ImpulseRack, 12f, 120, 3f, MetalDust, ("material.scrap_metal", 2, 1), ("material.screws", 3, 1)),
             new("prop.work_light", "Строительная лампа", PropShape.WorkLight, 18f, 200, 4f, MetalDust, ("item.car_battery", 1, 0), ("material.scrap_metal", 2, 1), ("material.wire", 2, 1)),
+            // Этап 8В: растения оазиса (ломаются, ничего не дают).
+            new("prop.bush", "Куст", PropShape.Bush, 15f, 60, 2f, new Color(0.3f, 0.5f, 0.25f)),
+            new("prop.fern", "Папоротник", PropShape.Fern, 3f, 25, 1f, new Color(0.3f, 0.55f, 0.25f)),
         };
 
         /// <summary>На чём можно спать (E): сон сохраняет точку возрождения. Диван — хуже кровати.</summary>

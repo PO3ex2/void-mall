@@ -30,6 +30,7 @@ namespace VoidMall.World
         private static readonly Dictionary<int, Mesh> DoorMeshes = new();
         private static readonly Dictionary<long, Mesh> EscalatorMeshes = new();
         private static Mesh _carMesh, _rampMesh;
+        private static readonly Dictionary<int2, Mesh> VineMeshes = new();
         private static readonly MeshBuilder Builder = new();
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
@@ -37,6 +38,7 @@ namespace VoidMall.World
         {
             StairsMeshes.Clear();
             DoorMeshes.Clear();
+            VineMeshes.Clear();
             EscalatorMeshes.Clear();
             _carMesh = null;
             _rampMesh = null;
@@ -80,6 +82,8 @@ namespace VoidMall.World
                 BuildRamp(info, parent, material);
             if (BuildPlazasAndStands(seed, info, parent, material))
                 yield return true;
+            if (BuildOasis(seed, info, parent, material))
+                yield return true;
         }
 
         // ───────────────────────────── Площади и стенды (этап 8Б) ─────────────────────────────
@@ -121,6 +125,68 @@ namespace VoidMall.World
                 }
             }
             return built;
+        }
+
+        // ───────────────────────────── Оазис (этап 8В) ─────────────────────────────
+
+        /// <summary>
+        /// Лианы оазиса: свисают с края дыры в потолке — начинаются в шахте этажом выше и спускаются в зал на 1–3.5 м.
+        /// Декор без коллизий. Трава, кусты и экран «неба» — блоки и пропы, свет и дождь — AnomalyVisuals.
+        /// </summary>
+        private static bool BuildOasis(uint seed, in MallCellInfo info, Transform parent, Material material)
+        {
+            if (info.Anomaly != AnomalyKind.Oasis)
+                return false;
+            if (!VineMeshes.TryGetValue(info.Cell, out var mesh))
+            {
+                // Кэш на ячейку: меш не пересобирается при повторном входе, а старые изредка чистятся целиком.
+                if (VineMeshes.Count > 48)
+                {
+                    foreach (var old in VineMeshes.Values)
+                        Object.Destroy(old);
+                    VineMeshes.Clear();
+                }
+                mesh = VineMesh(seed, info);
+                VineMeshes.Add(info.Cell, mesh);
+            }
+            var vines = NewChild(parent, "Oasis Vines");
+            vines.transform.localPosition = new Vector3(info.AnomalyCenter.x, MallLayout.CeilingRow(info.AnomalyLevel), info.AnomalyCenter.y);
+            AddRenderer(vines, mesh, material);
+            return true;
+        }
+
+        private static Mesh VineMesh(uint seed, in MallCellInfo info)
+        {
+            Builder.Clear();
+            float radius = info.AnomalyRadius - 0.12f;
+            int strands = (int)(radius * 7f);
+            for (int s = 0; s < strands; s++)
+            {
+                uint h = Hash.Get(seed, info.Cell.x, info.Cell.y, 7900 + s);
+                float angle = (s + Hash.ToFloat01(h) * 0.6f) / strands * Mathf.PI * 2f;
+                var dir = new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle));
+                // Верх — в шахте над дырой, низ — в зале под потолком (y = 0 — низ потолочного ряда).
+                float top = 1f + Hash.ToFloat01(Hash.Get(h, 1)) * 4f;
+                float bottom = -1f - Hash.ToFloat01(Hash.Get(h, 2)) * 2.5f;
+                var stem = new Color(0.2f, 0.33f + Hash.ToFloat01(Hash.Get(h, 3)) * 0.1f, 0.13f, 0.15f);
+                Vector3 previous = dir * radius + Vector3.up * top;
+                int segments = Mathf.CeilToInt((top - bottom) / 0.45f);
+                for (int k = 1; k <= segments; k++)
+                {
+                    float y = Mathf.Lerp(top, bottom, (float)k / segments);
+                    // Лиана чуть отходит от стенки и покачивается из стороны в сторону.
+                    float sway = Mathf.Sin(k * 1.3f + s) * 0.08f;
+                    var tangent = new Vector3(-dir.z, 0f, dir.x);
+                    Vector3 next = dir * (radius - Mathf.Max(0f, -y) * 0.12f) + tangent * sway + Vector3.up * y;
+                    Builder.Slab(previous, next, 0.035f, 0.035f, stem);
+                    // Листья — по очереди с двух сторон.
+                    var leaf = new Color(0.16f + (k % 3) * 0.04f, 0.42f + (k % 2) * 0.1f, 0.15f, 0.2f);
+                    Vector3 side = tangent * ((k & 1) == 0 ? 0.1f : -0.1f) - dir * 0.04f;
+                    Builder.Box(next + side, new Vector3(0.16f, 0.02f, 0.1f), leaf, Quaternion.LookRotation(side.normalized, Vector3.up) * Quaternion.Euler(-35f, 0f, 0f));
+                    previous = next;
+                }
+            }
+            return Builder.ToMesh("OasisVines");
         }
 
         private static Mesh PlazaMesh()
@@ -423,11 +489,20 @@ namespace VoidMall.World
                 float2 nearest = math.clamp(info.AnomalyCenter, worldRect.xy, worldRect.zw);
                 return math.distance(nearest, info.AnomalyCenter) < MallAnomalies.AbyssZoneRadius(info.AnomalyRadius) + 1f;
             }
-            if (info.Anomaly != AnomalyKind.Cutout)
+            if (info.Anomaly == AnomalyKind.Oasis)
+            {
+                // Оазис: дыра в потолке своего уровня и шахта этажом выше.
+                if (highestLevel < info.AnomalyLevel || lowestLevel > info.AnomalyLevel + 1)
+                    return false;
+                float2 nearest = math.clamp(info.AnomalyCenter, worldRect.xy, worldRect.zw);
+                return math.distance(nearest, info.AnomalyCenter) < MallPlanner.OasisZoneRadius(info.AnomalyRadius) + 1f;
+            }
+            if (info.Anomaly != AnomalyKind.Cutout && info.Anomaly != AnomalyKind.Inverted)
                 return false;
             float2 c = info.AnomalyCenter;
             bool overlap = worldRect.x < c.x + WorldConstants.ChunkSize && c.x < worldRect.z
                 && worldRect.y < c.y + WorldConstants.ChunkSize && c.y < worldRect.w;
+            // Перевёрнутая колонна — на всех уровнях (структуры не переворачиваются).
             return overlap && lowestLevel <= info.AnomalyLevel;
         }
 

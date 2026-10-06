@@ -15,7 +15,7 @@ namespace VoidMall.Tests
             "prop.shelf", "prop.fridge", "prop.checkout", "prop.display_table", "prop.clothes_rack", "prop.table", "prop.chair",
             "prop.pallet_rack", "prop.box_stack", "prop.car", "prop.cabinet", "prop.boiler", "prop.bench", "prop.planter",
             "prop.sofa", "prop.cardboard_box", "prop.plastic_crate", "prop.trash_bin", "prop.switchboard", "prop.cable_reel", "prop.vent_unit", "prop.bed", "prop.sleeping_bag", "prop.workbench", "prop.sewing_table", "prop.chem_table", "prop.stove", "prop.burner", "prop.barricade", "prop.crusher",
-            "prop.turnstile", "prop.office_desk", "prop.office_chair", "prop.filing_cabinet", "prop.water_cooler", "prop.cubicle_wall", "prop.stanchion", "prop.trash_pile", "prop.loot_crate", "prop.pallet", "prop.impulse_rack", "prop.work_light",
+            "prop.turnstile", "prop.office_desk", "prop.office_chair", "prop.filing_cabinet", "prop.water_cooler", "prop.cubicle_wall", "prop.stanchion", "prop.trash_pile", "prop.loot_crate", "prop.pallet", "prop.impulse_rack", "prop.work_light", "prop.bush", "prop.fern",
         };
 
         private PropSet _set;
@@ -92,7 +92,8 @@ namespace VoidMall.Tests
                     Assert.That(c.x - half.x, Is.GreaterThanOrEqualTo(origin.x - 0.01f));
                     Assert.That(c.y + half.y, Is.LessThanOrEqualTo(origin.y + MallLayout.CellSize + 0.01f));
                     // На полу; лежачий стеллаж поднят на полглубины, машина стенда — на подиуме.
-                    float lift = p.Position.y - MallLayout.FloorTop(level);
+                    // В перевёрнутом чанке проп на потолке: высота считается от отражённого пола.
+                    float lift = (p.Inverted ? MallPlanner.MirrorY(level, p.Position.y) : p.Position.y) - MallLayout.FloorTop(level);
                     float expected = p.Pitch != 0f ? _registry.Size(p.Def).z * 0.5f : p.Def == _ids.Car && level >= MallLayout.FirstRetailLevel ? MallPlanner.CarStandHeight : 0f;
                     Assert.That(lift, Is.EqualTo(expected).Within(0.001f), $"level {level}: высота {_registry.Get(p.Def).Id}");
                     var box = new float4(c - half + 0.01f, c + half - 0.01f);

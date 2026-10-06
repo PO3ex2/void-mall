@@ -62,6 +62,9 @@ namespace VoidMall.Survival
         /// <summary>Когда последний раз сработал глитч (для эффекта на экране).</summary>
         public float LastGlitchTime { get; private set; } = -100f;
 
+        /// <summary>Воздействие аномалий на игрока (взгляд, снос, лужа, оазис).</summary>
+        public AnomalyExposure Exposure => _exposure;
+
         public event Action Died;
         public event Action Respawned;
 
@@ -69,6 +72,7 @@ namespace VoidMall.Survival
         private PlayerInventory _inventory;
         private InputService _input;
         private readonly SurvivalEnvironment _probe = new();
+        private readonly AnomalyExposure _exposure = new();
         private VitalsEnvironment _env;
         private float _envTimer, _glitchTimer, _safeTimer;
         private double _lastHours = double.NaN;
@@ -158,6 +162,10 @@ namespace VoidMall.Survival
             _env.Sleeping = Sleeping;
             _env.SleepQuality = _sleepQuality;
             _env.SleepRestCap = _sleepCap;
+            _exposure.Tick(world, _motor, _probe, Model, !IsDead && !Sleeping, realDt);
+            _env.LookingAtAnomaly = _exposure.Staring;
+            _env.InOasis = _exposure.InOasis;
+            _env.PuddleHeal = _exposure.PuddleHeal;
 
             if (!IsDead)
             {

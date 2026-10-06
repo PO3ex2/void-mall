@@ -63,19 +63,19 @@ namespace VoidMall.World
             if (found.Count == 0)
                 return "Рядом аномалий нет.";
             return "Аномалии:\n" + string.Join("\n", found.Take(8).Select(a =>
-                $"  {KindName(a.Kind),-10} этаж {MallLayout.LevelName(a.Level),-2} ({a.Target.x:0}, {a.Target.y:0}, {a.Target.z:0}), до неё {a.Distance:0} м"));
+                $"  {a.Name,-24} {a.Class.ClassName(),-15} этаж {MallLayout.LevelName(a.Level),-2} ({a.Target.x:0}, {a.Target.y:0}, {a.Target.z:0}), до неё {a.Distance:0} м"));
         }
 
-        [ConsoleCommand("goto_anomaly", "Телепорт к ближайшей аномалии: abyss, pool, cutout, distortion, glitch.", Flags = ConsoleFlags.Cheat)]
+        [ConsoleCommand("goto_anomaly", "Телепорт к ближайшей аномалии: abyss, pool, cutout, inverted, oasis, distortion, glitch, pulse, lookme, puddle.", Flags = ConsoleFlags.Cheat)]
         private static string GotoAnomaly(string kind)
         {
             if (!TryGetWorld(out var world, out var error))
                 return error;
-            var match = FindAnomalies(world, PlayerPosition(), 6).FirstOrDefault(a => KindId(a.Kind) == kind.ToLowerInvariant());
-            if (match.Kind == null)
+            var match = FindAnomalies(world, PlayerPosition(), 6).FirstOrDefault(a => a.Id == kind.ToLowerInvariant());
+            if (match.Id == null)
                 return $"Рядом нет аномалии '{kind}'.";
             DevConsole.Execute(string.Format(System.Globalization.CultureInfo.InvariantCulture, "tp {0:0.##} {1:0.##} {2:0.##}", match.Target.x, match.Target.y, match.Target.z));
-            return $"{KindName(match.Kind)}: этаж {MallLayout.LevelName(match.Level)}";
+            return $"{match.Name}: этаж {MallLayout.LevelName(match.Level)}";
         }
 
         [ConsoleCommand("where", "Где я: этаж, комната и раздел, макроячейка.")]
@@ -130,7 +130,8 @@ namespace VoidMall.World
 
         private struct AnomalyEntry
         {
-            public string Kind;
+            public string Id, Name;
+            public AnomalyClass Class;
             public int Level;
             public Vector3 Target;
             public float Distance;
@@ -147,15 +148,17 @@ namespace VoidMall.World
                 var info = world.GetCellInfo(center + new int2(dx, dz));
                 if (info.Anomaly != AnomalyKind.None)
                 {
-                    int level = info.AnomalyLevel;
+                    // Перевёрнутый чанк — на всех этажах: ведём к его краю на первом торговом.
+                    int level = info.Anomaly == AnomalyKind.Inverted ? MallLayout.FirstRetailLevel : info.AnomalyLevel;
                     float2 c = info.AnomalyCenter;
                     float edge = info.Anomaly == AnomalyKind.Abyss ? MallAnomalies.AbyssZoneRadius(info.AnomalyRadius) + 1f
                         : info.Anomaly == AnomalyKind.Pool ? MallAnomalies.PoolZoneRadius(info.AnomalyRadius) + 1f
+                        : info.Anomaly == AnomalyKind.Oasis ? info.AnomalyRadius * 0.5f
                         : 0f;
-                    Vector3 target = info.Anomaly == AnomalyKind.Cutout
+                    Vector3 target = info.Anomaly is AnomalyKind.Cutout or AnomalyKind.Inverted
                         ? new Vector3(c.x - 1.5f, MallLayout.FloorTop(level), c.y + 16f)
                         : new Vector3(c.x + edge, MallLayout.FloorTop(level), c.y);
-                    list.Add(new AnomalyEntry { Kind = info.Anomaly.ToString(), Level = level, Target = target });
+                    list.Add(new AnomalyEntry { Id = info.Anomaly.Id(), Name = info.Anomaly.DisplayName(), Class = info.Anomaly.Class(), Level = level, Target = target });
                 }
                 for (int i = 0; i < info.MarkerCount; i++)
                 {
@@ -163,9 +166,13 @@ namespace VoidMall.World
                     int level = MallLayout.LevelAtFeet(marker.Center.y);
                     list.Add(new AnomalyEntry
                     {
-                        Kind = marker.Kind.ToString(),
+                        Id = marker.Kind.Id(),
+                        Name = marker.Kind.DisplayName(),
+                        Class = marker.Kind.Class(),
                         Level = level,
-                        Target = new Vector3(marker.Center.x, MallLayout.FloorTop(level), marker.Center.z),
+                        // Лужа — рядом с ней, вспышка — в нескольких метрах (чтобы было видно), объёмы — в центре.
+                        Target = new Vector3(marker.Center.x + (marker.Kind == AnomalyMarkerKind.Puddle ? marker.Radius + 1f : marker.Kind == AnomalyMarkerKind.LookAtMe ? 6f : 0f),
+                            MallLayout.FloorTop(level), marker.Center.z),
                     });
                 }
             }
@@ -178,18 +185,6 @@ namespace VoidMall.World
             list.Sort((a, b) => a.Distance.CompareTo(b.Distance));
             return list;
         }
-
-        private static string KindId(string kind) => kind.ToLowerInvariant();
-
-        private static string KindName(string kind) => kind switch
-        {
-            nameof(AnomalyKind.Abyss) => "бездна",
-            nameof(AnomalyKind.Pool) => "котлован",
-            nameof(AnomalyKind.Cutout) => "вырез",
-            nameof(AnomalyMarkerKind.Distortion) => "искажение",
-            nameof(AnomalyMarkerKind.Glitch) => "глитч",
-            _ => kind,
-        };
 
         private static Vector3 PlayerPosition()
         {

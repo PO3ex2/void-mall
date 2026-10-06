@@ -88,6 +88,18 @@ namespace VoidMall.World
 
         /// <summary>Вырез: колонна 32×32 вырезана от потолка уровня до пустоты под миром.</summary>
         Cutout,
+
+        /// <summary>
+        /// Перевёрнутый чанк: колонна 32×32 через все этажи, на каждом этаже содержимое отражено вверх ногами (пол и
+        /// потолок меняются местами). Пропы и предметы внутри падают вверх, игрок — как обычно.
+        /// </summary>
+        Inverted,
+
+        /// <summary>
+        /// Оазис: круглая дыра в потолке торгового этажа, над ней шахта на этаж выше с экраном «неба» наверху;
+        /// внизу трава, кусты, лианы с краёв, лучи света, иногда дождь. Уютное место: свет и рассудок.
+        /// </summary>
+        Oasis,
     }
 
     /// <summary>
@@ -116,11 +128,80 @@ namespace VoidMall.World
         };
     }
 
-    /// <summary>Объём-маркер аномалии без геометрии (эффекты в шейдере).</summary>
+    /// <summary>Объём-маркер аномалии без геометрии (эффекты в шейдере и на объектах рядом).</summary>
     public enum AnomalyMarkerKind : byte
     {
         Distortion = 1,
         Glitch = 2,
+
+        /// <summary>Пульсирующее искажение: тянет к центру и отталкивает (цикл PulsePeriod), стены «дышат».</summary>
+        Pulse = 3,
+
+        /// <summary>«Смотри на меня»: фиолетовая вспышка в воздухе, тянет взгляд к себе и ест рассудок.</summary>
+        LookAtMe = 4,
+
+        /// <summary>Светящаяся лужа на полу (центр — на поверхности пола): лечит, пока не иссякнет.</summary>
+        Puddle = 5,
+    }
+
+    /// <summary>
+    /// Класс аномалии (GDD §2.5): геометрические меняют сам мир — их можно только замерить; визуальные — объёмы-эффекты,
+    /// их можно засосать пылесосом (§2.11).
+    /// </summary>
+    public enum AnomalyClass : byte
+    {
+        Geometric,
+        Visual,
+    }
+
+    public static class AnomalyNames
+    {
+        public static AnomalyClass Class(this AnomalyKind kind) => AnomalyClass.Geometric;
+
+        public static AnomalyClass Class(this AnomalyMarkerKind kind) => AnomalyClass.Visual;
+
+        /// <summary>Идентификатор для консоли (goto_anomaly).</summary>
+        public static string Id(this AnomalyKind kind) => kind switch
+        {
+            AnomalyKind.Abyss => "abyss",
+            AnomalyKind.Pool => "pool",
+            AnomalyKind.Cutout => "cutout",
+            AnomalyKind.Inverted => "inverted",
+            AnomalyKind.Oasis => "oasis",
+            _ => "none",
+        };
+
+        public static string Id(this AnomalyMarkerKind kind) => kind switch
+        {
+            AnomalyMarkerKind.Distortion => "distortion",
+            AnomalyMarkerKind.Glitch => "glitch",
+            AnomalyMarkerKind.Pulse => "pulse",
+            AnomalyMarkerKind.LookAtMe => "lookme",
+            AnomalyMarkerKind.Puddle => "puddle",
+            _ => "none",
+        };
+
+        public static string DisplayName(this AnomalyKind kind) => kind switch
+        {
+            AnomalyKind.Abyss => "бездна",
+            AnomalyKind.Pool => "котлован",
+            AnomalyKind.Cutout => "вырез",
+            AnomalyKind.Inverted => "перевёрнутый чанк",
+            AnomalyKind.Oasis => "оазис",
+            _ => "нет",
+        };
+
+        public static string DisplayName(this AnomalyMarkerKind kind) => kind switch
+        {
+            AnomalyMarkerKind.Distortion => "искажение",
+            AnomalyMarkerKind.Glitch => "глитч",
+            AnomalyMarkerKind.Pulse => "пульсирующее искажение",
+            AnomalyMarkerKind.LookAtMe => "«Смотри на меня»",
+            AnomalyMarkerKind.Puddle => "светящаяся лужа",
+            _ => "нет",
+        };
+
+        public static string ClassName(this AnomalyClass value) => value == AnomalyClass.Geometric ? "геометрическая" : "визуальная";
     }
 
     public struct AnomalyMarker
@@ -197,10 +278,38 @@ namespace VoidMall.World
             return copy;
         }
 
-        public int MarkerCount;
-        public AnomalyMarker Marker0, Marker1;
+        /// <summary>Сколько маркеров помещается в ячейку (в поле аномалий их много).</summary>
+        public const int MaxMarkers = 6;
 
-        public AnomalyMarker GetMarker(int index) => index == 0 ? Marker0 : Marker1;
+        public int MarkerCount;
+        public AnomalyMarker Marker0, Marker1, Marker2, Marker3, Marker4, Marker5;
+
+        public AnomalyMarker GetMarker(int index) => index switch
+        {
+            0 => Marker0,
+            1 => Marker1,
+            2 => Marker2,
+            3 => Marker3,
+            4 => Marker4,
+            _ => Marker5,
+        };
+
+        /// <summary>Добавить маркер; ложь — места нет.</summary>
+        public bool AddMarker(in AnomalyMarker marker)
+        {
+            switch (MarkerCount)
+            {
+                case 0: Marker0 = marker; break;
+                case 1: Marker1 = marker; break;
+                case 2: Marker2 = marker; break;
+                case 3: Marker3 = marker; break;
+                case 4: Marker4 = marker; break;
+                case 5: Marker5 = marker; break;
+                default: return false;
+            }
+            MarkerCount++;
+            return true;
+        }
     }
 
     /// <summary>План одного уровня макроячейки: плитки 64×64, номер комнаты на плитку и список комнат.</summary>

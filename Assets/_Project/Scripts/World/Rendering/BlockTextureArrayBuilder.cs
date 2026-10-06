@@ -264,6 +264,27 @@ namespace VoidMall.World
                     }
                     return new Color(g, g, g * 1.02f, 0.2f);
                 }
+                case BlockPattern.Grass:
+                {
+                    // Трава: тёмная основа, светлые травинки (вытянуты по v), редкие сухие.
+                    float blade = Noise(x, y / 4, seed) * 0.6f + Noise(x / 2, y / 8, seed + 1) * 0.4f;
+                    float patch = Fbm(u, v, 4, 4, seed + 3, 3);
+                    float g = 0.55f + blade * 0.45f + patch * 0.2f;
+                    bool dry = Noise(x / 3, y / 6, seed + 5) > 0.93f;
+                    return dry ? new Color(0.55f * g, 0.5f * g, 0.25f * g, 0.1f) : new Color(0.22f * g, 0.42f * g, 0.16f * g, 0.12f);
+                }
+                case BlockPattern.SkyScreen:
+                {
+                    // Экран: 16×16 пикселей на блок, в каждом три полоски R, G, B и тёмная сетка. Издали — голубое небо.
+                    int px = x & 7, py = y & 7;
+                    if (py == 7 || px >= 6)
+                        return new Color(0.03f, 0.03f, 0.04f, 0.6f);
+                    int sub = px / 2;
+                    float cloud = 0.92f + Noise(x / 8, y / 8, seed) * 0.08f;
+                    return sub == 0 ? new Color(0.55f * cloud, 0.03f, 0.03f, 0.6f)
+                        : sub == 1 ? new Color(0.03f, 0.75f * cloud, 0.05f, 0.6f)
+                        : new Color(0.04f, 0.05f, 1f * cloud, 0.6f);
+                }
                 case BlockPattern.FacadePanel:
                 {
                     float frame = Mathf.Min(Mathf.Min(u, 1f - u), Mathf.Min(v, 1f - v));

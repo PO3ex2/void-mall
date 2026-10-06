@@ -48,6 +48,8 @@ namespace VoidMall.World
         Pallet,
         ImpulseRack,
         WorkLight,
+        Bush,
+        Fern,
         Count,
     }
 
@@ -99,6 +101,8 @@ namespace VoidMall.World
             PropShape.Pallet => new Vector3(1.2f, 0.15f, 1f),
             PropShape.ImpulseRack => new Vector3(0.8f, 1.3f, 0.4f),
             PropShape.WorkLight => new Vector3(0.8f, 1.9f, 0.8f),
+            PropShape.Bush => new Vector3(1.1f, 0.9f, 1.1f),
+            PropShape.Fern => new Vector3(1f, 0.6f, 1f),
             _ => Vector3.one,
         };
 
@@ -675,6 +679,35 @@ namespace VoidMall.World
                     b.Slab(new Vector3(0.24f, 0.22f, -0.28f), new Vector3(0f, 0.7f, 0f), 0.015f, 0.015f, DarkMetal);
                     break;
                 }
+                case PropShape.Bush:
+                {
+                    // Куст оазиса: несколько повёрнутых «облаков» листвы разных оттенков на коротком стволе.
+                    b.BoxMinMax(new Vector3(-0.05f, 0f, -0.05f), new Vector3(0.05f, h * 0.35f, 0.05f), new Color(0.3f, 0.22f, 0.14f, 0.1f));
+                    for (int i = 0; i < 7; i++)
+                    {
+                        float a = i * 2.4f;
+                        float r = i == 0 ? 0f : w * 0.22f;
+                        float y = h * (i == 0 ? 0.62f : 0.4f + (i % 3) * 0.12f);
+                        float size = w * (i == 0 ? 0.55f : 0.42f);
+                        var leaf = new Color(0.18f + (i % 3) * 0.04f, 0.38f + (i % 2) * 0.08f, 0.14f, 0.15f);
+                        b.Box(new Vector3(Mathf.Cos(a) * r, y, Mathf.Sin(a) * r), new Vector3(size, size * 0.75f, size), leaf, Quaternion.Euler(i * 17f, i * 41f, i * 23f));
+                    }
+                    break;
+                }
+                case PropShape.Fern:
+                {
+                    // Папоротник: розетка поникших вай от центра.
+                    for (int i = 0; i < 9; i++)
+                    {
+                        float a = i * 40f * Mathf.Deg2Rad;
+                        var dir = new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a));
+                        var frond = new Color(0.2f, 0.45f + (i % 3) * 0.05f, 0.16f, 0.2f);
+                        var mid = dir * (w * 0.28f) + Vector3.up * h * (0.75f + (i % 2) * 0.2f);
+                        b.Slab(new Vector3(0f, 0.05f, 0f), mid, 0.16f, 0.02f, frond);
+                        b.Slab(mid, dir * (w * 0.5f) + Vector3.up * h * 0.3f, 0.12f, 0.02f, frond);
+                    }
+                    break;
+                }
                 case PropShape.ImpulseRack:
                 {
                     // Стойка с мелочью у кассы: каркас, три наклонные полочки, табличка сверху.
@@ -738,6 +771,22 @@ namespace VoidMall.World
         /// <summary>Наклон вокруг поперечной оси до поворота (−90 — стеллаж лежит лицом вниз; 0 — стоит).</summary>
         public float Pitch;
         public ulong Id;
+
+        /// <summary>В перевёрнутом чанке: проп вверх ногами, опора — сверху (Position — на потолке).</summary>
+        public bool Inverted;
+
+        /// <summary>Поворот пропа: наклон, рысканье и (в перевёрнутом чанке) переворот вокруг горизонтальной оси взгляда.</summary>
+        public Quaternion Rotation
+        {
+            get
+            {
+                var rotation = Quaternion.Euler(Pitch, Yaw, 0f);
+                if (!Inverted)
+                    return rotation;
+                // Поворот на 180° вокруг своей «вперёд» по горизонтали: тело уходит под опору, лицо остаётся в ту же сторону.
+                return Quaternion.AngleAxis(180f, Quaternion.Euler(0f, Yaw, 0f) * Vector3.forward) * rotation;
+            }
+        }
     }
 
     /// <summary>Место для товара на полке: центр низа (локально) и свободный габарит.</summary>

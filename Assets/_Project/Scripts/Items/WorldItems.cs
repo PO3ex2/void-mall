@@ -11,6 +11,9 @@ namespace VoidMall.Items
         public ItemStack Stack { get; internal set; }
         internal WorldItems.Entry Entry;
         internal Rigidbody Body;
+
+        /// <summary>Сколько лежит неподвижно в перевёрнутом чанке (там его надо усыплять самим: сила вверх будит каждый шаг).</summary>
+        internal float StillTime;
     }
 
     /// <summary>
@@ -185,12 +188,42 @@ namespace VoidMall.Items
                     Release(item);
                     continue;
                 }
+                // Аномалии: пульсация будит и таскает, в перевёрнутом чанке предметы падают вверх.
+                if (AnomalyPhysics.Any)
+                {
+                    bool asleep = item.Body.IsSleeping();
+                    if (asleep && AnomalyPhysics.PulseVelocity(item.transform.position, Time.time, 1f).sqrMagnitude > 1e-4f)
+                    {
+                        item.Body.WakeUp();
+                        asleep = false;
+                    }
+                    if (!asleep && !SettleInverted(item))
+                        AnomalyPhysics.Apply(item.Body, Time.time);
+                }
                 if (item.Body.IsSleeping())
                 {
                     _entries[i].Position = item.transform.position;
                     _entries[i].Rotation = item.transform.rotation;
                 }
             }
+        }
+
+        /// <summary>Улёгшийся на потолке перевёрнутого чанка предмет засыпает (иначе сила вверх держит его проснувшимся).</summary>
+        private static bool SettleInverted(WorldItem item)
+        {
+            var body = item.Body;
+            if (!AnomalyPhysics.InInverted(body.worldCenterOfMass)
+                || AnomalyPhysics.PulseVelocity(body.worldCenterOfMass, Time.time, 1f).sqrMagnitude > 1e-4f)
+            {
+                item.StillTime = 0f;
+                return false;
+            }
+            bool still = body.linearVelocity.sqrMagnitude < 0.01f && body.angularVelocity.sqrMagnitude < 0.01f;
+            item.StillTime = still ? item.StillTime + Time.fixedDeltaTime : 0f;
+            if (item.StillTime < 0.6f)
+                return false;
+            body.Sleep();
+            return true;
         }
 
         private static readonly Perf.Probe UpdateProbe = Perf.Register("Items.WorldItems.Stream");

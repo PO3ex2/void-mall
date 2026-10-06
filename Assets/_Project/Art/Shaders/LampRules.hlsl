@@ -94,12 +94,12 @@ float VM_EmergencyIntensity(int3 cell)
     return margin > -0.06 ? VM_Flicker(lamp, _VM_Time, 14.0) : 1.0;
 }
 
-// kind: 1 — лампа, 2 — аварийная, 3 — световой фонарь.
+// kind: 1 — лампа, 2 — аварийная, 3 — световой фонарь, 4 — экран «неба» оазиса.
 float VM_LampKindIntensity(int3 cell, int kind)
 {
     if (kind == 1) return VM_LampIntensity(cell);
     if (kind == 2) return VM_EmergencyIntensity(cell);
-    if (kind == 3) return _VM_Skylight;
+    if (kind == 3 || kind == 4) return _VM_Skylight;
     return 0;
 }
 

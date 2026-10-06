@@ -40,6 +40,15 @@ namespace VoidMall.Survival
 
         public bool HasOwnLight;
         public bool InAnomaly;
+
+        /// <summary>Взгляд на «Смотри на меня»: рассудок тает, долгое воздействие оставляет «Отпечаток».</summary>
+        public bool LookingAtAnomaly;
+
+        /// <summary>В оазисе: свет и уют, рассудок восстанавливается быстрее.</summary>
+        public bool InOasis;
+
+        /// <summary>Лечение светящейся лужей, здоровья в секунду (уже списано с запаса лужи).</summary>
+        public float PuddleHeal;
         public bool IsNight;
         public bool Sleeping;
 
@@ -88,6 +97,15 @@ namespace VoidMall.Survival
         public const float TraumaHours = 8f, TraumaPerStack = 0.2f;
         public const float FloorSleepQuality = 0.5f, FloorRestCap = 60f, UnrestedHours = 6f;
 
+        /// <summary>«Смотри на меня»: потеря рассудка в секунду взгляда, секунды до «Отпечатка», сброс накопления.</summary>
+        public const float LookAtMeSanityDrain = 1.5f, ImprintExposure = 20f, ImprintForget = 30f;
+
+        /// <summary>Сколько часов сна снимают «Отпечаток»; максимум рассудка с ним.</summary>
+        public const float ImprintSleepHours = 2f, ImprintSanityCap = 50f;
+
+        /// <summary>Восстановление рассудка в оазисе, в секунду.</summary>
+        public const float OasisSanityRegen = 0.4f;
+
         public float Health { get; private set; } = BaseMaxHealth;
         public float Calories { get; private set; } = 2000f;
         public float Water { get; private set; } = 2000f;
@@ -115,11 +133,18 @@ namespace VoidMall.Survival
         // Рацион за последние сутки: (возраст в игровых часах, жиры, белки, углеводы).
         private readonly List<(float age, float fat, float protein, float carbs)> _diet = new();
         private float _staminaDelay;
+        private float _sinceLook = float.MaxValue, _sleptHours;
         private readonly System.Random _random;
 
         public VitalsModel(int seed = 12345) => _random = new System.Random(seed);
 
         // ───────────────────────────── Производные ─────────────────────────────
+
+        /// <summary>Максимум рассудка: «Отпечаток» держит его на половине.</summary>
+        public float MaxSanity => Has(StatusKind.Imprint) ? ImprintSanityCap : 100f;
+
+        /// <summary>Накопленные секунды взгляда на «Смотри на меня» (с последнего сброса).</summary>
+        public float LookExposure { get; private set; }
 
         public float MaxHealth => BaseMaxHealth * Mathf.Max(0.2f, 1f - TraumaPerStack * TraumaStacks);
 
@@ -300,15 +325,20 @@ namespace VoidMall.Survival
         private void TickSanity(float realDt, float gameHours, in VitalsEnvironment env)
         {
             // Сон восстанавливает рассудок по игровым часам (+12 за час), бодрствование — по реальным секундам.
+            TickImprint(realDt, gameHours, env);
             if (env.Sleeping)
             {
-                Sanity = Mathf.Min(100f, Sanity + 12f * SleepQuality(env) * gameHours);
+                Sanity = Mathf.Min(MaxSanity, Sanity + 12f * SleepQuality(env) * gameHours);
                 return;
             }
             bool dark = env.Light < DarkLight && !env.HasOwnLight;
             float rate;
-            if (env.InAnomaly)
+            if (env.LookingAtAnomaly)
+                rate = -LookAtMeSanityDrain;
+            else if (env.InAnomaly)
                 rate = -0.3f;
+            else if (env.InOasis)
+                rate = OasisSanityRegen;
             else if (dark)
                 rate = -0.12f * (env.IsNight ? 1.5f : 1f);
             else
@@ -319,7 +349,34 @@ namespace VoidMall.Survival
                 rate *= 1.3f;
             if (rate < 0f)
                 rate *= Perks.SanityDrainMul;
-            Sanity = Mathf.Clamp(Sanity + rate * realDt, 0f, 100f);
+            Sanity = Mathf.Clamp(Sanity + rate * realDt, 0f, MaxSanity);
+        }
+
+        /// <summary>
+        /// «Отпечаток»: секунды взгляда копятся (сбрасываются, если ImprintForget секунд не смотреть), на
+        /// ImprintExposure — состояние. Снимается ImprintSleepHours часами сна подряд.
+        /// </summary>
+        private void TickImprint(float realDt, float gameHours, in VitalsEnvironment env)
+        {
+            if (env.LookingAtAnomaly)
+            {
+                _sinceLook = 0f;
+                LookExposure += realDt;
+                if (LookExposure >= ImprintExposure && !Has(StatusKind.Imprint))
+                    Add(StatusKind.Imprint);
+            }
+            else
+            {
+                _sinceLook += realDt;
+                if (_sinceLook >= ImprintForget)
+                    LookExposure = 0f;
+            }
+            _sleptHours = env.Sleeping ? _sleptHours + gameHours : 0f;
+            if (_sleptHours >= ImprintSleepHours && Has(StatusKind.Imprint))
+            {
+                Statuses.RemoveAll(s => s.Kind == StatusKind.Imprint);
+                LookExposure = 0f;
+            }
         }
 
         private void TickHealth(float realDt, float gameHours, in VitalsEnvironment env)
@@ -337,6 +394,9 @@ namespace VoidMall.Survival
                     regen *= 1.5f;
                 Health = Mathf.Min(MaxHealth, Health + regen * gameHours);
             }
+            // Светящаяся лужа лечит и при кровотечении (запас лужи уже списан).
+            if (env.PuddleHeal > 0f)
+                Health += env.PuddleHeal * realDt;
             Health = Mathf.Min(Health, MaxHealth);
         }
 
@@ -522,7 +582,7 @@ namespace VoidMall.Survival
                 _diet.Add((0f, item.Fat, item.Protein, item.Carbs));
             // Еда немного успокаивает, горячая — заметно.
             if (item.Calories > 0f || item.Cooked)
-                Sanity = Mathf.Min(100f, Sanity + (item.Cooked ? 6f : 2f));
+                Sanity = Mathf.Min(MaxSanity, Sanity + (item.Cooked ? 6f : 2f));
             if (spoiled)
             {
                 Add(StatusKind.Poisoning, hours: 1.5f);
@@ -617,7 +677,7 @@ namespace VoidMall.Survival
             if (calories.HasValue) Calories = Mathf.Clamp(calories.Value, 0f, MaxCalories);
             if (water.HasValue) Water = Mathf.Clamp(water.Value, 0f, MaxWater);
             if (rest.HasValue) Rest = Mathf.Clamp(rest.Value, 0f, 100f);
-            if (sanity.HasValue) Sanity = Mathf.Clamp(sanity.Value, 0f, 100f);
+            if (sanity.HasValue) Sanity = Mathf.Clamp(sanity.Value, 0f, MaxSanity);
             if (bodyTemperature.HasValue) BodyTemperature = Mathf.Clamp(bodyTemperature.Value, 30f, 42f);
         }
 
@@ -635,7 +695,7 @@ namespace VoidMall.Survival
             Calories = MaxCalories;
             Water = MaxWater;
             Rest = 100f;
-            Sanity = 100f;
+            Sanity = MaxSanity;
             BodyTemperature = NormalBodyTemp;
             Stamina = MaxStamina;
             StaminaExhausted = false;
