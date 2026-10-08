@@ -9,7 +9,7 @@ namespace VoidMall.Items
     /// Реестр предметов на сессию: ID ↔ индекс, размеры и веса для сетки, связи с миром
     /// (какой предмет ставит блок и выпадает из него, какой — гладкий материал), меши моделей.
     /// </summary>
-    public sealed class ItemRegistry : IItemCatalog, IDisposable
+    public sealed class ItemRegistry : IItemCatalog, IItemIds, IDisposable
     {
         private readonly Registry<ItemDef> _registry = new();
         private readonly Dictionary<string, ushort> _blockItems = new();
@@ -36,6 +36,8 @@ namespace VoidMall.Items
         public IReadOnlyList<ItemDef> All => _registry.All;
 
         public ItemDef Get(int index) => _registry.Get(index);
+
+        public string IdOf(ushort def) => _registry.Get(def).Id;
 
         public bool TryGetIndex(string id, out ushort index)
         {
@@ -71,6 +73,8 @@ namespace VoidMall.Items
             var item = _registry.Get(def);
             if (item.IsContainer)
                 stack.Contents = new GridInventory(this, item.ContainerGrid.x, item.ContainerGrid.y);
+            if (item.ShelfLifeHours > 0f)
+                Freshness.Start(stack, item.ShelfLifeHours);
             return stack;
         }
 

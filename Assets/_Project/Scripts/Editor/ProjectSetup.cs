@@ -65,6 +65,7 @@ namespace VoidMall.Editor
             SetLayer(layers, GameLayers.Enemy, "Enemy");
             SetLayer(layers, GameLayers.Trigger, "Trigger");
             SetLayer(layers, GameLayers.Debris, "Debris");
+            SetLayer(layers, GameLayers.Portal, "Portal");
             tagManager.ApplyModifiedProperties();
 
             Physics.IgnoreLayerCollision(GameLayers.Player, GameLayers.Debris, true);

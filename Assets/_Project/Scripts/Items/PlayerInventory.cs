@@ -386,6 +386,18 @@ namespace VoidMall.Items
 
         private void RaiseChanged() => Changed?.Invoke();
 
+        // ───────────────────────────── Сейв (этап 8Ж) ─────────────────────────────
+
+        public InventoryData Capture() => ItemSnapshot.CaptureInventory(Pockets, Equipment, Hotbar, Items);
+
+        /// <summary>Заменить инвентарь снимком. Что не влезло (поменялись размеры сеток) — под ноги.</summary>
+        public void Restore(InventoryData data)
+        {
+            foreach (var stack in ItemSnapshot.RestoreInventory(data, Pockets, Equipment, Hotbar, Items))
+                WorldItems.Instance?.Spawn(stack, transform.position + Vector3.up, Vector3.zero);
+            RaiseChanged();
+        }
+
         // ───────────────────────────── Добыча ─────────────────────────────
 
         private void OnMined(in MaterialMinedEvent evt)

@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9301737d61c2e3948bfaf4bf2577b054, type: 3}
+  m_Name: wooden_crate
+  m_EditorClassIdentifier: VoidMall.Crafting::VoidMall.Crafting.RecipeDef
+  _id: recipe.wooden_crate
+  Result: {fileID: 11400000, guid: 61985f9cb400dd24e8405c258b42adfa, type: 2}
+  ResultCount: 1
+  Ingredients:
+  - Item: {fileID: 11400000, guid: d88f6e21eb26ab54e9ea2b49d496671e, type: 2}
+    Count: 6
+  - Item: {fileID: 11400000, guid: f0a2e60a1f53bc849a79ea182f2ed795, type: 2}
+    Count: 8
+  Station: 1
+  Time: 14
+  Category: 5
+  Blueprint: 0
+  Skill: 0
+  SkillLevel: 0

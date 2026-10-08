@@ -16,6 +16,12 @@ namespace VoidMall.World
         private const float SleepDelay = 1f;
         private const float WakeImpactSpeed = 0.6f;
 
+        /// <summary>
+        /// Будит только тело не легче этой доли массы пропа: банка, упавшая на стеллаж, его не сдвигает. Иначе товар,
+        /// высыпанный с поваленного стеллажа, будил соседние, те высыпали свой — цепная реакция по всему залу.
+        /// </summary>
+        private const float WakeMassFraction = 0.1f;
+
         public ulong Id { get; private set; }
         public ushort DefIndex { get; private set; }
         public PropDef Def { get; private set; }
@@ -25,6 +31,17 @@ namespace VoidMall.World
         /// <summary>Все части коллайдера (у стеллажей — стенки и полки, у остальных — одна коробка).</summary>
         public readonly List<BoxCollider> Colliders = new();
         public Rigidbody Body { get; private set; }
+
+        /// <summary>Отломанный кусок (воксельное тело, этап 8Е): своя сетка клеток вместо модели пропа. У пропов — null.</summary>
+        public VoxelBody Voxel { get; private set; }
+
+        /// <summary>Масса самого пропа (у куска — по клеткам) плюс груз (содержимое хранилища).</summary>
+        public float Mass => (Voxel != null ? Voxel.Mass : Def.Mass) + ExtraMass;
+
+        /// <summary>Груз сверх собственной массы: содержимое хранилища (ContainerSystem).</summary>
+        public float ExtraMass { get; set; }
+
+        public string DisplayName => Voxel != null ? Voxel.DisplayName : Def.DisplayName;
 
         public PropBody Parent { get; private set; }
         public readonly List<PropBody> Children = new();
@@ -44,7 +61,7 @@ namespace VoidMall.World
         {
             get
             {
-                float mass = Def.Mass;
+                float mass = Mass;
                 foreach (var child in Children)
                     mass += child.GroupMass;
                 return mass;
@@ -70,6 +87,8 @@ namespace VoidMall.World
             // События столкновений приходят и выключенным компонентам — пробуждение от удара работает.
             enabled = false;
             Body = GetComponent<Rigidbody>();
+            Voxel = GetComponent<VoxelBody>();
+            ExtraMass = 0f;
         }
 
         // ───────────────────────────── Сон и пробуждение ─────────────────────────────
@@ -91,15 +110,33 @@ namespace VoidMall.World
                 Body.interpolation = RigidbodyInterpolation.Interpolate;
                 Body.collisionDetectionMode = CollisionDetectionMode.ContinuousSpeculative;
             }
-            Body.mass = GroupMass;
             Body.isKinematic = false;
-            Body.ResetCenterOfMass();
-            Body.ResetInertiaTensor();
+            RecalculateMass();
             Body.WakeUp();
             IsAwake = true;
             enabled = true;
             _stillTime = 0f;
             Manager.OnWoken(this);
+        }
+
+        /// <summary>
+        /// Пересчитать массу и центр масс группы (после прибивания, отделения, правки клеток куска). У одиночного куска центр
+        /// масс — по весу клеток (бетонный край тяжелее деревянного), у групп — по коллайдерам.
+        /// </summary>
+        public void RecalculateMass()
+        {
+            if (Parent != null)
+            {
+                Root.RecalculateMass();
+                return;
+            }
+            if (Body == null)
+                return;
+            Body.mass = GroupMass;
+            Body.ResetCenterOfMass();
+            Body.ResetInertiaTensor();
+            if (Voxel != null && Children.Count == 0)
+                Body.centerOfMass = Voxel.CenterOfMass;
         }
 
         private void Sleep()
@@ -149,12 +186,12 @@ namespace VoidMall.World
                 return;
             }
             // Аномалии: в перевёрнутом чанке падает вверх, пульсация таскает туда-сюда (и не даёт уснуть).
-            if (AnomalyPhysics.Apply(Body, Time.time, AnomalyPhysics.Any ? GroupBounds().min.y : float.NaN))
+            if (AnomalyPhysics.Apply(Body, Time.time, AnomalyPhysics.Any ? GroupBounds().min.y : float.NaN, Voxel != null ? Voxel.Floats : (bool?)null))
             {
                 _stillTime = 0f;
                 return;
             }
-            bool still =Body.linearVelocity.sqrMagnitude < SleepSpeed * SleepSpeed && Body.angularVelocity.sqrMagnitude < SleepSpeed * SleepSpeed;
+            bool still = Body.linearVelocity.sqrMagnitude < SleepSpeed * SleepSpeed && Body.angularVelocity.sqrMagnitude < SleepSpeed * SleepSpeed;
             _stillTime = still ? _stillTime + Time.fixedDeltaTime : 0f;
             if (_stillTime >= SleepDelay)
                 Sleep();
@@ -166,14 +203,16 @@ namespace VoidMall.World
             // Тяжёлое и быстрое бьёт игрока (только летящий проп, не тот, что игрок несёт).
             if (collision.collider.gameObject.layer == GameLayers.Player && root.IsAwake && !root.IsHeld)
             {
-                float speed = collision.relativeVelocity.magnitude, mass = root.GroupMass;
-                if (speed > 4f && mass > 3f)
-                    EventBus<PlayerImpactEvent>.Publish(new PlayerImpactEvent { Player = collision.collider.gameObject, Damage = Mathf.Min(80f, mass * speed * 0.08f), Reason = $"Ударило: {root.Def.DisplayName}" });
+                float speed = collision.relativeVelocity.magnitude;
+                float damage = VoxelBodyRules.ImpactDamage(root.GroupMass, speed, crush: root.Voxel != null);
+                if (damage > 0f)
+                    EventBus<PlayerImpactEvent>.Publish(new PlayerImpactEvent { Player = collision.collider.gameObject, Damage = damage, Reason = damage >= VoxelBodyRules.CrushDamage ? $"Раздавило: {root.DisplayName}" : $"Ударило: {root.DisplayName}" });
             }
             if (root.IsAwake || root.IsNailed)
                 return;
             var other = collision.rigidbody;
-            if (other != null && !other.isKinematic && collision.relativeVelocity.magnitude > WakeImpactSpeed)
+            if (other != null && !other.isKinematic && collision.relativeVelocity.magnitude > WakeImpactSpeed
+                && other.mass >= root.GroupMass * WakeMassFraction)
                 root.Wake();
         }
 
@@ -192,12 +231,7 @@ namespace VoidMall.World
             parent.Children.Add(this);
             transform.SetParent(parent.transform, true);
             var root = parent.Root;
-            if (root.Body != null)
-            {
-                root.Body.mass = root.GroupMass;
-                root.Body.ResetCenterOfMass();
-                root.Body.ResetInertiaTensor();
-            }
+            root.RecalculateMass();
         }
 
         /// <summary>Отделить от родителя: снова самостоятельный проп.</summary>
@@ -209,12 +243,7 @@ namespace VoidMall.World
             Parent.Children.Remove(this);
             Parent = null;
             transform.SetParent(newParent, true);
-            if (root.Body != null)
-            {
-                root.Body.mass = root.GroupMass;
-                root.Body.ResetCenterOfMass();
-                root.Body.ResetInertiaTensor();
-            }
+            root.RecalculateMass();
         }
 
         public void SetLayer(int layer)

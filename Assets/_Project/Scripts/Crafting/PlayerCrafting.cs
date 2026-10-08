@@ -85,6 +85,17 @@ namespace VoidMall.Crafting
 
         public int LearnedCount => _learned.Count;
 
+        /// <summary>Изученные чертежи (для сейва).</summary>
+        public IReadOnlyCollection<string> Learned => _learned;
+
+        /// <summary>Вернуть изученные чертежи из сейва.</summary>
+        public void RestoreLearned(IEnumerable<string> recipes)
+        {
+            _learned.Clear();
+            foreach (var id in recipes)
+                _learned.Add(id);
+        }
+
         private string WhyCannotRead(PlayerInventory inventory, ItemDef item, ItemStack stack)
         {
             if (inventory != _inventory || !item.IsReadable)

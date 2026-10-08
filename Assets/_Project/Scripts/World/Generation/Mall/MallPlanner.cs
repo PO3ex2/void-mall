@@ -167,7 +167,10 @@ namespace VoidMall.World
         public const int BiomeSiteSpacing = 2;
 
         /// <summary>Доли биомов по центрам пятен: пустые — самые частые, поле аномалий — редкое.</summary>
-        public const float BiomeEmptyShare = 0.5f, BiomeFieldShare = 0.1f;
+        public const float BiomeEmptyShare = 0.5f, BiomeFieldShare = 0.1f, BiomeForestShare = 0.08f;
+
+        /// <summary>Лес не ближе этого (ячеек по любой оси) к ячейке старта.</summary>
+        public const int ForestSpawnClearance = 3;
 
         private const int SaltBiome = 7300;
 
@@ -198,9 +201,13 @@ namespace VoidMall.World
                 }
             }
             float r = Hash.ToFloat01(winner);
-            return r < BiomeFieldShare ? MallBiome.AnomalyField
-                : r < BiomeFieldShare + BiomeEmptyShare ? MallBiome.Empty
-                : MallBiome.Normal;
+            if (r < BiomeFieldShare)
+                return MallBiome.AnomalyField;
+            if (r < BiomeFieldShare + BiomeEmptyShare)
+                return MallBiome.Empty;
+            if (r < BiomeFieldShare + BiomeEmptyShare + BiomeForestShare)
+                return math.all(math.abs(cell - spawn) <= ForestSpawnClearance) ? MallBiome.Normal : MallBiome.Forest;
+            return MallBiome.Normal;
         }
 
         /// <summary>Множитель частоты аномалий и маркеров в биоме.</summary>

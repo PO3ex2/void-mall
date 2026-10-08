@@ -58,6 +58,9 @@ namespace VoidMall.Editor
             new() { Id = "recipe.bucket", Result = "item.bucket", Station = Bench, Time = 12f, Category = RecipeCategory.Tools, Ingredients = new[] { ("material.scrap_metal", 3), ("material.wire", 1) } },
             new() { Id = "recipe.table", Result = "item.table", Station = Bench, Time = 12f, Category = RecipeCategory.Building, Ingredients = new[] { ("material.plank", 4), ("material.nails", 6) } },
             new() { Id = "recipe.shelf", Result = "item.shelf", Station = Bench, Time = 16f, Category = RecipeCategory.Building, Ingredients = new[] { ("material.scrap_metal", 4), ("material.screws", 8) } },
+            // Этап 8Ж: хранилища.
+            new() { Id = "recipe.wooden_crate", Result = "item.wooden_crate", Station = Bench, Time = 14f, Category = RecipeCategory.Building, Ingredients = new[] { ("material.plank", 6), ("material.nails", 8) } },
+            new() { Id = "recipe.metal_locker", Result = "item.metal_locker", Station = Bench, Time = 25f, Category = RecipeCategory.Building, Ingredients = new[] { ("material.scrap_metal", 10), ("material.screws", 6) } },
             new() { Id = "recipe.planks", Result = "item.block.planks", Count = 4, Station = Bench, Time = 10f, Category = RecipeCategory.Blocks, Ingredients = new[] { ("material.plank", 2), ("material.nails", 4) } },
             new() { Id = "recipe.block_wood", Result = "item.block.wood", Count = 4, Station = Bench, Time = 4f, Category = RecipeCategory.Blocks, Ingredients = new[] { ("material.plank", 2) } },
             new() { Id = "recipe.block_metal", Result = "item.block.metal", Count = 2, Station = Bench, Time = 6f, Category = RecipeCategory.Blocks, Ingredients = new[] { ("material.scrap_metal", 3) } },

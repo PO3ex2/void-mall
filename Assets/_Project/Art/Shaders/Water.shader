@@ -64,7 +64,8 @@ Shader "VoidMall/Water"
                 output.positionWS = TransformObjectToWorld(input.positionOS.xyz);
                 output.positionCS = TransformWorldToHClip(output.positionWS);
                 output.normalWS = TransformObjectToWorldNormal(input.normalOS);
-                output.fogFactor = ComputeFogFactor(output.positionCS.z);
+                // Глубина из w, а не из z: у камеры портала наклонная ближняя плоскость портит z (туман в портале пропадал).
+                output.fogFactor = ComputeFogFactorZ0ToFar(output.positionCS.w);
                 return output;
             }
 

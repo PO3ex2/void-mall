@@ -56,7 +56,20 @@ namespace VoidMall.Survival
         public bool HasLostBag => _lostBag != null;
         public Vector3 LostBagPosition { get; private set; }
 
+        /// <summary>Выживание на паузе (игрок в лобби, этап 10).</summary>
+        public bool Suspended { get; set; }
+
         public bool HasSpawnPoint => _spawnPropId != 0;
+
+        /// <summary>Точка возрождения (кровать): ID пропа и место — для сейва.</summary>
+        public ulong SpawnPropId => _spawnPropId;
+        public Vector3 SpawnPosition => _spawnPosition;
+
+        public void RestoreSpawnPoint(ulong propId, Vector3 position)
+        {
+            _spawnPropId = propId;
+            _spawnPosition = position;
+        }
 
         /// <summary>Последний полученный урон (для красной вспышки HUD): время и величина.</summary>
         public float LastDamageTime { get; private set; } = -100f;
@@ -147,6 +160,12 @@ namespace VoidMall.Survival
             using var perf = Perf.Measure(UpdateProbe);
             var world = ChunkManager.Instance;
             var clock = WorldClock.Instance;
+            // В лобби (этап 10) выживание на паузе: часы мира не идут в счёт, нужды не тратятся.
+            if (Suspended)
+            {
+                _lastHours = clock != null ? clock.TotalHours : 0.0;
+                return;
+            }
             float realDt = Time.deltaTime;
 
             double hours = clock != null ? clock.TotalHours : 0.0;

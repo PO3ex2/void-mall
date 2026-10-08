@@ -100,6 +100,9 @@ namespace VoidMall.World
         [Tooltip("Можно ставить временным инструментом.")]
         public bool Placeable = true;
 
+        [Tooltip("Вес одной клетки в отломанном куске, кг (игровой, не реальный: доску можно унести в руках).")]
+        [Min(0.1f)] public float CellMass = 30f;
+
         [Header("Текстура")]
         public BlockPattern Pattern = BlockPattern.Flat;
         public Color Tint = Color.white;

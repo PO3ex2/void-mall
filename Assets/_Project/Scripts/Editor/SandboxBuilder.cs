@@ -106,6 +106,7 @@ namespace VoidMall.Editor
             var itemSystem = world.AddComponent<VoidMall.Items.ItemSystem>();
             world.AddComponent<VoidMall.Items.WorldItems>();
             world.AddComponent<VoidMall.Items.ShelfLoot>();
+            world.AddComponent<VoidMall.Items.ContainerSystem>();
             ProjectSetup.SetReference(debris, "_dustMaterial", AssetDatabase.LoadAssetAtPath<Material>(WorldAssetsSetup.DustMaterialPath));
             ProjectSetup.SetReference(chunkManager, "_catalog", AssetDatabase.LoadAssetAtPath<MaterialCatalog>(WorldAssetsSetup.CatalogPath));
             ProjectSetup.SetReference(chunkManager, "_opaqueMaterial", AssetDatabase.LoadAssetAtPath<Material>(WorldAssetsSetup.BlockOpaqueMaterialPath));
@@ -149,6 +150,8 @@ namespace VoidMall.Editor
             {
                 Debug.LogError("[Sandbox] Player prefab not found. Run 'Void Mall/Setup/Player Prefab' first.");
             }
+
+            LobbyBuilder.Place();
 
             EditorSceneManager.SaveScene(scene, WorldScenePath);
             AddSceneToBuild(WorldScenePath);

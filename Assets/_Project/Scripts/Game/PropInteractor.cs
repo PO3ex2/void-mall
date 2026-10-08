@@ -87,7 +87,10 @@ namespace VoidMall.Game
         private static float UnnailDuration => UnnailTime * (1f - 0.2f * PlayerSkills.LevelOf(SkillId.Carpenter));
 
         /// <summary>Короткое E делает что-то своё (спать, открыть станцию), а взять — удержанием.</summary>
-        private static bool HasTapAction(PropBody body) => body.Def.Sleepable || body.Def.Station != CraftStation.None;
+        private static bool HasTapAction(PropBody body) => body.Def.Sleepable || body.Def.Station != CraftStation.None || PropManager.IsPickupBlock(body) || ContainerSystem.IsContainer(body) || TerminalOf(body) != null;
+
+        /// <summary>ПК в мире (этап 10): терминал висит на самом пропе.</summary>
+        private static PcTerminal TerminalOf(PropBody body) => body.Voxel == null ? body.GetComponent<PcTerminal>() : null;
 
         public bool IsBusy => _prying || _mode != Mode.None || _waitRelease || _disassembleTarget != null || (_interactHeld > 0.15f && _target != null && _target.IsNailed);
 
@@ -356,7 +359,18 @@ namespace VoidMall.Game
             {
                 // Прибитую группу можно схватить коротким нажатием — она не сдвинется, но подсказка объяснит почему.
                 // Станцию можно открыть, даже если она прибита.
-                if (!_interactConsumed && _target != null && _target.Def.Station != CraftStation.None && _interactHeld < SleepHoldTime)
+                if (!_interactConsumed && _target != null && PropManager.IsPickupBlock(_target) && _interactHeld < SleepHoldTime)
+                    PropManager.Instance.PickUpVoxel(_target); // отколовшийся блок — сразу в инвентарь
+                else if (!_interactConsumed && _target != null && TerminalOf(_target) is { } terminal && _interactHeld < SleepHoldTime)
+                {
+                    if (terminal.Broken)
+                        Say("Компьютер не включается");
+                    else
+                        terminal.Enter();
+                }
+                else if (!_interactConsumed && _target != null && ContainerSystem.IsContainer(_target) && _interactHeld < SleepHoldTime)
+                    OpenContainer(_target);
+                else if (!_interactConsumed && _target != null && _target.Def.Station != CraftStation.None && _interactHeld < SleepHoldTime)
                     OpenStation(_target);
                 else if (!_interactConsumed && _target != null && _target.Def.Sleepable && !_target.IsNailed && !_target.IsInGroup)
                     TrySleep(_target);
@@ -367,8 +381,8 @@ namespace VoidMall.Game
                 _interactHeld = 0f;
             }
 
-            // F: аккуратный разбор.
-            if (_disassemble != null && _disassemble.IsPressed() && _target != null)
+            // F: аккуратный разбор (кусок не разбирают — его ломают по клеткам).
+            if (_disassemble != null && _disassemble.IsPressed() && _target != null && _target.Voxel == null)
             {
                 if (_disassembleTarget != _target)
                 {
@@ -404,6 +418,16 @@ namespace VoidMall.Game
             string refusal = StationWindow.Instance.Open(station);
             if (refusal != null)
                 Say(refusal);
+        }
+
+        /// <summary>Хранилище: окно персонажа с его сеткой рядом с инвентарём.</summary>
+        private void OpenContainer(PropBody body)
+        {
+            var grid = ContainerSystem.Instance != null ? ContainerSystem.Instance.Open(body) : null;
+            if (grid == null || CharacterWindow.Instance == null)
+                return;
+            string title = body.Def.ContainerCold ? $"{body.DisplayName} · холодно: еда портится в 4 раза медленнее" : body.DisplayName;
+            CharacterWindow.Instance.OpenContainer(grid, title, body.transform);
         }
 
         private void PackUp(PropBody body)
@@ -646,14 +670,17 @@ namespace VoidMall.Game
             }
 
             var cells = new List<int3>();
-            if (touchesWorld && ChunkManager.Instance != null)
+            // Кусок прибивается к клеткам, которых касаются его грани (габарит повёрнутого куска слишком груб).
+            if (held.Voxel != null)
+                PropManager.Instance.CollectVoxelNailCells(held, cells);
+            else if (touchesWorld && ChunkManager.Instance != null)
                 CollectAnchorCells(bounds, cells);
 
             Release();
             if (targetProp != null && (cells.Count == 0 || best < 0.05f))
             {
                 PropManager.Instance.NailToProp(held, targetProp);
-                Say($"Прибито к: {targetProp.Def.DisplayName}");
+                Say($"Прибито к: {targetProp.DisplayName}");
                 return true;
             }
             else if (cells.Count > 0)
@@ -775,12 +802,12 @@ namespace VoidMall.Game
             }
             else if (_mode == Mode.Hold)
             {
-                text = $"{_held.Def.DisplayName} ({_held.GroupMass:0} кг) · ЛКМ — бросить · E — отпустить · R — повернуть · колесо — ближе/дальше"
+                text = $"{_held.DisplayName} ({_held.GroupMass:0} кг) · ЛКМ — бросить · E — отпустить · R — повернуть · колесо — ближе/дальше"
                        + (_tool != null && _tool.HammerActive ? " · ПКМ — прибить" : "");
             }
             else if (_mode == Mode.Drag)
             {
-                text = $"Тащите: {_held.Def.DisplayName} ({_held.GroupMass:0} кг) · E — отпустить"
+                text = $"Тащите: {_held.DisplayName} ({_held.GroupMass:0} кг) · E — отпустить"
                        + (_tool != null && _tool.HammerActive ? " · ПКМ — прибить" : "");
             }
             else if (!_interact.actionMap.enabled)
@@ -812,14 +839,23 @@ namespace VoidMall.Game
                 float health = PropManager.Instance.Health(_target);
                 string action = _target.IsNailed
                     ? (_interactHeld > 0.15f ? $"Вытаскиваем гвозди… {_interactHeld / UnnailDuration * 100f:0}%" : "прибито · удерживайте E — вытащить гвозди")
+                    : PropManager.IsPickupBlock(_target) ? "E — забрать · удерживайте E — взять в руки"
+                    : TerminalOf(_target) is { } pc ? (pc.Broken ? "не включается" : "E — включить") + " · удерживайте E — " + (mass <= HoldMass.Value ? "взять" : "тащить")
+                    : ContainerSystem.IsContainer(_target) ? "E — открыть · удерживайте E — " + (mass <= HoldMass.Value ? "взять" : mass <= DragMass.Value ? "тащить" : "толкать (тяжело)")
                     : _target.Def.Station != CraftStation.None ? "E — открыть · удерживайте E — " + (mass <= HoldMass.Value ? "взять" : "тащить")
                     : _target.Def.Sleepable ? "E — спать · удерживайте E — " + (_target.Def.PackUp ? "свернуть" : mass <= HoldMass.Value ? "взять" : "тащить")
-                    : (mass <= HoldMass.Value ? "E — взять" : mass <= DragMass.Value ? "E — тащить" : "слишком тяжело")
+                    : (mass <= HoldMass.Value ? "E — взять" : mass <= DragMass.Value ? "E — тащить" : _target.Voxel != null ? "слишком тяжело — только толкать" : "слишком тяжело")
                       + (_target.IsInGroup ? (_interactHeld > 0.15f ? $" · вытаскиваем гвозди… {_interactHeld / UnnailDuration * 100f:0}%" : " · удерживайте E — вытащить гвозди") : "");
                 if (IsRegister(_target) && ShelfLoot.Instance != null && !ShelfLoot.Instance.IsRegisterOpened(_target.Id))
                     action = _prying && _pryRegister == _target ? $"Вскрываем кассу… {_pryProgress * 100f:0}%"
                         : CanPryRegister(_target) ? "удерживайте E — вскрыть кассу ломом" : action + " · касса заперта — нужен лом";
-                text = $"{_target.Def.DisplayName} · {mass:0} кг · прочность {health * 100f:0}% · {action} · удерживайте F — разобрать";
+                text = _target.Voxel != null
+                    ? $"{_target.DisplayName} · {mass:0} кг · {action}"
+                    : $"{_target.Def.DisplayName} · {mass:0} кг · прочность {health * 100f:0}% · {action} · удерживайте F — разобрать";
+            }
+            else if (PcTerminal.Hovered != null)
+            {
+                text = PcTerminal.Hovered.Broken ? "Компьютер · не включается" : "Компьютер · E — включить";
             }
             else
             {

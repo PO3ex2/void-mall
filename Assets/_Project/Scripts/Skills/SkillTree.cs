@@ -80,5 +80,56 @@ namespace VoidMall.Skills
             _levels[(int)id] = Math.Clamp(level, 0, SkillCatalog.Get(id).MaxLevel);
             Changed?.Invoke();
         }
+
+        /// <summary>Снять для сейва (этап 8Ж): аспекты и навыки по именам, а не номерам.</summary>
+        public SkillsData Capture()
+        {
+            var data = new SkillsData();
+            foreach (Aspect aspect in Enum.GetValues(typeof(Aspect)))
+                data.Aspects.Add(new AspectData { Name = aspect.ToString(), Points = _points[(int)aspect], Earned = _earned[(int)aspect] });
+            foreach (SkillId id in Enum.GetValues(typeof(SkillId)))
+                if (_levels[(int)id] > 0)
+                    data.Levels.Add(new SkillLevelData { Name = id.ToString(), Level = _levels[(int)id] });
+            return data;
+        }
+
+        /// <summary>Вернуть из сейва. Неизвестные имена (убраны из игры) пропускаются.</summary>
+        public void Restore(SkillsData data)
+        {
+            Array.Clear(_points, 0, _points.Length);
+            Array.Clear(_earned, 0, _earned.Length);
+            Array.Clear(_levels, 0, _levels.Length);
+            foreach (var aspect in data.Aspects)
+                if (Enum.TryParse(aspect.Name, out Aspect value))
+                {
+                    _points[(int)value] = aspect.Points;
+                    _earned[(int)value] = aspect.Earned;
+                }
+            foreach (var level in data.Levels)
+                if (Enum.TryParse(level.Name, out SkillId id))
+                    _levels[(int)id] = Math.Clamp(level.Level, 0, SkillCatalog.Get(id).MaxLevel);
+            Changed?.Invoke();
+        }
+    }
+
+    [Serializable]
+    public sealed class SkillsData
+    {
+        public System.Collections.Generic.List<AspectData> Aspects = new();
+        public System.Collections.Generic.List<SkillLevelData> Levels = new();
+    }
+
+    [Serializable]
+    public sealed class AspectData
+    {
+        public string Name;
+        public float Points, Earned;
+    }
+
+    [Serializable]
+    public sealed class SkillLevelData
+    {
+        public string Name;
+        public int Level;
     }
 }

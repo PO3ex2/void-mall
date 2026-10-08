@@ -44,3 +44,6 @@ MonoBehaviour:
   Heater: 0
   HeatOutput: 0
   HeatRadius: 2
+  ContainerGrid: {x: 6, y: 8}
+  ContainerCold: 1
+  ContainerLoot: fridge

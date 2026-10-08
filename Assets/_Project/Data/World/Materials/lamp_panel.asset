@@ -19,6 +19,7 @@ MonoBehaviour:
   Unbreakable: 0
   Hardness: 80
   Placeable: 1
+  CellMass: 5
   Pattern: 12
   Tint: {r: 1, g: 0.95, b: 0.86, a: 1}
   SmoothVariant: {fileID: 0}

@@ -51,6 +51,9 @@ namespace VoidMall.World
         Bush,
         Fern,
         FireBarrel,
+
+        /// <summary>Стол с ЭЛТ-компьютером (этап 10): ПК в мире — консоль, сейвы, настройки, «в лобби».</summary>
+        PcDesk,
         Count,
     }
 
@@ -105,6 +108,7 @@ namespace VoidMall.World
             PropShape.Bush => new Vector3(1.1f, 0.9f, 1.1f),
             PropShape.Fern => new Vector3(1f, 0.6f, 1f),
             PropShape.FireBarrel => new Vector3(0.6f, 0.9f, 0.6f),
+            PropShape.PcDesk => new Vector3(1.3f, 1.15f, 0.7f),
             _ => Vector3.one,
         };
 
@@ -128,14 +132,7 @@ namespace VoidMall.World
                             slots.Add(new PropItemSlot { Position = new Vector3(-w / 2 + w * (k + 0.5f) / 4f, y, -0.02f), Size = new Vector3(w / 4f - 0.06f, free, d - 0.12f) });
                     }
                     break;
-                case PropShape.Fridge:
-                    for (int level = 0; level < 4; level++)
-                    {
-                        float y = 0.15f + level * 0.45f;
-                        for (int k = 0; k < 3; k++)
-                            slots.Add(new PropItemSlot { Position = new Vector3(-w / 2 + 0.05f + (w - 0.1f) * (k + 0.5f) / 3f, y, -0.05f), Size = new Vector3((w - 0.1f) / 3f - 0.04f, 0.4f, d - 0.15f) });
-                    }
-                    break;
+                // Холодильник (этап 8Ж) — хранилище с сеткой (ContainerSystem), товаров на полках нет.
                 case PropShape.PalletRack:
                     for (int level = 0; level < 3; level++)
                     {
@@ -694,6 +691,24 @@ namespace VoidMall.World
                         var leaf = new Color(0.18f + (i % 3) * 0.04f, 0.38f + (i % 2) * 0.08f, 0.14f, 0.15f);
                         b.Box(new Vector3(Mathf.Cos(a) * r, y, Mathf.Sin(a) * r), new Vector3(size, size * 0.75f, size), leaf, Quaternion.Euler(i * 17f, i * 41f, i * 23f));
                     }
+                    break;
+                }
+                case PropShape.PcDesk:
+                {
+                    // Стол и бежевый ЭЛТ-монитор экраном вперёд (+Z), рядом системный блок. Экран — квад от PcTerminal.
+                    var beige = new Color(0.8f, 0.77f, 0.68f, 0.3f);
+                    float top = 0.75f;
+                    b.BoxMinMax(new Vector3(-w / 2, top - 0.05f, -d / 2), new Vector3(w / 2, top, d / 2), Wood);
+                    for (int i = 0; i < 4; i++)
+                    {
+                        float x = (i & 1) == 0 ? -w / 2 + 0.03f : w / 2 - 0.08f;
+                        float z = (i & 2) == 0 ? -d / 2 + 0.03f : d / 2 - 0.08f;
+                        b.BoxMinMax(new Vector3(x, 0f, z), new Vector3(x + 0.05f, top - 0.05f, z + 0.05f), DarkMetal);
+                    }
+                    b.Box(new Vector3(0f, top + 0.2f, -0.05f), new Vector3(0.44f, 0.38f, 0.42f), beige);
+                    b.Box(new Vector3(0f, top + 0.2f, -0.32f), new Vector3(0.3f, 0.28f, 0.14f), beige);
+                    b.Box(new Vector3(0f, top + 0.012f, 0.3f), new Vector3(0.44f, 0.025f, 0.15f), beige);
+                    b.Box(new Vector3(0.45f, top + 0.19f, -0.05f), new Vector3(0.18f, 0.38f, 0.4f), beige);
                     break;
                 }
                 case PropShape.FireBarrel:

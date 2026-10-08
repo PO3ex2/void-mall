@@ -1,0 +1,41 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9d82c1d3ec8293645bea9e08775ed601, type: 3}
+  m_Name: fridge
+  m_EditorClassIdentifier: VoidMall.Items::VoidMall.Items.LootTable
+  Section: fridge
+  Fill: 0.5
+  Entries:
+  - Item: {fileID: 11400000, guid: e1b9cf1d70e965a41b24ab6215bbc218, type: 2}
+    Weight: 6
+    Min: 1
+    Max: 1
+  - Item: {fileID: 11400000, guid: 463f40fabc998e94e947f08588ee0493, type: 2}
+    Weight: 8
+    Min: 1
+    Max: 3
+  - Item: {fileID: 11400000, guid: 1bdc92680a0c5ff458da8035a1c7b7a1, type: 2}
+    Weight: 6
+    Min: 1
+    Max: 2
+  - Item: {fileID: 11400000, guid: 8dd3e5b23dcf82d499aaad5962c31e1f, type: 2}
+    Weight: 6
+    Min: 1
+    Max: 3
+  - Item: {fileID: 11400000, guid: 5d84514f17339d041ae45ba5ee4d3134, type: 2}
+    Weight: 5
+    Min: 1
+    Max: 2
+  - Item: {fileID: 11400000, guid: 6d27093780e8f354cbecc8d311808bf3, type: 2}
+    Weight: 2
+    Min: 1
+    Max: 1

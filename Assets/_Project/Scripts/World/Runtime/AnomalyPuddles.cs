@@ -86,6 +86,32 @@ namespace VoidMall.World
             _evaporated.Clear();
         }
 
+        // ───────────────────────────── Сейв (этап 9) ─────────────────────────────
+
+        public PuddlesData Capture()
+        {
+            var data = new PuddlesData();
+            foreach (var (key, drained) in _drained)
+            {
+                data.Drained.Add(key.ToString());
+                data.Amounts.Add(drained);
+            }
+            foreach (var key in _evaporated)
+                data.Evaporated.Add(key.ToString());
+            return data;
+        }
+
+        public void Restore(PuddlesData data)
+        {
+            OnWorldReset();
+            for (int i = 0; i < data.Drained.Count && i < data.Amounts.Count; i++)
+                if (ulong.TryParse(data.Drained[i], out ulong key))
+                    _drained[key] = data.Amounts[i];
+            foreach (var saved in data.Evaporated)
+                if (ulong.TryParse(saved, out ulong key))
+                    _evaporated.Add(key);
+        }
+
         private static readonly Perf.Probe UpdateProbe = Perf.Register("World.AnomalyPuddles");
 
         private void Update()
@@ -279,5 +305,14 @@ namespace VoidMall.World
             mesh.RecalculateBounds();
             return mesh;
         }
+    }
+
+    /// <summary>Лужи в сейве: сколько выпито (ключ — строкой) и какие иссякли.</summary>
+    [System.Serializable]
+    public sealed class PuddlesData
+    {
+        public List<string> Drained = new();
+        public List<float> Amounts = new();
+        public List<string> Evaporated = new();
     }
 }

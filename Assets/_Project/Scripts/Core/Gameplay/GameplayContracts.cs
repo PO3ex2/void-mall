@@ -127,6 +127,9 @@ namespace VoidMall.Core
         public const int Trigger = 10;
         public const int Debris = 11;
 
+        /// <summary>Проёмы порталов: камера портала их не видит (иначе проём рисовал бы сам себя).</summary>
+        public const int Portal = 12;
+
         /// <summary>С чем сталкивается капсула игрока.</summary>
         public const int PlayerCollisionMask = (1 << Default) | (1 << World) | (1 << Props) | (1 << Enemy);
     }

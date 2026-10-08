@@ -32,6 +32,7 @@ namespace VoidMall.UI
         private void Update()
         {
             using var perf = Perf.Measure(UpdateProbe);
+            _bar.style.display = GameHud.Visible ? DisplayStyle.Flex : DisplayStyle.None;
             if (_inventory == null && PlayerInventory.Local != null)
             {
                 _inventory = PlayerInventory.Local;

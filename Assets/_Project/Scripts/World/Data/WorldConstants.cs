@@ -11,6 +11,12 @@ namespace VoidMall.World
         public const int ChunkVolume = ChunkSize * ChunkSize * ChunkSize;
 
         public const int ChunksPerColumn = 4;
+
+        /// <summary>
+        /// Версия генератора мола. Поднимать, когда меняется то, что генерируется (сохранённые колонны останутся старыми,
+        /// новые — по-новому: на границе возможны швы, SaveSystem предупредит).
+        /// </summary>
+        public const int GeneratorVersion = 1;
         public const int WorldHeight = ChunkSize * ChunksPerColumn;
 
         /// <summary>Индекс клетки в чанке: X быстрее всего, потом Z, потом Y.</summary>

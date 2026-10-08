@@ -127,6 +127,29 @@ namespace VoidMall.Editor
             new("block.water_deep", "Глубокая вода", MaterialKind.Liquid, BlockPattern.Glass, 40, unbreakable: true, placeable: false, tint: new Color(0.3f, 0.52f, 0.68f)),
         };
 
+        /// <summary>Вес клетки в отломанном куске (этап 8Е), кг: по узору, с поправками для отдельных материалов.</summary>
+        private static float CellMass(in Spec spec) => spec.Id switch
+        {
+            "block.ceiling_tile" => 3f,
+            "block.foam_concrete" => 15f,
+            "block.duct" => 20f,
+            "block.cable_tray" => 15f,
+            "block.lamp_panel" or "block.emergency_lamp" or "block.skylight" => 5f,
+            _ => spec.Pattern switch
+            {
+                BlockPattern.Wood => 8f,
+                BlockPattern.Drywall or BlockPattern.Wallpaper => 10f,
+                BlockPattern.Glass => 12f,
+                BlockPattern.Carpet or BlockPattern.Linoleum => 5f,
+                BlockPattern.Soil or BlockPattern.Grass => 25f,
+                BlockPattern.FloorTile or BlockPattern.CheckerTile => 30f,
+                BlockPattern.Concrete or BlockPattern.Terrazzo or BlockPattern.Asphalt or BlockPattern.FacadePanel
+                    or BlockPattern.ParkingLineU or BlockPattern.ParkingLineV => 45f,
+                BlockPattern.Metal or BlockPattern.Shutter => 60f,
+                _ => 30f,
+            },
+        };
+
         /// <summary>Блок пола → его гладкий двойник.</summary>
         private static readonly (string block, string smooth)[] SmoothVariants =
         {
@@ -178,6 +201,7 @@ namespace VoidMall.Editor
                 def.Emission = spec.Emission;
                 def.Function = spec.Function;
                 def.FunctionalSize = spec.Size;
+                def.CellMass = CellMass(spec);
                 EditorUtility.SetDirty(def);
                 catalog.Materials.Add(def);
             }

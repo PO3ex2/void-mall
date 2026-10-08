@@ -42,7 +42,8 @@ namespace VoidMall.Survival
 
         private void Update()
         {
-            if (_vitals == null || _motor == null || _vitals.IsDead || _vitals.Sleeping)
+            // В лобби (этап 10) выживание на паузе — и пара изо рта нет (лобби далеко над миром, «на морозе»).
+            if (_vitals == null || _motor == null || _vitals.IsDead || _vitals.Sleeping || _vitals.Suspended)
                 return;
             // Под водой вместо пара — пузыри.
             bool underwater = _motor.State.HeadUnderwater;

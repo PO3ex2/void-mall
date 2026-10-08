@@ -49,6 +49,7 @@ namespace VoidMall.Editor
             public string Block;
             public float Poison;
             public string Leaves;
+            public float Life;
         }
 
         private static readonly Color Steel = new(0.62f, 0.64f, 0.68f);
@@ -137,9 +138,9 @@ namespace VoidMall.Editor
             new() { Id = "material.chemicals", Name = "Бытовая химия", Description = "Для химстола: антисептик, обезболивающее.", Category = ItemCategory.Material, Shape = ItemShape.Bottle, Size = new(0.08f, 0.2f, 0.08f), Weight = 0.6f, Stack = 5, Tint = new(0.85f, 0.9f, 0.95f) },
             new() { Id = "item.gas_canister", Name = "Газовый баллончик", Description = "Топливо для плиты и горелки: 5 минут готовки.", Category = ItemCategory.Misc, Shape = ItemShape.Can, Size = new(0.07f, 0.18f, 0.07f), Weight = 0.4f, Stack = 5, Tint = new(0.95f, 0.55f, 0.15f), Fuel = 300f },
             new() { Id = "item.torch", Name = "Факел", Description = "ЛКМ — зажечь. Горит, только пока в руке, около четырёх минут.", Category = ItemCategory.Tool, Shape = ItemShape.Pipe, Size = new(0.45f, 0.06f, 0.06f), Grid = new(2, 1), Weight = 0.4f, Tint = new(0.55f, 0.35f, 0.2f), Tool = ToolKind.Torch, Uses = 240 },
-            new() { Id = "item.dish_noodles_meat", Name = "Лапша с тушёнкой", Description = "Горячее блюдо: сытно, сбалансировано, успокаивает.", Category = ItemCategory.Food, Shape = ItemShape.Can, Size = new(0.14f, 0.08f, 0.14f), Weight = 0.6f, Stack = 3, Tint = new(0.9f, 0.75f, 0.45f), Calories = 835, Fat = 35, Protein = 50, Carbs = 80, Water = 300, Cooked = true },
-            new() { Id = "item.dish_beans_meat", Name = "Фасоль с мясом", Description = "Горячее блюдо: сытно, сбалансировано, успокаивает.", Category = ItemCategory.Food, Shape = ItemShape.Can, Size = new(0.14f, 0.08f, 0.14f), Weight = 0.7f, Stack = 3, Tint = new(0.65f, 0.35f, 0.2f), Calories = 790, Fat = 30, Protein = 60, Carbs = 70, Water = 150, Cooked = true },
-            new() { Id = "item.hot_chocolate", Name = "Горячий шоколад", Description = "Горячий напиток: вода и заметный плюс к рассудку.", Category = ItemCategory.Drink, Shape = ItemShape.Can, Size = new(0.08f, 0.1f, 0.08f), Weight = 0.35f, Stack = 3, Tint = new(0.45f, 0.28f, 0.18f), Calories = 248, Fat = 8, Protein = 4, Carbs = 40, Water = 400, Cooked = true },
+            new() { Id = "item.dish_noodles_meat", Name = "Лапша с тушёнкой", Description = "Горячее блюдо: сытно, сбалансировано, успокаивает.", Category = ItemCategory.Food, Shape = ItemShape.Can, Size = new(0.14f, 0.08f, 0.14f), Weight = 0.6f, Stack = 3, Tint = new(0.9f, 0.75f, 0.45f), Calories = 835, Fat = 35, Protein = 50, Carbs = 80, Water = 300, Cooked = true, Life = 48f },
+            new() { Id = "item.dish_beans_meat", Name = "Фасоль с мясом", Description = "Горячее блюдо: сытно, сбалансировано, успокаивает.", Category = ItemCategory.Food, Shape = ItemShape.Can, Size = new(0.14f, 0.08f, 0.14f), Weight = 0.7f, Stack = 3, Tint = new(0.65f, 0.35f, 0.2f), Calories = 790, Fat = 30, Protein = 60, Carbs = 70, Water = 150, Cooked = true, Life = 48f },
+            new() { Id = "item.hot_chocolate", Name = "Горячий шоколад", Description = "Горячий напиток: вода и заметный плюс к рассудку.", Category = ItemCategory.Drink, Shape = ItemShape.Can, Size = new(0.08f, 0.1f, 0.08f), Weight = 0.35f, Stack = 3, Tint = new(0.45f, 0.28f, 0.18f), Calories = 248, Fat = 8, Protein = 4, Carbs = 40, Water = 400, Cooked = true, Life = 48f },
             new() { Id = "item.workbench", Name = "Верстак", Description = "ПКМ — поставить (R — повернуть). Инструменты, гвозди, мебель, блоки, починка.", Category = ItemCategory.Misc, Shape = ItemShape.Box, Size = new(0.5f, 0.3f, 0.3f), Grid = new(3, 2), Weight = 15f, Tint = WoodColor, PlacesProp = "prop.workbench" },
             new() { Id = "item.sewing_table", Name = "Швейный стол", Description = "ПКМ — поставить. Одежда, рюкзаки, спальники, ткань из одежды.", Category = ItemCategory.Misc, Shape = ItemShape.Box, Size = new(0.45f, 0.3f, 0.3f), Grid = new(2, 2), Weight = 12f, Tint = new(0.85f, 0.85f, 0.82f), PlacesProp = "prop.sewing_table" },
             new() { Id = "item.chem_table", Name = "Химстол", Description = "ПКМ — поставить. Антисептик и обезболивающее из бытовой химии.", Category = ItemCategory.Misc, Shape = ItemShape.Box, Size = new(0.45f, 0.3f, 0.3f), Grid = new(2, 2), Weight = 12f, Tint = new(0.7f, 0.85f, 0.9f), PlacesProp = "prop.chem_table" },
@@ -163,6 +164,13 @@ namespace VoidMall.Editor
             new() { Id = "item.sliding_door_4", Name = "Автоматическая дверь 4×3", Description = "Широкий вход: четыре створки уезжают в стороны парами. ПКМ — поставить (R — повернуть), открывается сама, когда подходишь.", Category = ItemCategory.Block, Shape = ItemShape.Plank, Size = new(1.2f, 0.05f, 0.9f), Grid = new(4, 3), Weight = 26f, Tint = GlassDoorColor, Block = "fblock.sliding_door_4" },
             new() { Id = "item.shape_template", Name = "Набор шаблонов", Description = "Формы блоков: ПКМ — поставить призрак формы, Shift+колесо — сменить форму, R — повернуть, Shift+R — наклонить (верх в любую сторону), ЛКМ — убрать призрак. Призрак заполняется любым блоком (ПКМ блоком по нему). Не тратится.", Category = ItemCategory.Tool, Shape = ItemShape.Box, Size = new(0.3f, 0.05f, 0.25f), Grid = new(2, 1), Weight = 0.6f, Tint = new(0.45f, 0.75f, 1f), Tool = ToolKind.Template },
             new() { Id = "item.crusher", Name = "Дробилка", Description = "ПКМ — поставить. Блоки в бетонную крошку и обратно.", Category = ItemCategory.Misc, Shape = ItemShape.Box, Size = new(0.5f, 0.35f, 0.4f), Grid = new(3, 2), Weight = 20f, Tint = new(0.85f, 0.6f, 0.15f), PlacesProp = "prop.crusher" },
+
+            // ── Этап 8Ж: скоропортящееся (в холодильниках) и хранилища ──
+            new() { Id = "item.milk", Name = "Молоко", Description = "Портится за сутки, в холодильнике — за четверо.", Category = ItemCategory.Drink, Shape = ItemShape.Box, Size = new(0.07f, 0.2f, 0.07f), Grid = new(1, 2), Weight = 1f, Stack = 2, Tint = new(0.95f, 0.95f, 0.92f), Calories = 600, Fat = 32, Protein = 32, Carbs = 47, Water = 900, Life = 24f },
+            new() { Id = "item.yogurt", Name = "Йогурт", Description = "Портится за сутки, в холодильнике — за четверо.", Category = ItemCategory.Food, Shape = ItemShape.Can, Size = new(0.07f, 0.08f, 0.07f), Weight = 0.15f, Stack = 6, Tint = new(0.95f, 0.75f, 0.8f), Calories = 150, Fat = 5, Protein = 8, Carbs = 18, Water = 100, Life = 24f },
+            new() { Id = "item.sandwich", Name = "Сэндвич", Description = "Портится за сутки, в холодильнике — за четверо.", Category = ItemCategory.Food, Shape = ItemShape.Pack, Size = new(0.14f, 0.05f, 0.12f), Weight = 0.2f, Stack = 3, Tint = new(0.9f, 0.8f, 0.55f), Calories = 450, Fat = 18, Protein = 20, Carbs = 50, Water = 30, Life = 24f },
+            new() { Id = "item.wooden_crate", Name = "Деревянный ящик", Description = "ПКМ — поставить (R — повернуть). E — открыть: сетка 6×4. Лёгкий: можно унести.", Category = ItemCategory.Misc, Shape = ItemShape.Box, Size = new(0.3f, 0.2f, 0.25f), Grid = new(2, 2), Weight = 6f, PlacesProp = "prop.wooden_crate", Tint = WoodColor },
+            new() { Id = "item.metal_locker", Name = "Металлический шкаф", Description = "ПКМ — поставить (R — повернуть). E — открыть: сетка 8×8. Тяжёлый: только волоком.", Category = ItemCategory.Misc, Shape = ItemShape.Box, Size = new(0.3f, 0.5f, 0.2f), Grid = new(2, 3), Weight = 25f, PlacesProp = "prop.metal_locker", Tint = Steel },
         };
 
         /// <summary>Таблицы лута: раздел → (предмет, вес, мин, макс). Fill — доля мест на полках, где вообще что-то лежит.</summary>
@@ -188,6 +196,9 @@ namespace VoidMall.Editor
             ("register", 1f, new[] { ("material.electrical_tape", 5f, 1, 2), ("material.fuse", 4f, 1, 2), ("material.wire", 3f, 1, 2), ("item.chocolate", 4f, 1, 2), ("item.painkillers", 2f, 1, 1), ("material.screws", 2f, 3, 10), ("item.blueprint_drill", 0.3f, 1, 1), ("item.blueprint_hiking_backpack", 0.2f, 1, 1) }),
             // Ящики с лутом (разбить): не раздел, а свой ключ таблицы.
             ("crate", 1f, new[] { ("item.bucket", 1f, 1, 1), ("item.car_battery", 1f, 1, 1), ("item.canned_beans", 5f, 1, 3), ("item.canned_meat", 4f, 1, 2), ("item.water_bottle", 5f, 1, 2), ("item.bandage", 4f, 1, 2), ("item.painkillers", 2f, 1, 1), ("item.flashlight", 2f, 1, 1), ("item.gas_canister", 1.5f, 1, 1), ("material.fuse", 3f, 1, 2), ("material.wire", 3f, 1, 3), ("material.electrical_tape", 2f, 1, 1), ("material.nails", 3f, 10, 30), ("item.crowbar", 0.8f, 1, 1), ("item.hammer", 0.8f, 1, 1), ("item.blueprint_drill", 0.3f, 1, 1), ("item.blueprint_padded_vest", 0.3f, 1, 1), ("item.hiking_backpack", 0.4f, 1, 1) }),
+            // Хранилища мола (этап 8Ж): содержимое при первом открытии. Fill — доля клеток-попыток с находкой.
+            ("fridge", 0.5f, new[] { ("item.milk", 6f, 1, 1), ("item.yogurt", 8f, 1, 3), ("item.sandwich", 6f, 1, 2), ("item.soda", 6f, 1, 3), ("item.water_bottle", 5f, 1, 2), ("item.chocolate", 2f, 1, 1) }),
+            ("cabinet", 0.35f, new[] { ("material.cardboard", 6f, 1, 3), ("material.plastic", 4f, 1, 2), ("material.screws", 3f, 3, 12), ("material.electrical_tape", 2f, 1, 1), ("item.painkillers", 1f, 1, 1), ("item.chocolate", 2f, 1, 1), ("item.flashlight", 0.6f, 1, 1), ("item.blueprint_padded_vest", 0.15f, 1, 1) }),
             ("", 0.2f, new[] { ("material.cardboard", 4f, 1, 2), ("material.plastic", 4f, 1, 2), ("item.water_bottle", 2f, 1, 1), ("item.chips", 2f, 1, 1) }),
         };
 
@@ -292,6 +303,7 @@ namespace VoidMall.Editor
             def.Electric = spec.Electric;
             def.Cooked = spec.Cooked;
             def.PoisonChance = spec.Poison;
+            def.ShelfLifeHours = spec.Life;
             def.Leaves = spec.Leaves;
             def.FuelSeconds = spec.Fuel;
             def.TeachesRecipe = spec.Teaches;

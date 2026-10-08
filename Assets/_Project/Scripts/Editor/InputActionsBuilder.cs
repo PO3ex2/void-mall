@@ -70,7 +70,6 @@ namespace VoidMall.Editor
                 .With("Negative", "<Gamepad>/dpad/right", Pad)
                 .With("Positive", "<Gamepad>/dpad/left", Pad);
             Button(map, "Inventory", ("<Keyboard>/tab", Kbm), ("<Gamepad>/select", Pad));
-            Button(map, "Pause", ("<Keyboard>/escape", Kbm), ("<Gamepad>/start", Pad));
         }
 
         private static void BuildGlobal(InputActionMap map)
@@ -80,6 +79,8 @@ namespace VoidMall.Editor
             Button(map, "ToggleDebugPanel", ("<Keyboard>/f4", Kbm));
             Button(map, "ToggleMap", ("<Keyboard>/f6", Kbm));
             Button(map, "ToggleInventory", ("<Keyboard>/tab", Kbm), ("<Gamepad>/select", Pad));
+            // Меню по Esc (этап 10): в Global — им же меню и закрывается, когда игровая карта выключена.
+            Button(map, "Pause", ("<Keyboard>/escape", Kbm), ("<Gamepad>/start", Pad));
         }
 
         private static void BuildTerminal(InputActionMap map)

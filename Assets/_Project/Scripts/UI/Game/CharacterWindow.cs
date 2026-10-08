@@ -51,6 +51,13 @@ namespace VoidMall.UI
         private Label _weight;
         private VisualElement _weightBar;
 
+        private VisualElement _containerColumn;
+        private Label _containerTitle;
+        private GridView _container;
+        private GridInventory _containerGrid;
+        private Transform _containerAnchor;
+        private const float ContainerReach = 3.5f;
+
         private PlayerInventory _inventory;
         private bool _open;
         private bool _dirty = true;
@@ -66,8 +73,14 @@ namespace VoidMall.UI
 
         public bool IsOpen => _open;
 
+        public static CharacterWindow Instance { get; private set; }
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetStatics() => Instance = null;
+
         public void Initialize(InputService input)
         {
+            Instance = this;
             _input = input;
             _toggle = input.Action(InputService.Maps.Global, "ToggleInventory");
             _root = GetComponent<UIDocument>().rootVisualElement;
@@ -92,6 +105,13 @@ namespace VoidMall.UI
                 SetOpen(false);
             if (!_open || _inventory == null)
                 return;
+            // Отошли от хранилища (или его сломали) — окно закрывается.
+            if (_containerGrid != null && (_containerAnchor == null || !_containerAnchor.gameObject.activeInHierarchy
+                || Vector3.Distance(_containerAnchor.position, _inventory.transform.position) > ContainerReach))
+            {
+                SetOpen(false);
+                return;
+            }
 
             // Поворот имеет смысл только у неквадратных предметов (1×1, 2×2 повернуть — то же самое).
             if (_dragging != null && Keyboard.current != null && Keyboard.current.rKey.wasPressedThisFrame && IsRotatable(_dragging))
@@ -127,7 +147,57 @@ namespace VoidMall.UI
             {
                 CancelDrag();
                 _input.Pop(InputContext.Menu);
+                CloseContainer();
             }
+        }
+
+        /// <summary>Открыть окно с хранилищем (E по ящику, шкафу, холодильнику): его сетка рядом с инвентарём.</summary>
+        public void OpenContainer(GridInventory grid, string title, Transform anchor)
+        {
+            if (grid == null)
+                return;
+            CloseContainer();
+            _containerGrid = grid;
+            _containerAnchor = anchor;
+            _containerGrid.Changed += MarkDirty;
+            _containerTitle.text = title;
+            _containerColumn.style.display = DisplayStyle.Flex;
+            SelectTab(0);
+            SetOpen(true);
+            _dirty = true;
+        }
+
+        private void CloseContainer()
+        {
+            if (_containerGrid != null)
+                _containerGrid.Changed -= MarkDirty;
+            _containerGrid = null;
+            _containerAnchor = null;
+            _container.Bind(null, null, null);
+            _containerColumn.style.display = DisplayStyle.None;
+        }
+
+        private void MarkDirty() => _dirty = true;
+
+        /// <summary>Переложить стак из хранилища к себе (карманы, потом рюкзак) или обратно. Не влезло — остаётся.</summary>
+        private void Transfer(ItemStack stack, GridInventory from)
+        {
+            if (from == _containerGrid)
+            {
+                from.Remove(stack);
+                int left = _inventory.Pockets.TryAdd(stack);
+                if (left > 0 && _inventory.Backpack != null)
+                    left = _inventory.Backpack.TryAdd(stack);
+                if (left > 0)
+                    from.TryAdd(stack);
+                return;
+            }
+            int slot = _inventory.Hotbar.IndexOf(stack);
+            from.Remove(stack);
+            if (_containerGrid.TryAdd(stack) > 0)
+                from.TryAdd(stack);
+            else if (slot >= 0)
+                _inventory.RefillHotbar(slot, stack.Def);
         }
 
         // ───────────────────────────── Разметка ─────────────────────────────
@@ -218,6 +288,20 @@ namespace VoidMall.UI
             _backpack.ItemHovered = ShowInfo;
             middle.Add(_backpack);
             _inventoryTab.Add(middle);
+
+            // Хранилище (этап 8Ж): видно, только когда открыто через E.
+            _containerColumn = Column(0f);
+            _containerColumn.style.marginRight = 16f;
+            _containerTitle = Title("Хранилище");
+            _containerTitle.style.whiteSpace = WhiteSpace.Normal;
+            _containerTitle.style.maxWidth = 360f;
+            _containerColumn.Add(_containerTitle);
+            _container = new GridView();
+            _container.ItemPointerDown = (stack, evt) => OnItemPointerDown(stack, _container.Grid, evt);
+            _container.ItemHovered = ShowInfo;
+            _containerColumn.Add(_container);
+            _containerColumn.style.display = DisplayStyle.None;
+            _inventoryTab.Add(_containerColumn);
 
             // Карточка предмета и вес.
             var right = Column(240f);
@@ -459,6 +543,8 @@ namespace VoidMall.UI
             _pockets.Bind(_inventory.Pockets, items, _dragging);
             var backpack = _inventory.Equipment.Backpack;
             _backpack.Bind(backpack?.Contents, items, _dragging);
+            if (_containerGrid != null)
+                _container.Bind(_containerGrid, items, _dragging);
             _backpackTitle.text = backpack != null ? $"Рюкзак: {items.Get(backpack.Def).DisplayName}" : "Рюкзака нет — наденьте рюкзак, чтобы носить больше";
             _layerButton.text = _layer == EquipLayer.Armor ? "Слой: броня · переключить на одежду" : "Слой: одежда · переключить на броню";
             BuildEquipment();
@@ -592,6 +678,10 @@ namespace VoidMall.UI
                 sb.Append($"\nЖиры {def.Fat:0} г · белки {def.Protein:0} г · углеводы {def.Carbs:0} г");
             if (stack.Spoiled)
                 sb.Append("\nИспорчено: вдвое меньше калорий и отравление");
+            else if (stack.ShelfLife > 0f)
+                sb.Append($"\nСвежесть: {Freshness.Fraction(stack) * 100f:0}% · испортится через {FormatHours(Freshness.HoursLeft(stack))}{(stack.Chilled ? " (в холоде)" : "")}");
+            else if (def.Category is ItemCategory.Food or ItemCategory.Drink)
+                sb.Append("\nНе портится");
             if (def.Treats != MedicalTreatment.None)
                 sb.Append($"\nЛечит: {TreatsText(def.Treats)}");
             if (def.Heal > 0)
@@ -617,6 +707,15 @@ namespace VoidMall.UI
             _infoBody.text = sb.ToString();
         }
 
+        /// <summary>Игровые часы: «5 ч», «1 д 3 ч».</summary>
+        private static string FormatHours(float hours)
+        {
+            int total = Mathf.Max(0, Mathf.RoundToInt(hours));
+            if (total < 1)
+                return "меньше часа";
+            return total >= 24 ? $"{total / 24} д {total % 24} ч" : $"{total} ч";
+        }
+
         // ───────────────────────────── Перетаскивание ─────────────────────────────
 
         private void OnItemPointerDown(ItemStack stack, GridInventory grid, PointerDownEvent evt)
@@ -624,6 +723,12 @@ namespace VoidMall.UI
             if (_dragging != null || grid == null)
                 return;
             evt.StopPropagation();
+            // Хранилище открыто: ПКМ и Shift+клик перекладывают между ним и инвентарём.
+            if (_containerGrid != null && (evt.button == 1 || (evt.button == 0 && evt.shiftKey)))
+            {
+                Transfer(stack, grid);
+                return;
+            }
             if (evt.button == 1)
             {
                 int slot = _inventory.Hotbar.IndexOf(stack);
@@ -730,6 +835,7 @@ namespace VoidMall.UI
         {
             _pockets.HidePreview();
             _backpack.HidePreview();
+            _container.HidePreview();
             if (_dragging == null)
                 return;
             var grid = GridUnderPointer(out var view);
@@ -746,7 +852,7 @@ namespace VoidMall.UI
             var picked = _root.panel.Pick(_pointer);
             for (var e = picked; e != null; e = e.parent)
             {
-                if (e == _pockets || e == _backpack)
+                if (e == _pockets || e == _backpack || (e == _container && _containerGrid != null))
                 {
                     view = (GridView)e;
                     return view.Grid;
@@ -771,8 +877,9 @@ namespace VoidMall.UI
             var def = items.Get(stack.Def);
             var picked = _root.panel.Pick(_pointer);
 
-            // Слоты экипировки и хотбара помечены userData.
-            for (var e = picked; e != null; e = e.parent)
+            bool fromContainer = _dragSource == Source.Grid && _dragGrid == _containerGrid && _containerGrid != null;
+            // Слоты экипировки и хотбара помечены userData (из хранилища — сначала к себе в сетку).
+            for (var e = picked; e != null && !fromContainer; e = e.parent)
             {
                 if (e.userData is (EquipSlot slot, EquipLayer layer))
                 {
@@ -822,7 +929,7 @@ namespace VoidMall.UI
             for (var e = picked; e != null; e = e.parent)
                 if (e == _window)
                     insideWindow = true;
-            if (!insideWindow)
+            if (!insideWindow && !fromContainer)
                 _inventory.Drop(stack);
         }
 

@@ -864,6 +864,93 @@ namespace VoidMall.Survival
             else if (Sanity < 40f) output.Add(StatusKind.Anxious);
         }
 
+        // ───────────────────────────── Сейв (этап 8Ж) ─────────────────────────────
+
+        /// <summary>Снять состояние для сейва (поля по именам: новые поля в старом сейве получат значения по умолчанию).</summary>
+        public VitalsData Capture()
+        {
+            var data = new VitalsData
+            {
+                Health = Health, Calories = Calories, Water = Water, Rest = Rest, Sanity = Sanity,
+                BodyTemperature = BodyTemperature, Stamina = Stamina, Air = Air, StaminaExhausted = StaminaExhausted,
+                LookExposure = LookExposure, SinceLook = Mathf.Min(_sinceLook, 1e6f), SleptHours = _sleptHours, StaminaDelay = _staminaDelay,
+            };
+            foreach (var status in Statuses)
+                data.Statuses.Add(new StatusData
+                {
+                    Kind = status.Kind.ToString(),
+                    Endless = float.IsPositiveInfinity(status.Remaining),
+                    Remaining = float.IsPositiveInfinity(status.Remaining) ? 0f : status.Remaining,
+                    Intensity = status.Intensity, Age = status.Age, Stacks = status.Stacks, Splinted = status.Splinted,
+                });
+            foreach (var (age, fat, protein, carbs) in _diet)
+                data.Diet.Add(new DietData { Age = age, Fat = fat, Protein = protein, Carbs = carbs });
+            return data;
+        }
+
+        /// <summary>Вернуть состояние из сейва. Неизвестные статусы (убраны из игры) пропускаются.</summary>
+        public void Restore(VitalsData data)
+        {
+            Health = data.Health;
+            Calories = data.Calories;
+            Water = data.Water;
+            Rest = data.Rest;
+            Sanity = data.Sanity;
+            BodyTemperature = data.BodyTemperature;
+            Stamina = data.Stamina;
+            Air = data.Air;
+            StaminaExhausted = data.StaminaExhausted;
+            LookExposure = data.LookExposure;
+            _sinceLook = data.SinceLook;
+            _sleptHours = data.SleptHours;
+            _staminaDelay = data.StaminaDelay;
+            DeathReason = null;
+            Statuses.Clear();
+            foreach (var saved in data.Statuses)
+            {
+                if (!Enum.TryParse(saved.Kind, out StatusKind kind))
+                    continue;
+                Statuses.Add(new Status
+                {
+                    Kind = kind,
+                    Remaining = saved.Endless ? float.PositiveInfinity : saved.Remaining,
+                    Intensity = saved.Intensity, Age = saved.Age, Stacks = saved.Stacks, Splinted = saved.Splinted,
+                });
+            }
+            _diet.Clear();
+            foreach (var entry in data.Diet)
+                _diet.Add((entry.Age, entry.Fat, entry.Protein, entry.Carbs));
+        }
+
         private bool Roll(float chance) => chance > 0f && _random.NextDouble() < chance;
+    }
+
+    /// <summary>Показатели игрока в сейве.</summary>
+    [Serializable]
+    public sealed class VitalsData
+    {
+        public float Health = 100f, Calories = 2000f, Water = 2000f, Rest = 100f, Sanity = 100f;
+        public float BodyTemperature = 36.6f, Stamina = 100f, Air = 40f;
+        public bool StaminaExhausted;
+        public float LookExposure, SinceLook = 1e6f, SleptHours, StaminaDelay;
+        public List<StatusData> Statuses = new();
+        public List<DietData> Diet = new();
+    }
+
+    [Serializable]
+    public sealed class StatusData
+    {
+        /// <summary>Имя StatusKind (не номер: порядок перечисления может меняться).</summary>
+        public string Kind;
+        public bool Endless;
+        public float Remaining, Intensity = 1f, Age;
+        public int Stacks = 1;
+        public bool Splinted;
+    }
+
+    [Serializable]
+    public sealed class DietData
+    {
+        public float Age, Fat, Protein, Carbs;
     }
 }

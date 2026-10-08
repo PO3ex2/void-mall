@@ -96,6 +96,7 @@ namespace VoidMall.Items
         {
             if (stack == null || stack.Count <= 0 || ItemSystem.Instance == null)
                 return null;
+            Freshness.SetCold(stack, false); // на полу — обычная порча
             var entry = new Entry { Stack = stack, Position = position, Rotation = rotation ?? Quaternion.Euler(0f, Random.Range(0f, 360f), 0f) };
             _entries.Add(entry);
             var item = Instantiate(entry);
@@ -103,6 +104,36 @@ namespace VoidMall.Items
             item.Body.linearVelocity = velocity;
             item.Body.angularVelocity = tumble ? Random.insideUnitSphere * 2f : Vector3.zero;
             return item;
+        }
+
+        // ───────────────────────────── Сейв (этап 9) ─────────────────────────────
+
+        public WorldItemsData Capture()
+        {
+            var data = new WorldItemsData();
+            var items = ItemSystem.Instance.Items;
+            foreach (var entry in _entries)
+            {
+                var saved = ItemSnapshot.WriteStack(entry.Stack, "world", -1, items, data.Stacks);
+                bool live = entry.Instance != null;
+                data.Items.Add(new SavedWorldItem
+                {
+                    Stack = saved.Id,
+                    Position = live ? entry.Instance.transform.position : entry.Position,
+                    Rotation = live ? entry.Instance.transform.rotation : entry.Rotation,
+                });
+            }
+            return data;
+        }
+
+        /// <summary>Вернуть предметы на полу: объекты появятся стримингом рядом с игроком.</summary>
+        public void Restore(WorldItemsData data)
+        {
+            OnWorldReset();
+            var stacks = ItemSnapshot.ReadAll(data.Stacks, ItemSystem.Instance.Items);
+            foreach (var saved in data.Items)
+                if (stacks.TryGetValue(saved.Stack, out var stack))
+                    _entries.Add(new Entry { Stack = stack, Position = saved.Position, Rotation = saved.Rotation });
         }
 
         /// <summary>Подобрать: убрать из мира и вернуть стак.</summary>
@@ -282,5 +313,20 @@ namespace VoidMall.Items
             item = collider != null ? collider.GetComponent<WorldItem>() : null;
             return item != null && item.Stack != null;
         }
+    }
+
+    [System.Serializable]
+    public sealed class SavedWorldItem
+    {
+        public int Stack;
+        public Vector3 Position;
+        public Quaternion Rotation = Quaternion.identity;
+    }
+
+    [System.Serializable]
+    public sealed class WorldItemsData
+    {
+        public List<SavedStack> Stacks = new();
+        public List<SavedWorldItem> Items = new();
     }
 }

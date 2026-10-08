@@ -13,7 +13,7 @@ namespace VoidMall.World
         public ushort Cabinet, Boiler, Bench, Planter, Sofa, CardboardBox, PlasticCrate, TrashBin;
         public ushort Switchboard, CableReel, VentUnit, Bed;
         public ushort Workbench, SewingTable, ChemTable, Stove, Crusher;
-        public ushort Turnstile, OfficeDesk, OfficeChair, FilingCabinet, WaterCooler, CubicleWall, Stanchion, TrashPile, LootCrate, Pallet, ImpulseRack, WorkLight, Bush, Fern;
+        public ushort PcDesk, Turnstile, OfficeDesk, OfficeChair, FilingCabinet, WaterCooler, CubicleWall, Stanchion, TrashPile, LootCrate, Pallet, ImpulseRack, WorkLight, Bush, Fern;
 
         public ushort StationProp(CraftStation station) => station switch
         {
@@ -68,6 +68,7 @@ namespace VoidMall.World
             WorkLight = props.IndexOf("prop.work_light"),
             Bush = props.IndexOf("prop.bush"),
             Fern = props.IndexOf("prop.fern"),
+            PcDesk = props.IndexOf("prop.pc_desk"),
         };
     }
 
@@ -100,9 +101,19 @@ namespace VoidMall.World
             public List<float4> Occupied;
         }
 
-        /// <summary>Устойчивый ID пропа: старшие 32 бита — ячейка и уровень, младшие — порядковый номер.</summary>
-        public static ulong MakeId(int2 cell, int level, int index) =>
-            ((ulong)Hash.Get(0x50524F50u, cell.x, cell.y, level) << 32) | (uint)index;
+        /// <summary>
+        /// Устойчивый ID пропа (этап 8Ж): ячейка и уровень, вид пропа (по строковому ID — не по индексу в реестре) и клетка,
+        /// где он стоит. Новый проп в генераторе не сдвигает ID остальных; проп, который правка генератора передвинула на
+        /// другую клетку, получает новый ID и появляется «как новый» — без состояния чужой мебели. Одинаковые пропы в одной
+        /// клетке различает dup (номер среди таких же). Старший бит всегда 0: не пересекается с ID, созданными игроком.
+        /// </summary>
+        public static ulong MakeId(int2 cell, int level, string defId, int3 position, int dup)
+        {
+            uint kind = Hash.String(defId);
+            uint high = Hash.Get(0x50524F50u, cell.x, cell.y, level, (int)kind);
+            uint low = Hash.Get(kind ^ 0x1D5u, position.x, position.y, position.z, dup);
+            return (((ulong)high << 32) | low) & 0x7FFFFFFFFFFFFFFFUL;
+        }
 
         public static void Place(uint seed, in MallCellInfo info, in MallLevelPlan plan, NativeArray<SectionInfo> sections,
             PropRegistry props, in PropIds ids, List<PropSpawn> output)
@@ -235,10 +246,18 @@ namespace VoidMall.World
                 Abandon(ctx, plan, i, layout, h, output);
             }
 
+            PlaceTerminal(ctx, plan, sections, output);
+
+            var seen = new Dictionary<ulong, int>();
             for (int i = start; i < output.Count; i++)
             {
                 var spawn = output[i];
-                spawn.Id = MakeId(info.Cell, plan.Level, i - start);
+                var position = (int3)math.floor(new float3(spawn.Position.x, spawn.Position.y, spawn.Position.z));
+                string defId = props.Get(spawn.Def).Id;
+                ulong id = MakeId(info.Cell, plan.Level, defId, position, 0);
+                seen.TryGetValue(id, out int dup);
+                seen[id] = dup + 1;
+                spawn.Id = dup == 0 ? id : MakeId(info.Cell, plan.Level, defId, position, dup);
                 // Перевёрнутый чанк: мебель «стоит» на потолке вверх ногами (пол и потолок поменялись местами).
                 if (MallPlanner.InInverted(info, new float2(spawn.Position.x, spawn.Position.z)))
                 {
@@ -268,6 +287,35 @@ namespace VoidMall.World
         // ───────────────────────────── Особые места (этап 8Б) ─────────────────────────────
 
         /// <summary>Вход в мол: ряд турникетов поперёк западной галереи и две кассы по краям (фасад — в плане).</summary>
+        /// <summary>Доля уровней (ячейка × этаж), где стоит ПК: на квартал из семи уровней — около одного на десять кварталов.</summary>
+        public const float TerminalChance = 0.015f;
+
+        /// <summary>Редкий ПК в мире (этап 10): в офисе или служебной комнате, последним в расстановке — остальной мебели не мешает.</summary>
+        private static void PlaceTerminal(in Context ctx, in MallLevelPlan plan, NativeArray<SectionInfo> sections, List<PropSpawn> output)
+        {
+            if (ctx.Level < MallLayout.ParkingLevels)
+                return;
+            uint h = Hash.Get(ctx.Seed, ctx.Info.Cell.x, ctx.Info.Cell.y, Salt + 7100 + ctx.Level);
+            if (Hash.ToFloat01(h) >= TerminalChance)
+                return;
+            var candidates = new List<int>();
+            for (int i = 1; i < plan.Rooms.Length; i++)
+            {
+                var r = plan.Rooms[i];
+                if (r.Has(RoomFlags.Stairwell) || r.Has(RoomFlags.Corridor) || r.Has(RoomFlags.Empty))
+                    continue;
+                var section = sections[r.Section];
+                if (section.Layout == SectionLayout.Office || section.Service)
+                    candidates.Add(i);
+            }
+            if (candidates.Count == 0)
+                return;
+            int room = candidates[(int)(Hash.Get(h, 1) % (uint)candidates.Count)];
+            int before = output.Count;
+            for (int attempt = 0; attempt < 4 && output.Count == before; attempt++)
+                Scatter(ctx, plan, room, ctx.Ids.PcDesk, 1, Hash.Get(h, 2 + attempt), output);
+        }
+
         private static void PlaceEntrance(in Context ctx, in MallLevelPlan plan, List<PropSpawn> output)
         {
             if (!ctx.Info.HasEntrance || ctx.Level != MallLayout.FirstRetailLevel)
@@ -277,6 +325,8 @@ namespace VoidMall.World
                 TryAdd(ctx, plan, 0, ctx.Ids.Turnstile, new float2(4.2f + i * 1.6f, z), 0f, output);
             TryAdd(ctx, plan, 0, ctx.Ids.Checkout, new float2(1.9f, z + 1f), 90f, output);
             TryAdd(ctx, plan, 0, ctx.Ids.Checkout, new float2(12.1f, z + 1f), 270f, output);
+            // ПК у входа (этап 10): всегда один — консоль, сейвы, настройки, «в лобби».
+            TryAdd(ctx, plan, 0, ctx.Ids.PcDesk, new float2(12.2f, z + 5f), 270f, output);
         }
 
         /// <summary>Круглая площадь: место под фонтан занято, вокруг — кольцо скамеек и кадок.</summary>

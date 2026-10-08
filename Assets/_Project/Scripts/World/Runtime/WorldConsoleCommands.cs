@@ -120,7 +120,7 @@ namespace VoidMall.World
                 for (int dx = -4; dx <= 4; dx++)
                 {
                     var biome = world.GetCellInfo(center + new int2(dx, dz)).Biome;
-                    char c = biome switch { MallBiome.Empty => 'П', MallBiome.AnomalyField => 'А', _ => 'Н' };
+                    char c = biome switch { MallBiome.Empty => 'П', MallBiome.AnomalyField => 'А', MallBiome.Forest => 'Л', _ => 'Н' };
                     sb.Append(dx == 0 && dz == 0 ? '[' : ' ').Append(c).Append(dx == 0 && dz == 0 ? ']' : ' ');
                 }
                 sb.Append('\n');

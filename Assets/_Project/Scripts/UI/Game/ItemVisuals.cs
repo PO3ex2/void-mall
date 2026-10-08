@@ -101,6 +101,27 @@ namespace VoidMall.UI
             return back;
         }
 
+        /// <summary>Полоска свежести скоропортящегося (сверху, голубая в холоде). Null — не портится или испорчено.</summary>
+        public static VisualElement FreshnessBar(ItemStack stack)
+        {
+            if (stack.ShelfLife <= 0f || stack.Spoiled)
+                return null;
+            float fresh = Freshness.Fraction(stack);
+            var back = new VisualElement { pickingMode = PickingMode.Ignore };
+            back.style.position = Position.Absolute;
+            back.style.left = 4f;
+            back.style.right = 4f;
+            back.style.top = 3f;
+            back.style.height = 3f;
+            back.style.backgroundColor = new Color(0f, 0f, 0f, 0.6f);
+            var fill = new VisualElement { pickingMode = PickingMode.Ignore };
+            fill.style.height = 3f;
+            fill.style.width = Length.Percent(fresh * 100f);
+            fill.style.backgroundColor = stack.Chilled ? new Color(0.5f, 0.8f, 1f) : Color.Lerp(new Color(0.75f, 0.55f, 0.2f), new Color(0.55f, 0.85f, 0.4f), fresh);
+            back.Add(fill);
+            return back;
+        }
+
         public static Label CountLabel(int count)
         {
             var label = new Label(count > 1 ? count.ToString() : string.Empty) { pickingMode = PickingMode.Ignore };
@@ -223,6 +244,9 @@ namespace VoidMall.UI
                 var wear = ItemVisuals.WearBar(stack, def);
                 if (wear != null)
                     element.Add(wear);
+                var fresh = ItemVisuals.FreshnessBar(stack);
+                if (fresh != null)
+                    element.Add(fresh);
                 element.RegisterCallback<PointerDownEvent>(evt => ItemPointerDown?.Invoke(stack, evt));
                 element.RegisterCallback<PointerEnterEvent>(_ => ItemHovered?.Invoke(stack));
                 _items.Add(element);

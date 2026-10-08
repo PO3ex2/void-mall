@@ -39,6 +39,7 @@ namespace VoidMall.Game
                 Debug.LogError("[Bootstrap] Project-wide input actions are not set.");
                 return;
             }
+            KeyBindings.Load(InputSystem.actions);
             var input = new InputService(InputSystem.actions);
             Services.Register(input);
 
@@ -46,6 +47,22 @@ namespace VoidMall.Game
 
             Root.AddComponent<DebugMiningLog>();
             Root.AddComponent<PlayerFallGuard>();
+            Root.AddComponent<SaveSystem>();
+            Root.AddComponent<GameFlow>();
+            Root.AddComponent<WorldTerminals>();
+            if (Config.PanelSettings != null)
+            {
+                var pause = new GameObject("PauseMenu");
+                pause.SetActive(false);
+                pause.transform.SetParent(Root.transform, false);
+                var document = pause.AddComponent<UnityEngine.UIElements.UIDocument>();
+                document.panelSettings = Config.PanelSettings;
+                document.sortingOrder = 90;
+                var menu = pause.AddComponent<PauseMenu>();
+                pause.SetActive(true);
+                menu.Initialize(input);
+            }
+            PcSettingsApp.ApplyVolume();
 
             if (Config.PanelSettings != null)
                 DevToolsUI.Create(Root.transform, Config.PanelSettings, input);

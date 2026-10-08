@@ -41,7 +41,7 @@ namespace VoidMall.World
     }
 
     /// <summary>Реестр материалов мира: ID ↔ индекс ↔ описание, плюс NativeArray для джобов.</summary>
-    public sealed class MaterialRegistry : IDisposable
+    public sealed class MaterialRegistry : IMaterialIds, IDisposable
     {
         private readonly Registry<MaterialDef> _registry = new();
 
@@ -96,6 +96,8 @@ namespace VoidMall.World
         }
 
         public MaterialDef Get(int index) => _registry.Get(index);
+
+        public string IdOf(ushort material) => _registry.Get(material).Id;
 
         public ushort IndexOf(string id) => (ushort)_registry.Get(id).RuntimeIndex;
 

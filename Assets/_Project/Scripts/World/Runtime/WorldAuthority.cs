@@ -20,6 +20,8 @@ namespace VoidMall.World
         private readonly List<List<int3>> _islands = new();
         private readonly Dictionary<ushort, float> _mined = new();
         private readonly List<Cell> _islandValues = new();
+        private readonly List<int3> _bodyCells = new();
+        private readonly List<(ulong id, int3 anchor)> _anchored = new();
 
         private ChunkManager _world;
         private DebrisSpawner _debris;
@@ -354,11 +356,32 @@ namespace VoidMall.World
                 Collapse(island);
         }
 
+        /// <summary>
+        /// Остров без опоры отрывается: куском (воксельным телом), если помещается в его пределы, иначе рассыпается
+        /// обломками. Функциональные блоки (двери, ворота) в кусок не идут — выпадают своим предметом.
+        /// </summary>
         private void Collapse(List<int3> island)
         {
+            var props = PropManager.Instance;
+            if (props != null)
+                props.CollectAnchoredTo(island, _anchored);
+            else
+                _anchored.Clear();
+
+            _bodyCells.Clear();
             _islandValues.Clear();
             foreach (var cell in island)
-                _islandValues.Add(_world.GetCell(cell));
+            {
+                Cell value = _world.GetCell(cell);
+                if (_world.GetInfo(value.Material).Kind == MaterialKind.Functional)
+                {
+                    if (math.all(FunctionalCells.AnchorOf(cell, value) == cell))
+                        PublishMined(value.Material, 1f, cell);
+                    continue;
+                }
+                _bodyCells.Add(cell);
+                _islandValues.Add(value);
+            }
 
             using (_world.BeginBatch())
             {
@@ -370,8 +393,10 @@ namespace VoidMall.World
                 }
             }
 
+            if (_bodyCells.Count == 0 || (props != null && props.SpawnIsland(_bodyCells, _islandValues, _anchored)))
+                return;
             if (_debris != null)
-                _debris.Spawn(island, _islandValues);
+                _debris.Spawn(_bodyCells, _islandValues);
         }
 
         private void BroadcastChange(int3 position, Cell cell) => Broadcast(position, cell, 0);

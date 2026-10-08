@@ -51,6 +51,8 @@ namespace VoidMall.Game
         private bool _hasDrillTarget;
         private RaycastHit _drillHit;
         private PropBody _propTarget;
+        private bool _hasVoxelTarget;
+        private int3 _voxelCell, _voxelNormal;
         private float _smoothDebt;
 
         private Transform _outline;
@@ -58,6 +60,7 @@ namespace VoidMall.Game
         private Transform _brush;
         private Material _crackInstance;
         private Label _info;
+        private VisualElement _crosshair;
         private string _lastInfo;
         private Light _flashlight;
         private bool _flashlightOn;
@@ -139,12 +142,15 @@ namespace VoidMall.Game
             _hasTarget = World.Raycast(view.position, view.forward, _reach, out _target);
             _hasDrillTarget = Physics.Raycast(view.position, view.forward, out _drillHit, _reach, WorldMask, QueryTriggerInteraction.Ignore);
             _propTarget = null;
+            _hasVoxelTarget = false;
             if (Physics.Raycast(view.position, view.forward, out var propHit, _reach, WorldMask | PropMask, QueryTriggerInteraction.Ignore)
                 && PropManager.TryGetProp(propHit.collider, out var prop)
                 && (!_hasTarget || propHit.distance < _target.Distance))
             {
                 _propTarget = prop;
                 _hasTarget = false;
+                // Отломанный кусок: целимся в его клетку (ломать, пристраивать), как в блок мира.
+                _hasVoxelTarget = prop.Voxel != null && prop.Voxel.TryGetCell(propHit.point, propHit.normal, out _voxelCell, out _voxelNormal);
             }
 
             _ghostVisible = false;
@@ -188,7 +194,9 @@ namespace VoidMall.Game
             }
             if (HandleTemplate(item))
                 return;
-            if (item != null && item.PlacesBlock != null && !HandleBlockItem(item))
+            if (item != null && item.PlacesBlock != null && _hasVoxelTarget)
+                HandleVoxelPlacing(item);
+            else if (item != null && item.PlacesBlock != null && !HandleBlockItem(item))
                 HandlePlacing(item);
             if (item != null && !string.IsNullOrEmpty(item.PlacesProp))
                 HandleBuilding(item);
@@ -234,6 +242,15 @@ namespace VoidMall.Game
             float power = 1f + 0.15f * PlayerSkills.LevelOf(SkillId.Wrecker);
             if (_propTarget != null && PropManager.Instance != null)
             {
+                if (_hasVoxelTarget)
+                {
+                    if (item == null && _propTarget.Voxel.Grid.TryGet(_voxelCell, out var piece))
+                        TryCutHands(piece.Material);
+                    PropManager.Instance.DamageVoxel(_propTarget, _voxelCell, Mathf.RoundToInt((striker ? item.BlockDamage : HandDamage.Value) * power));
+                    if (striker)
+                        WearActive();
+                    return;
+                }
                 PropManager.Instance.Damage(_propTarget, Mathf.RoundToInt((striker ? item.PropDamage : HandDamage.Value) * power));
                 if (striker)
                     WearActive();
@@ -403,6 +420,29 @@ namespace VoidMall.Game
             PlayerSkills.AwardLocal(Aspect.Construction, 0.15f);
         }
 
+        /// <summary>Блок в руке, прицел на отломанном куске: ПКМ пристраивает блок к куску (в его сетку).</summary>
+        private void HandleVoxelPlacing(ItemDef item)
+        {
+            var props = PropManager.Instance;
+            if (!_secondary.WasPressedThisFrame() || props == null || !World.Materials.TryGetIndex(item.PlacesBlock.Id, out ushort material))
+                return;
+            int3 cell = _voxelCell + _voxelNormal;
+            if (!props.CanPlaceVoxel(_propTarget, cell, material, out string reason))
+            {
+                if (reason != null)
+                    Say(reason);
+                return;
+            }
+            var stack = Inventory.ActiveStack;
+            int slot = Inventory.Hotbar.Selected;
+            if (!Inventory.TryConsume(stack.Def, 1))
+                return;
+            Inventory.RefillHotbar(slot, stack.Def);
+            props.PlaceVoxel(_propTarget, cell, material);
+            Inventory.GiveLeftover(item);
+            PlayerSkills.AwardLocal(Aspect.Construction, 0.15f);
+        }
+
         /// <summary>Пустое ведро: ПКМ по воде — набрать (блок воды исчезает, воду водного чанка не убрать).</summary>
         private void HandleBucket()
         {
@@ -562,7 +602,8 @@ namespace VoidMall.Game
             var item = ActiveItem;
             bool drill = item != null && item.Tool == ToolKind.Drill;
             bool building = item != null && !string.IsNullOrEmpty(item.PlacesProp);
-            bool showOutline = !drill && !building && _hasTarget && !InputBlocked;
+            bool showVoxel = !drill && !building && _hasVoxelTarget && !InputBlocked && PropManager.Instance != null;
+            bool showOutline = !drill && !building && (_hasTarget || showVoxel) && !InputBlocked;
             _outline.gameObject.SetActive(showOutline);
             _brush.gameObject.SetActive(drill && _hasDrillTarget && !InputBlocked);
             if (drill && _hasDrillTarget)
@@ -577,15 +618,29 @@ namespace VoidMall.Game
                 _cracks.gameObject.SetActive(false);
                 return;
             }
-            // Функциональный блок (дверь, ворота) — рамка и трещины на весь блок, урон копится в его якоре.
-            TargetBounds(out Vector3 center, out Vector3 size, out int3 damageCell);
-            _outline.position = center;
+            Vector3 center, size;
+            Quaternion rotation = Quaternion.identity;
+            float damage;
+            if (showVoxel)
+            {
+                // Клетка куска: рамка и трещины повёрнуты вместе с ним.
+                center = _propTarget.Voxel.CellCenter(_voxelCell);
+                size = Vector3.one;
+                rotation = _propTarget.transform.rotation;
+                damage = PropManager.Instance.VoxelDamageFraction(_propTarget, _voxelCell);
+            }
+            else
+            {
+                // Функциональный блок (дверь, ворота) — рамка и трещины на весь блок, урон копится в его якоре.
+                TargetBounds(out center, out size, out int3 damageCell);
+                damage = DamageFraction(damageCell);
+            }
+            _outline.SetPositionAndRotation(center, rotation);
             _outline.localScale = size;
-            float damage = DamageFraction(damageCell);
             _cracks.gameObject.SetActive(damage > 0f);
             if (damage > 0f)
             {
-                _cracks.position = center;
+                _cracks.SetPositionAndRotation(center, rotation);
                 _cracks.localScale = size * 1.004f;
                 _crackInstance.SetFloat(DamageId, damage);
             }
@@ -677,6 +732,7 @@ namespace VoidMall.Game
             crosshair.style.borderBottomLeftRadius = crosshair.style.borderBottomRightRadius =
                 crosshair.style.borderTopLeftRadius = crosshair.style.borderTopRightRadius = 2f;
             root.Add(crosshair);
+            _crosshair = crosshair;
 
             _info = new Label { pickingMode = PickingMode.Ignore, enableRichText = false };
             _info.style.position = Position.Absolute;
@@ -692,6 +748,12 @@ namespace VoidMall.Game
         private void UpdateHud()
         {
             if (_info == null)
+                return;
+            // За ПК (этап 10) точка прицела мешает смотреть на экран.
+            _crosshair.style.display = PcTerminal.Active != null ? DisplayStyle.None : DisplayStyle.Flex;
+            // В лобби (этап 10) подсказка инструмента не нужна.
+            _info.style.display = VoidMall.UI.GameHud.Visible ? DisplayStyle.Flex : DisplayStyle.None;
+            if (!VoidMall.UI.GameHud.Visible)
                 return;
             _messageTime -= Time.deltaTime;
             var item = ActiveItem;
@@ -713,7 +775,9 @@ namespace VoidMall.Game
                 : item.IsEquippable ? "ЛКМ — надеть"
                 : item.IsTool ? "ЛКМ — бить" + (item.Tool == ToolKind.Hammer ? ", ПКМ с пропом в руках — прибить" : "")
                 : "ЛКМ — ударить";
-            string target = _propTarget != null && PropManager.Instance != null
+            string target = _hasVoxelTarget && PropManager.Instance != null && _propTarget.Voxel.Grid.TryGet(_voxelCell, out var piece)
+                ? $"{World.Materials.Get(piece.Material).DisplayName}  {PropManager.Instance.VoxelDamageFraction(_propTarget, _voxelCell) * 100f:0}% · {_propTarget.DisplayName}, {_propTarget.Root.GroupMass:0} кг"
+                : _propTarget != null && PropManager.Instance != null
                 ? $"{_propTarget.Def.DisplayName}  {(1f - PropManager.Instance.Health(_propTarget)) * 100f:0}%"
                 : _hasTarget
                 ? $"{World.Materials.Get(_target.Value.Material).DisplayName}  {TargetDamage() * 100f:0}%"

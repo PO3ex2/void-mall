@@ -66,6 +66,43 @@ namespace VoidMall.World
             return texture;
         }
 
+        /// <summary>
+        /// Нарисовать уровень level в квадрате size×size метров с углом min (мировые x, z) — для карты загрузки, где
+        /// область кратна колоннам, а не макроячейкам. Пиксели — в pixels (строка = z), текстура не нужна.
+        /// </summary>
+        public static void RenderArea(uint seed, float anomalyFrequency, SectionTable sections, int2 min, int size, int level, Color32[] pixels)
+        {
+            var plan = new MallLevelPlan(Allocator.Temp);
+            try
+            {
+                int2 firstCell = MallLayout.CellOf(min.x, min.y);
+                int2 lastCell = MallLayout.CellOf(min.x + size - 1, min.y + size - 1);
+                for (int cz = firstCell.y; cz <= lastCell.y; cz++)
+                for (int cx = firstCell.x; cx <= lastCell.x; cx++)
+                {
+                    int2 cell = new(cx, cz);
+                    var info = MallPlanner.GetCellInfo(seed, anomalyFrequency, cell);
+                    MallPlanner.BuildLevel(seed, info, level, sections.Infos, ref plan);
+                    int2 origin = MallLayout.CellOrigin(cell);
+                    for (int z = 0; z < MallLayout.CellSize; z++)
+                    for (int x = 0; x < MallLayout.CellSize; x++)
+                    {
+                        int px = origin.x + x - min.x, pz = origin.y + z - min.y;
+                        if (px < 0 || pz < 0 || px >= size || pz >= size)
+                            continue;
+                        Color32 color = TileColor(plan, sections, x, z, level);
+                        if (InAnomaly(info, level, new float2(origin.x + x + 0.5f, origin.y + z + 0.5f)))
+                            color = Color32.Lerp(color, Anomaly, 0.6f);
+                        pixels[px + pz * size] = BiomeTint(color, info.Biome);
+                    }
+                }
+            }
+            finally
+            {
+                plan.Dispose();
+            }
+        }
+
         private static Color32 TileColor(in MallLevelPlan plan, SectionTable sections, int x, int z, int level)
         {
             Tile tile = plan.TileAt(x, z);
@@ -103,8 +140,9 @@ namespace VoidMall.World
         }
 
         private static readonly Color32 FieldTint = new(170, 120, 220, 255);
+        private static readonly Color32 ForestTint = new(90, 110, 85, 255);
 
-        /// <summary>Биом на карте: пустые разделы блёклые, поле аномалий сиреневое.</summary>
+        /// <summary>Биом на карте: пустые разделы блёклые, поле аномалий сиреневое, место под лес — серо-зелёное.</summary>
         private static Color32 BiomeTint(Color32 color, MallBiome biome)
         {
             switch (biome)
@@ -117,6 +155,8 @@ namespace VoidMall.World
                 }
                 case MallBiome.AnomalyField:
                     return Color32.Lerp(color, FieldTint, 0.35f);
+                case MallBiome.Forest:
+                    return Color32.Lerp(color, ForestTint, 0.5f);
                 default:
                     return color;
             }

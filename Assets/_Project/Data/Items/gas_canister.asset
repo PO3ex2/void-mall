@@ -41,6 +41,7 @@ MonoBehaviour:
   Water: 0
   Cooked: 0
   PoisonChance: 0
+  ShelfLifeHours: 0
   Leaves: 
   FuelSeconds: 300
   Treats: 0

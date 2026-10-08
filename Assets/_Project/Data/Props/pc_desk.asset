@@ -1,0 +1,49 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3b6d19e156aa5a244bb1c2c0a92dc1a3, type: 3}
+  m_Name: pc_desk
+  m_EditorClassIdentifier: VoidMall.World::VoidMall.World.PropDef
+  _id: prop.pc_desk
+  DisplayName: "\u041A\u043E\u043C\u043F\u044C\u044E\u0442\u0435\u0440"
+  Shape: 45
+  Size: {x: 1.3, y: 1.15, z: 0.7}
+  Mesh: {fileID: 0}
+  Material: {fileID: 0}
+  Mass: 40
+  Hardness: 300
+  DisassembleTime: 5
+  Yields:
+  - Material: material.plastic
+    Disassembled: 3
+    Broken: 1
+  - Material: material.wire
+    Disassembled: 3
+    Broken: 1
+  - Material: material.scrap_metal
+    Disassembled: 2
+    Broken: 1
+  - Material: material.glass_shard
+    Disassembled: 1
+    Broken: 0
+  DebrisColor: {r: 0.55, g: 0.57, b: 0.6, a: 1}
+  Sleepable: 0
+  SleepQuality: 1
+  PackUp: 0
+  Station: 0
+  StationSpeed: 1
+  StationAutonomous: 0
+  Heater: 0
+  HeatOutput: 0
+  HeatRadius: 2
+  ContainerGrid: {x: 0, y: 0}
+  ContainerCold: 0
+  ContainerLoot: 

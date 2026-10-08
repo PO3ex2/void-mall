@@ -50,14 +50,36 @@ namespace VoidMall.Player
 
         public Camera Camera => _camera;
 
+        private Vector3 _overridePosition;
+        private Quaternion _overrideRotation = Quaternion.identity;
+        private float _overrideWeight;
+
+        /// <summary>Камера уходит к заданной позе (подлёт к монитору ПК, этап 10): weight 0 — обычная, 1 — целиком там.</summary>
+        public void SetOverride(Vector3 position, Quaternion rotation, float weight, float fov = 0f)
+        {
+            _overridePosition = position;
+            _overrideRotation = rotation;
+            _overrideWeight = Mathf.Clamp01(weight);
+            _overrideFov = fov;
+        }
+
+        private float _overrideFov;
+
         private void Awake()
         {
             if (_camera == null)
                 _camera = GetComponent<Camera>();
         }
 
+        /// <summary>Камера локального игрока (ПК подводит её к монитору).</summary>
+        public static PlayerCameraRig Local { get; private set; }
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetStatics() => Local = null;
+
         private void OnEnable()
         {
+            Local = this;
             if (_motor == null)
                 return;
             _motor.Landed += OnLanded;
@@ -65,6 +87,8 @@ namespace VoidMall.Player
 
         private void OnDisable()
         {
+            if (Local == this)
+                Local = null;
             if (_motor == null)
                 return;
             _motor.Landed -= OnLanded;
@@ -125,12 +149,18 @@ namespace VoidMall.Player
                 + Vector3.up * (_eyeHeight + _motor.InterpolatedStepOffset + _landOffset + bobY)
                 + right * bobX;
             Quaternion rotation = Quaternion.Euler(_look.Pitch + swayPitch, _look.Yaw + swayYaw, roll);
+            if (_overrideWeight > 0f)
+            {
+                float w = Mathf.SmoothStep(0f, 1f, _overrideWeight);
+                position = Vector3.Lerp(position, _overridePosition, w);
+                rotation = Quaternion.Slerp(rotation, _overrideRotation, w);
+            }
             transform.SetPositionAndRotation(position, rotation);
 
             float targetFov = Fov.Value + (state.IsSprinting && speed > _motor.Settings.RunSpeed ? _sprintFovBonus : 0f);
             _fov = Damp(_fov, targetFov, 6f, dt);
             if (_camera != null)
-                _camera.fieldOfView = _fov;
+                _camera.fieldOfView = _overrideWeight > 0f && _overrideFov > 0f ? Mathf.Lerp(_fov, _overrideFov, Mathf.SmoothStep(0f, 1f, _overrideWeight)) : _fov;
         }
 
         private void OnLanded(float impactSpeed)

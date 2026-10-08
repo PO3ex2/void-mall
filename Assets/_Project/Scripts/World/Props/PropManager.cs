@@ -17,7 +17,7 @@ namespace VoidMall.World
     /// Сохранение на диск — этап 9.
     /// </summary>
     [DefaultExecutionOrder(-180)]
-    public sealed class PropManager : MonoBehaviour
+    public sealed partial class PropManager : MonoBehaviour
     {
         public static readonly CVar<int> SpawnBudget = new("world_prop_budget", 200, "Сколько пропов создавать за кадр (не больше).");
         public static readonly CVar<float> SpawnBudgetMs = new("world_prop_budget_ms", 1.5f, "Сколько миллисекунд за кадр тратить на создание пропов.");
@@ -67,6 +67,9 @@ namespace VoidMall.World
             public int Damage;
             public ulong Parent;
             public readonly List<int3> Anchors = new();
+
+            /// <summary>Клетки отломанного куска (воксельное тело, Def = VoxelDefIndex). У пропов — null.</summary>
+            public VoxelGrid Voxel;
 
             /// <summary>Опору выбили, пока проп был выгружен: при появлении — сразу разбудить.</summary>
             public bool WakeOnSpawn;
@@ -367,7 +370,7 @@ namespace VoidMall.World
 
         private PropBody SpawnGroup(PropState state)
         {
-            var body = Spawn(state.Def, state.Id, state.Position, state.Rotation, _root);
+            var body = Spawn(state.Def, state.Id, state.Position, state.Rotation, _root, state.Voxel);
             body.Anchors.AddRange(state.Anchors);
             SpawnChildren(body);
             if (state.WakeOnSpawn)
@@ -387,7 +390,7 @@ namespace VoidMall.World
                 var state = _states[childId];
                 if (state.Removed)
                     continue;
-                var child = Spawn(state.Def, childId, parent.transform.TransformPoint(state.Position), parent.transform.rotation * state.Rotation, _root);
+                var child = Spawn(state.Def, childId, parent.transform.TransformPoint(state.Position), parent.transform.rotation * state.Rotation, _root, state.Voxel);
                 child.AttachTo(parent);
                 SpawnChildren(child);
             }
@@ -402,8 +405,10 @@ namespace VoidMall.World
 
         // ───────────────────────────── Пул ─────────────────────────────
 
-        private PropBody Spawn(ushort defIndex, ulong id, Vector3 position, Quaternion rotation, Transform parent)
+        private PropBody Spawn(ushort defIndex, ulong id, Vector3 position, Quaternion rotation, Transform parent, VoxelGrid voxel = null)
         {
+            if (defIndex == VoxelDefIndex)
+                return SpawnVoxelObject(id, voxel, position, rotation, parent);
             // Проп настраивается, пока лежит в выключенном пуле, и включается сразу на своём месте: перенос или
             // изменение уже включённого неподвижного коллайдера заставляет физику перестраивать дерево статики
             // (рывки Physics.Simulate по 20–60 мс при подгрузке пропов).
@@ -477,6 +482,13 @@ namespace VoidMall.World
             PropDespawning?.Invoke(body);
             if (body.Parent != null)
                 body.Detach(_root);
+            if (body.Voxel != null)
+            {
+                // Кусок не идёт в пул: у него свой меш и свой набор коробок.
+                _live.Remove(body.Id);
+                Destroy(body.gameObject);
+                return;
+            }
             if (body.Body != null)
                 DestroyImmediate(body.Body);
             _live.Remove(body.Id);
@@ -699,6 +711,8 @@ namespace VoidMall.World
         /// <summary>Нанести урон пропу. Возвращает долю оставшейся прочности.</summary>
         public float Damage(PropBody body, int amount)
         {
+            if (body.Voxel != null)
+                return 1f; // кусок ломают по клеткам: DamageVoxel
             var state = GetState(body);
             state.Damage += amount;
             if (state.Damage >= body.Def.Hardness)
@@ -716,7 +730,7 @@ namespace VoidMall.World
         public bool TryGetLive(ulong id, out PropBody body) => _live.TryGetValue(id, out body) && body != null;
 
         public float Health(PropBody body) =>
-            _states.TryGetValue(body.Id, out var state) ? 1f - state.Damage / (float)body.Def.Hardness : 1f;
+            body.Voxel != null ? 1f : _states.TryGetValue(body.Id, out var state) ? 1f - state.Damage / (float)body.Def.Hardness : 1f;
 
         /// <summary>Убрать проп из мира (сломан, разобран, упал в пустоту). Дети отделяются и падают.</summary>
         public void Remove(PropBody body, PropRemoveReason reason)
@@ -738,7 +752,7 @@ namespace VoidMall.World
                 ClearAnchors(body);
 
             var bounds = body.Bounds;
-            if (reason != PropRemoveReason.Void)
+            if (reason != PropRemoveReason.Void && body.Voxel == null)
             {
                 EventBus<PropSalvagedEvent>.Publish(new PropSalvagedEvent { Def = body.Def, Disassembled = reason == PropRemoveReason.Disassembled, Position = bounds.center });
                 if (reason == PropRemoveReason.Broken)

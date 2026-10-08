@@ -89,6 +89,9 @@ namespace VoidMall.World
         /// <summary>Клетка изменилась (после применения и перестройки меша).</summary>
         public event Action<int3, Cell> CellChanged;
 
+        /// <summary>Сейв (этап 9): сохранённые колонны грузятся отсюда вместо генерации, изменённые при выгрузке уходят сюда. Null — без сейва (правки держатся в памяти).</summary>
+        public IColumnStore ColumnStore { get; set; }
+
         // ───────────────────────────── Жизненный цикл ─────────────────────────────
 
         private void Awake()
@@ -164,6 +167,112 @@ namespace VoidMall.World
             return info;
         }
 
+        /// <summary>Открыть мир сейва: сид и частота аномалий, все колонны и состояния сбрасываются (WorldReset).</summary>
+        public void LoadWorld(uint seed, float anomalyFrequency)
+        {
+            _anomalyFrequency = anomalyFrequency;
+            ResetWorld(seed);
+        }
+
+        private WorldSettings _settingsAsset;
+
+        /// <summary>Настройки открытого мира (этап 10): копия ассета с подменёнными значениями, сам ассет не трогаем.</summary>
+        public void ApplyWorldSettings(float lootAmount, float lootRarity, float enemyDensity)
+        {
+            if (_settingsAsset == null)
+                _settingsAsset = _settings;
+            if (_settingsAsset == null)
+                return;
+            if (_settings == _settingsAsset)
+                _settings = Instantiate(_settingsAsset);
+            _settings.LootAmount = lootAmount;
+            _settings.LootRarity = lootRarity;
+            _settings.EnemyDensity = enemyDensity;
+        }
+
+        /// <summary>
+        /// Доля готовых колонн вокруг точки (данные, меш и коллайдер) в радиусе radius колонн — прогресс загрузки мира
+        /// у портала. 1 — можно входить.
+        /// </summary>
+        public float ReadyFraction(Vector3 point, int radius)
+        {
+            int2 center = WorldConstants.CellToColumn((int3)math.floor((float3)point));
+            int total = 0, ready = 0;
+            for (int dz = -radius; dz <= radius; dz++)
+            for (int dx = -radius; dx <= radius; dx++)
+            {
+                total++;
+                if (StageOf(center + new int2(dx, dz)) == ColumnStage.Ready)
+                    ready++;
+            }
+            return total > 0 ? ready / (float)total : 1f;
+        }
+
+        /// <summary>Как далеко продвинулась колонна (карта загрузки на ПК в лобби).</summary>
+        public ColumnStage StageOf(int2 column)
+        {
+            if (!_columns.TryGetValue(column, out var data))
+                return ColumnStage.Queued;
+            if (data.State != ColumnState.Generated)
+                return ColumnStage.Generating;
+            for (int y = 0; y < WorldConstants.ChunksPerColumn; y++)
+            {
+                if (data.MeshDirty[y] || !data.CollisionReady[y])
+                    return ColumnStage.Meshing;
+            }
+            return ColumnStage.Ready;
+        }
+
+        /// <summary>Отдать в сейв все загруженные изменённые колонны (сохранение без выгрузки). Возвращает их число.</summary>
+        public int StoreModifiedColumns()
+        {
+            if (ColumnStore == null)
+                return 0;
+            CompleteAllJobs();
+            int count = 0;
+            foreach (var column in _columns.Values)
+            {
+                if (column.State != ColumnState.Generated || !column.IsModified)
+                    continue;
+                ColumnStore.Store(column);
+                count++;
+            }
+            return count;
+        }
+
+        /// <summary>Лампы и якоря функциональных блоков загруженной из сейва колонны (у сгенерированных их собирает джоб).</summary>
+        private void RebuildMarkers(ChunkColumn column)
+        {
+            for (int y = 0; y < WorldConstants.ChunksPerColumn; y++)
+            {
+                column.Lamps[y] = null;
+                column.Anchors[y] = null;
+                var chunk = column.Chunks[y];
+                if (chunk == null)
+                    continue;
+                int3 origin = new int3(column.Coord.x, y, column.Coord.y) * WorldConstants.ChunkSize;
+                int count = chunk.IsUniform ? 1 : WorldConstants.ChunkVolume;
+                for (int i = 0; i < count; i++)
+                {
+                    Cell cell = chunk.Get(i);
+                    if (cell.Material == 0)
+                        continue;
+                    var info = _registry.Infos[cell.Material];
+                    bool lamp = info.Lamp != LampKind.None;
+                    bool anchor = info.Kind == MaterialKind.Functional && cell.Value == 0;
+                    if (!lamp && !anchor)
+                        continue;
+                    if (chunk.IsUniform)
+                        break; // однородный чанк из ламп или дверей не бывает
+                    int3 world = origin + new int3(i & WorldConstants.ChunkMask, i >> (WorldConstants.ChunkShift * 2), (i >> WorldConstants.ChunkShift) & WorldConstants.ChunkMask);
+                    if (lamp)
+                        (column.Lamps[y] ??= new List<int3>()).Add(world);
+                    if (anchor)
+                        (column.Anchors[y] ??= new List<int3>()).Add(world);
+                }
+            }
+        }
+
         /// <summary>Пересоздать мир с другим сидом: все колонны (и несохранённые правки) выбрасываются.</summary>
         public void ResetWorld(uint seed)
         {
@@ -191,6 +300,7 @@ namespace VoidMall.World
                 ReleaseRenderer(column, i);
             column.Dispose();
             _parked.Remove(coord);
+            ColumnStore?.Remove(coord);
             // Соседям нужно перестроить меши: грани на границе зависят от этой колонны.
             for (int dz = -1; dz <= 1; dz++)
             for (int dx = -1; dx <= 1; dx++)
@@ -287,6 +397,14 @@ namespace VoidMall.World
             }
         }
 
+        /// <summary>
+        /// Мир сцены запускается (Start: все системы сцены уже проснулись, генерации ещё не было) — момент открыть сейв
+        /// (SaveSystem). Работает и без перезагрузки сцены при входе в режим игры.
+        /// </summary>
+        public static event Action<ChunkManager> Starting;
+
+        private void Start() => Starting?.Invoke(this);
+
         private void OnEnable() => Services.Register<IWorldCollisionQuery>(this);
 
         private void OnDisable() => Services.Unregister<IWorldCollisionQuery>(this);
@@ -332,6 +450,7 @@ namespace VoidMall.World
         private static void ResetStatics()
         {
             Viewers.Clear();
+            Starting = null;
             Instance = null;
         }
 
@@ -402,6 +521,84 @@ namespace VoidMall.World
 
         /// <summary>Материал блоков (runtime-экземпляр с массивом текстур) — для обломков и превью.</summary>
         public Material BlockMaterial => _opaque;
+
+        /// <summary>Прозрачный материал блоков (стекло).</summary>
+        public Material TransparentBlockMaterial => _transparent;
+
+        /// <summary>
+        /// Меш воксельного тела тем же мешером, что и чанки (формы, гладкие воксели, AO, текстуры): клетки сетки
+        /// копируются в чанк 32³, соседи — воздух. Два подмеша: непрозрачный и стекло. Вершины — в координатах тела.
+        /// </summary>
+        public unsafe void BuildDetachedMesh(VoxelGrid grid, Mesh mesh)
+        {
+            mesh.Clear();
+            if (grid.Count == 0)
+                return;
+            int3 min = grid.Min;
+            var cells = new NativeArray<Cell>(WorldConstants.ChunkVolume, Allocator.TempJob);
+            var views = new NativeArray<ChunkView>(27, Allocator.TempJob);
+            var vertices = new NativeList<ChunkVertex>(1024, Allocator.TempJob);
+            var opaque = new NativeList<int>(2048, Allocator.TempJob);
+            var transparent = new NativeList<int>(64, Allocator.TempJob);
+            // Воды в куске нет, но джоб требует созданные контейнеры.
+            var waterVertices = new NativeList<ChunkVertex>(0, Allocator.TempJob);
+            var waterIndices = new NativeList<int>(0, Allocator.TempJob);
+            try
+            {
+                foreach (var (cell, value) in grid.Cells)
+                    cells[WorldConstants.CellIndex(cell - min)] = value;
+                var air = _airChunk.GetView();
+                for (int i = 0; i < views.Length; i++)
+                    views[i] = air;
+                views[13] = new ChunkView { Cells = (Cell*)Unity.Collections.LowLevel.Unsafe.NativeArrayUnsafeUtility.GetUnsafePtr(cells), Uniform = 0 };
+                // Мешер не рисует грани ниже дна мира (y < 0): начало текстур сдвигаем вверх на период узоров.
+                int3 uvOrigin = grid.UvOrigin + min;
+                while (uvOrigin.y < 0)
+                    uvOrigin.y += 256;
+                new ChunkMeshJob
+                {
+                    Materials = _registry.Infos,
+                    Views = views,
+                    ShapeVertices = _shapeVertices,
+                    ShapeRanges = _shapeRanges,
+                    ChunkOrigin = uvOrigin,
+                    Vertices = vertices,
+                    OpaqueIndices = opaque,
+                    TransparentIndices = transparent,
+                    WaterVertices = waterVertices,
+                    WaterIndices = waterIndices,
+                }.Run();
+
+                var array = vertices.AsArray();
+                float3 offset = min;
+                for (int i = 0; i < array.Length; i++)
+                {
+                    var vertex = array[i];
+                    vertex.Position += offset;
+                    array[i] = vertex;
+                }
+                mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
+                mesh.SetVertexBufferParams(array.Length, ChunkVertex.Layout);
+                mesh.SetVertexBufferData(array, 0, 0, array.Length);
+                mesh.SetIndexBufferParams(opaque.Length + transparent.Length, UnityEngine.Rendering.IndexFormat.UInt32);
+                mesh.SetIndexBufferData(opaque.AsArray(), 0, 0, opaque.Length);
+                mesh.SetIndexBufferData(transparent.AsArray(), 0, opaque.Length, transparent.Length);
+                mesh.subMeshCount = 2;
+                mesh.SetSubMesh(0, new UnityEngine.Rendering.SubMeshDescriptor(0, opaque.Length));
+                mesh.SetSubMesh(1, new UnityEngine.Rendering.SubMeshDescriptor(opaque.Length, transparent.Length));
+                mesh.RecalculateBounds();
+            }
+            finally
+            {
+                cells.Dispose();
+                views.Dispose();
+                vertices.Dispose();
+                opaque.Dispose();
+                transparent.Dispose();
+                waterVertices.Dispose();
+                waterIndices.Dispose();
+            }
+        }
 
         public int GetDamage(int3 cell) =>
             TryGetChunk(cell, out var chunk, out _, out _) ? chunk.GetDamage(WorldConstants.CellIndex(WorldConstants.CellToLocal(cell))) : 0;
@@ -568,11 +765,20 @@ namespace VoidMall.World
             }
             column.MarkAllDirty();
 
-            // До этапа 9 (сохранения) изменённые колонны держим в памяти, чтобы правки не терялись.
-            if (column.IsModified)
-                _parked[coord] = column;
-            else
+            // Изменённая колонна уходит в сейв (сжатой) — или, без сейва, остаётся в памяти, чтобы правки не терялись.
+            if (column.IsModified && ColumnStore != null)
+            {
+                ColumnStore.Store(column);
                 column.Dispose();
+            }
+            else if (column.IsModified)
+            {
+                _parked[coord] = column;
+            }
+            else
+            {
+                column.Dispose();
+            }
         }
 
         private float MinViewerDistanceSq(int2 coord)
@@ -635,6 +841,12 @@ namespace VoidMall.World
                 {
                     parked.MarkAllDirty();
                     _columns.Add(coord, parked);
+                    continue;
+                }
+                if (ColumnStore != null && ColumnStore.TryLoad(coord, out var loaded))
+                {
+                    RebuildMarkers(loaded);
+                    _columns.Add(coord, loaded);
                     continue;
                 }
 

@@ -242,7 +242,7 @@ namespace VoidMall.Items
         private void OnPropRemoved(PropBody prop, PropRemoveReason reason)
         {
             Spill(prop);
-            if (reason == PropRemoveReason.Broken && prop.Def.Shape == PropShape.LootCrate)
+            if (reason == PropRemoveReason.Broken && prop.Def.Shape == PropShape.LootCrate && !prop.Def.IsContainer) // крафтовый ящик — хранилище, не лут
                 BreakCrate(prop);
         }
 
@@ -349,6 +349,35 @@ namespace VoidMall.Items
             _openedRegisters.Clear();
             _planLevel = -1;
             _dirtyAll = true;
+        }
+
+        // ───────────────────────────── Сейв (этап 9) ─────────────────────────────
+
+        public ShelvesData Capture()
+        {
+            var data = new ShelvesData();
+            foreach (var (id, memory) in _memory)
+                data.Shelves.Add(new SavedShelf { Prop = id.ToString(), Spilled = memory.Spilled, Taken = new List<int>(memory.Taken) });
+            foreach (var id in _openedRegisters)
+                data.OpenedRegisters.Add(id.ToString());
+            return data;
+        }
+
+        /// <summary>Вернуть взятое с полок и вскрытые кассы (до появления пропов).</summary>
+        public void Restore(ShelvesData data)
+        {
+            OnWorldReset();
+            foreach (var saved in data.Shelves)
+            {
+                if (!ulong.TryParse(saved.Prop, out ulong id))
+                    continue;
+                var memory = new ShelfMemory { Spilled = saved.Spilled };
+                memory.Taken.UnionWith(saved.Taken);
+                _memory[id] = memory;
+            }
+            foreach (var register in data.OpenedRegisters)
+                if (ulong.TryParse(register, out ulong id))
+                    _openedRegisters.Add(id);
         }
 
         // ───────────────────────────── Подбор ─────────────────────────────
@@ -549,5 +578,20 @@ namespace VoidMall.Items
                 items += shelf.Items.Count;
             return $"Полок с товарами: {loot._shelves.Count}, предметов на них: {items}, взятых или рассыпанных полок за сессию: {loot._memory.Count}";
         }
+    }
+
+    [System.Serializable]
+    public sealed class SavedShelf
+    {
+        public string Prop;
+        public bool Spilled;
+        public List<int> Taken = new();
+    }
+
+    [System.Serializable]
+    public sealed class ShelvesData
+    {
+        public List<SavedShelf> Shelves = new();
+        public List<string> OpenedRegisters = new();
     }
 }

@@ -41,6 +41,7 @@ MonoBehaviour:
   Water: 1000
   Cooked: 0
   PoisonChance: 0.35
+  ShelfLifeHours: 0
   Leaves: item.bucket
   FuelSeconds: 0
   Treats: 0

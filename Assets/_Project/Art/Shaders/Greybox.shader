@@ -54,7 +54,8 @@ Shader "VoidMall/Greybox"
                 output.positionCS = positions.positionCS;
                 output.positionWS = positions.positionWS;
                 output.normalWS = TransformObjectToWorldNormal(input.normalOS);
-                output.fogFactor = ComputeFogFactor(positions.positionCS.z);
+                // Глубина из w, а не из z: у камеры портала наклонная ближняя плоскость портит z (туман в портале пропадал).
+                output.fogFactor = ComputeFogFactorZ0ToFar(positions.positionCS.w);
                 return output;
             }
 

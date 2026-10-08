@@ -86,6 +86,12 @@ namespace VoidMall.World
         /// <summary>Источники света игрока и построек (фонарик, лампа, генератор) — учитываются в освещённости.</summary>
         public static readonly List<Light> DynamicLights = new();
 
+        /// <summary>
+        /// Откуда смотрят на мир, если не из главной камеры: из лобби — камера портала (этап 10). Иначе мир в проёме
+        /// без ламп (они светят только рядом со смотрящим), и на проходе свет вспыхивает.
+        /// </summary>
+        public static Transform ViewerOverride;
+
         private void Awake()
         {
             Instance = this;
@@ -145,6 +151,7 @@ namespace VoidMall.World
         {
             DynamicLights.Clear();
             Instance = null;
+            ViewerOverride = null;
         }
 
         private static readonly Perf.Probe UpdateProbe = Perf.Register("World.Lighting");
@@ -412,6 +419,8 @@ namespace VoidMall.World
 
         private static Vector3 ViewerPosition()
         {
+            if (ViewerOverride != null)
+                return ViewerOverride.position;
             var camera = Camera.main;
             if (camera != null)
                 return camera.transform.position;

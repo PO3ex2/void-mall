@@ -176,7 +176,7 @@ namespace VoidMall.UI
         {
             using var perf = Perf.Measure(UpdateProbe);
             _vitals = PlayerVitals.Local;
-            if (_vitals == null)
+            if (_vitals == null || !GameHud.Visible)
             {
                 _root.style.display = DisplayStyle.None;
                 return;

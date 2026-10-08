@@ -102,6 +102,9 @@ namespace VoidMall.World
 
         public int GetDamage(int index) => _damage != null && _damage.TryGetValue(index, out int damage) ? damage : 0;
 
+        /// <summary>Все повреждённые клетки (индекс → урон) — для сейва.</summary>
+        public IEnumerable<KeyValuePair<int, int>> Damage => _damage ?? (IEnumerable<KeyValuePair<int, int>>)Array.Empty<KeyValuePair<int, int>>();
+
         public void SetDamage(int index, int damage)
         {
             if (damage <= 0)

@@ -60,6 +60,9 @@ namespace VoidMall.World
             TotalHours += Time.deltaTime * 24.0 / (minutes * 60.0) * TimeScale;
         }
 
+        /// <summary>Время мира из сейва.</summary>
+        public void Restore(double totalHours) => TotalHours = System.Math.Max(0.0, totalHours);
+
         public void SetHour(float hour)
         {
             double day = System.Math.Floor(TotalHours / 24.0);

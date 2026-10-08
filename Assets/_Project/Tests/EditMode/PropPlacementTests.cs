@@ -15,7 +15,7 @@ namespace VoidMall.Tests
             "prop.shelf", "prop.fridge", "prop.checkout", "prop.display_table", "prop.clothes_rack", "prop.table", "prop.chair",
             "prop.pallet_rack", "prop.box_stack", "prop.car", "prop.cabinet", "prop.boiler", "prop.bench", "prop.planter",
             "prop.sofa", "prop.cardboard_box", "prop.plastic_crate", "prop.trash_bin", "prop.switchboard", "prop.cable_reel", "prop.vent_unit", "prop.bed", "prop.sleeping_bag", "prop.workbench", "prop.sewing_table", "prop.chem_table", "prop.stove", "prop.burner", "prop.barricade", "prop.crusher",
-            "prop.turnstile", "prop.office_desk", "prop.office_chair", "prop.filing_cabinet", "prop.water_cooler", "prop.cubicle_wall", "prop.stanchion", "prop.trash_pile", "prop.loot_crate", "prop.pallet", "prop.impulse_rack", "prop.work_light", "prop.bush", "prop.fern",
+            "prop.turnstile", "prop.office_desk", "prop.office_chair", "prop.filing_cabinet", "prop.water_cooler", "prop.cubicle_wall", "prop.stanchion", "prop.trash_pile", "prop.loot_crate", "prop.pallet", "prop.impulse_rack", "prop.work_light", "prop.bush", "prop.fern", "prop.pc_desk",
         };
 
         private PropSet _set;
@@ -75,6 +75,38 @@ namespace VoidMall.Tests
                 Assert.That(b[i].Position, Is.EqualTo(a[i].Position));
                 Assert.That(ids.Add(a[i].Id), Is.True, "ID пропов уникальны");
             }
+        }
+
+        /// <summary>
+        /// Этап 8Ж: ID не зависит от порядка расстановки — только от вида пропа и клетки. Новый проп в генераторе не сдвигает
+        /// ID остальных; созданные игроком ID (старший бит) не пересекаются со сгенерированными.
+        /// </summary>
+        [Test]
+        public void Ids_DependOnKindAndCell_NotOnOrder()
+        {
+            var cell = new int2(2, -3);
+            for (int level = 0; level < MallLayout.LevelCount; level++)
+            {
+                var props = Place(7, cell, level);
+                var seen = new Dictionary<ulong, int>();
+                foreach (var p in props)
+                {
+                    Assert.That(p.Id >> 63, Is.EqualTo(0UL), "старший бит — только у созданных игроком");
+                    if (p.Inverted)
+                        continue;
+                    var position = (int3)math.floor(new float3(p.Position.x, p.Position.y, p.Position.z));
+                    string defId = _registry.Get(p.Def).Id;
+                    ulong first = PropPlacer.MakeId(cell, level, defId, position, 0);
+                    seen.TryGetValue(first, out int dup);
+                    seen[first] = dup + 1;
+                    Assert.That(p.Id, Is.EqualTo(PropPlacer.MakeId(cell, level, defId, position, dup)), "ID пересчитывается из вида и клетки");
+                }
+            }
+            var a = PropPlacer.MakeId(cell, 2, "prop.shelf", new int3(10, 20, 30), 0);
+            Assert.AreNotEqual(a, PropPlacer.MakeId(cell, 2, "prop.fridge", new int3(10, 20, 30), 0), "другой вид — другой ID");
+            Assert.AreNotEqual(a, PropPlacer.MakeId(cell, 2, "prop.shelf", new int3(11, 20, 30), 0), "другая клетка — другой ID");
+            Assert.AreNotEqual(a, PropPlacer.MakeId(cell, 3, "prop.shelf", new int3(10, 20, 30), 0), "другой этаж — другой ID");
+            Assert.AreNotEqual(a, PropPlacer.MakeId(cell, 2, "prop.shelf", new int3(10, 20, 30), 1), "второй такой же в клетке");
         }
 
         [Test]

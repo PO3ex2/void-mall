@@ -35,3 +35,6 @@ MonoBehaviour:
   Heater: 0
   HeatOutput: 0
   HeatRadius: 2
+  ContainerGrid: {x: 0, y: 0}
+  ContainerCold: 0
+  ContainerLoot: 

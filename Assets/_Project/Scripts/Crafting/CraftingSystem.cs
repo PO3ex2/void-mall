@@ -183,6 +183,49 @@ namespace VoidMall.Crafting
         }
 
         /// <summary>Станцию сломали или разобрали: готовое и ингредиенты очереди — на пол.</summary>
+        // ───────────────────────────── Сейв (этап 9) ─────────────────────────────
+
+        public StationsData Capture()
+        {
+            var data = new StationsData();
+            var items = ItemSystem.Instance.Items;
+            foreach (var (id, station) in _stations)
+            {
+                var saved = new SavedStation
+                {
+                    Prop = id.ToString(), Kind = station.Kind.ToString(), Name = station.Name, Speed = station.Speed,
+                    Autonomous = station.Autonomous, Heater = station.Heater, Heat = station.Heat, HeatRadius = station.HeatRadius,
+                    Fuel = station.Fuel, Position = station.Position,
+                    Queue = CraftSave.Write(station.Queue, items),
+                };
+                ItemSnapshot.WriteGrid(station.Output, "output", -1, items, saved.Output);
+                data.Stations.Add(saved);
+            }
+            return data;
+        }
+
+        /// <summary>Вернуть станции: очереди, выдачу и топливо (до того, как их откроют).</summary>
+        public void Restore(StationsData data)
+        {
+            _stations.Clear();
+            var items = ItemSystem.Instance.Items;
+            foreach (var saved in data.Stations)
+            {
+                if (!ulong.TryParse(saved.Prop, out ulong id) || !System.Enum.TryParse(saved.Kind, out CraftStation kind))
+                    continue;
+                var station = new StationState(id, kind, saved.Name, saved.Speed, saved.Autonomous, items)
+                {
+                    Fuel = saved.Fuel, Position = saved.Position, Heater = saved.Heater, Heat = saved.Heat, HeatRadius = saved.HeatRadius,
+                };
+                var output = ItemSnapshot.ReadAll(saved.Output, items);
+                foreach (var entry in saved.Output)
+                    if (output.TryGetValue(entry.Id, out var stack))
+                        ItemSnapshot.PlaceIn(station.Output, stack, entry);
+                CraftSave.Read(saved.Queue, station.Queue, items, recipe => _byId.TryGetValue(recipe, out var def) ? def : null);
+                _stations[id] = station;
+            }
+        }
+
         private void OnPropRemoved(PropBody prop, PropRemoveReason reason)
         {
             if (!_stations.TryGetValue(prop.Id, out var station))

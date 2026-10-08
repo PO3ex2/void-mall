@@ -31,8 +31,33 @@ namespace VoidMall.Items
         /// <summary>Содержимое контейнера (рюкзак). Null — не контейнер.</summary>
         public GridInventory Contents;
 
-        /// <summary>Испорченная еда (просрочка): отравляет. Со свежей в один стак не складывается.</summary>
-        public bool Spoiled;
+        private bool _spoiled;
+
+        /// <summary>
+        /// Испорченная еда: отравляет, со свежей в один стак не складывается. Испорчено явно (просрочка с полки) или вышел срок
+        /// хранения (SpoilAt). Снять (прогрев на плите) — срок хранения начинается заново.
+        /// </summary>
+        public bool Spoiled
+        {
+            get => _spoiled || (SpoilAt > 0 && Freshness.Now >= SpoilAt);
+            set
+            {
+                _spoiled = value;
+                SpoilAt = value || ShelfLife <= 0f ? 0 : Freshness.Now + ShelfLife * (Chilled ? Freshness.ColdSlowdown : 1f);
+            }
+        }
+
+        /// <summary>Испорчено явно (не по сроку) — для сейва.</summary>
+        public bool SpoiledFlag => _spoiled;
+
+        /// <summary>Срок хранения, игровых часов (0 — не портится): из ItemDef при создании.</summary>
+        public float ShelfLife;
+
+        /// <summary>Игровой час (WorldClock.TotalHours), когда испортится; 0 — не портится или уже испорчено явно.</summary>
+        public double SpoilAt;
+
+        /// <summary>Лежит в холоде (холодильник): SpoilAt пересчитан под медленную порчу.</summary>
+        public bool Chilled;
 
         public long Id { get; } = _nextId++;
 
@@ -40,6 +65,24 @@ namespace VoidMall.Items
         {
             Def = def;
             Count = count;
+        }
+
+        /// <summary>Скопировать состояние (прочность, свежесть) в отделённую часть стака.</summary>
+        public void CopyStateTo(ItemStack part)
+        {
+            part.Durability = Durability;
+            part._spoiled = _spoiled;
+            part.ShelfLife = ShelfLife;
+            part.SpoilAt = SpoilAt;
+            part.Chilled = Chilled;
+        }
+
+        /// <summary>Вернуть свежесть из сейва.</summary>
+        public void RestoreFreshness(bool spoiled, double spoilAt, bool chilled)
+        {
+            _spoiled = spoiled;
+            SpoilAt = spoilAt;
+            Chilled = chilled;
         }
 
         public override string ToString() => $"ItemStack(def {Def} ×{Count})";
@@ -70,6 +113,9 @@ namespace VoidMall.Items
 
         /// <summary>Содержимое изменилось.</summary>
         public event Action Changed;
+
+        /// <summary>Холодная сетка (холодильник): еда в ней портится в Freshness.ColdSlowdown раз медленнее.</summary>
+        public bool Cold { get; set; }
 
         public GridInventory(IItemCatalog catalog, int width, int height)
         {
@@ -123,6 +169,7 @@ namespace VoidMall.Items
         {
             if (stack == null || stack.Count <= 0 || Contains(stack) || !CanPlace(stack, x, y, rotated))
                 return false;
+            Freshness.SetCold(stack, Cold);
             Occupy(stack, x, y, rotated);
             _items.Add(new GridPlacement { Stack = stack, X = x, Y = y, Rotated = rotated });
             Changed?.Invoke();
@@ -178,6 +225,7 @@ namespace VoidMall.Items
         /// </summary>
         public int TryAdd(ItemStack stack)
         {
+            Freshness.SetCold(stack, Cold);
             int max = _catalog.MaxStack(stack.Def);
             if (max > 1 && stack.Contents == null)
             {
@@ -188,6 +236,7 @@ namespace VoidMall.Items
                     if (item.Stack == stack || !CanStack(item.Stack, stack) || item.Stack.Count >= max)
                         continue;
                     int moved = Math.Min(max - item.Stack.Count, stack.Count);
+                    Freshness.Combine(item.Stack, stack);
                     item.Stack.Count += moved;
                     stack.Count -= moved;
                 }
@@ -201,7 +250,8 @@ namespace VoidMall.Items
             }
             while (stack.Count > 0)
             {
-                var part = new ItemStack(stack.Def, Math.Min(stack.Count, max)) { Durability = stack.Durability, Spoiled = stack.Spoiled };
+                var part = new ItemStack(stack.Def, Math.Min(stack.Count, max));
+                stack.CopyStateTo(part);
                 if (!FindSpace(part, out int x, out int y, out bool rotated))
                     break;
                 Occupy(part, x, y, rotated);
@@ -250,7 +300,8 @@ namespace VoidMall.Items
         {
             if (!Contains(stack) || count <= 0 || count >= stack.Count)
                 return null;
-            var part = new ItemStack(stack.Def, count) { Durability = stack.Durability, Spoiled = stack.Spoiled };
+            var part = new ItemStack(stack.Def, count);
+            stack.CopyStateTo(part);
             if (!FindSpace(part, out int x, out int y, out bool rotated))
                 return null;
             stack.Count -= count;
@@ -268,6 +319,7 @@ namespace VoidMall.Items
             int moved = Math.Min(_catalog.MaxStack(target.Def) - target.Count, source.Count);
             if (moved <= 0)
                 return 0;
+            Freshness.Combine(target, source);
             target.Count += moved;
             source.Count -= moved;
             if (source.Count == 0)

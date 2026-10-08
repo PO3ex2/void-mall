@@ -12,6 +12,15 @@ namespace VoidMall.World
         Generated,
     }
 
+    /// <summary>Стадия колонны для карты загрузки: ещё не начата, генерируются блоки, строятся меш и коллайдеры, готова.</summary>
+    public enum ColumnStage
+    {
+        Queued,
+        Generating,
+        Meshing,
+        Ready,
+    }
+
     /// <summary>Вертикальная колонна из 4 чанков — единица стриминга и (позже) сохранения.</summary>
     public sealed class ChunkColumn : IDisposable
     {

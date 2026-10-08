@@ -91,6 +91,11 @@ namespace VoidMall.Editor
             new("prop.fern", "Папоротник", PropShape.Fern, 3f, 25, 1f, new Color(0.3f, 0.55f, 0.25f)),
             // Этап 8Г: бочка-костёр — греет и светит, на ней можно готовить.
             new("prop.fire_barrel", "Бочка-костёр", PropShape.FireBarrel, 25f, 500, 4f, MetalDust, ("item.fire_barrel", 1, 0), ("material.scrap_metal", 0, 3)),
+            // Этап 8Ж: хранилища игрока (верстак). Ящик лёгкий — уносится в руках, шкаф — только волоком.
+            new("prop.wooden_crate", "Деревянный ящик", PropShape.LootCrate, 8f, 250, 3f, WoodDust, ("material.plank", 4, 2), ("material.nails", 4, 1)),
+            new("prop.metal_locker", "Металлический шкаф", PropShape.FilingCabinet, 60f, 700, 5f, MetalDust, ("material.scrap_metal", 6, 3), ("material.screws", 4, 2)),
+            // Этап 10: компьютер — стол с ЭЛТ-монитором и системником; экран-терминал вешает WorldTerminals.
+            new("prop.pc_desk", "Компьютер", PropShape.PcDesk, 40f, 300, 5f, MetalDust, ("material.plastic", 3, 1), ("material.wire", 3, 1), ("material.scrap_metal", 2, 1), ("material.glass_shard", 1, 0)),
         };
 
         /// <summary>На чём можно спать (E): сон сохраняет точку возрождения. Диван — хуже кровати.</summary>
@@ -150,6 +155,20 @@ namespace VoidMall.Editor
                     "prop.burner" => (false, 7f, 1.8f),
                     _ => (false, 0f, 2f),
                 };
+                // Хранилища (этап 8Ж): сетка, холод, лут при первом открытии.
+                (def.ContainerGrid, def.ContainerCold, def.ContainerLoot) = spec.Id switch
+                {
+                    "prop.fridge" => (new Vector2Int(6, 8), true, "fridge"),
+                    "prop.filing_cabinet" => (new Vector2Int(6, 6), false, "cabinet"),
+                    "prop.office_desk" => (new Vector2Int(4, 4), false, "cabinet"),
+                    "prop.wooden_crate" => (new Vector2Int(6, 4), false, ""),
+                    "prop.metal_locker" => (new Vector2Int(8, 8), false, ""),
+                    _ => (Vector2Int.zero, false, ""),
+                };
+                if (spec.Id == "prop.wooden_crate" && def.Size == PropMeshes.DefaultSize(spec.Shape))
+                    def.Size = new Vector3(0.8f, 0.6f, 0.6f);
+                if (spec.Id == "prop.metal_locker" && def.Size == PropMeshes.DefaultSize(spec.Shape))
+                    def.Size = new Vector3(0.9f, 1.9f, 0.55f);
                 def.Yields = new List<PropYield>();
                 foreach (var (material, full, broken) in spec.Yields)
                     def.Yields.Add(new PropYield { Material = material, Disassembled = full, Broken = broken });

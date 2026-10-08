@@ -79,6 +79,18 @@ namespace VoidMall.World
 
         [Tooltip("Докуда доходит тепло, м.")]
         public float HeatRadius = 2f;
+
+        [Header("Хранилище")]
+        [Tooltip("Сетка хранилища (E — открыть), клеток. 0 — не хранилище.")]
+        public Vector2Int ContainerGrid;
+
+        [Tooltip("Холодное хранилище (холодильник): еда портится в 4 раза медленнее.")]
+        public bool ContainerCold;
+
+        [Tooltip("Таблица лута при первом открытии (у найденных в моле). Пусто — пустое.")]
+        public string ContainerLoot;
+
+        public bool IsContainer => ContainerGrid.x > 0 && ContainerGrid.y > 0;
     }
 
     /// <summary>Реестр пропов на сессию: ID ↔ индекс, меши (процедурные строятся один раз).</summary>

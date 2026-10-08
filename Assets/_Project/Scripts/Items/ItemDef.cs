@@ -176,6 +176,9 @@ namespace VoidMall.Items
         [Tooltip("Шанс отравиться (сырая вода из ведра).")]
         [Range(0f, 1f)] public float PoisonChance;
 
+        [Tooltip("Срок хранения, игровых часов (0 — не портится). В холодильнике — в 4 раза дольше.")]
+        [Min(0f)] public float ShelfLifeHours;
+
         [Tooltip("Что остаётся в руках после использования или установки (полное ведро → пустое). Пусто — ничего.")]
         public string Leaves;
 
